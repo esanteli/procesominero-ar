@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#ef7835">
+  <title>Chancado Primario AR · Espacio CoWork</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
+  </script>
+</head>
+<body class="pm" data-mode="intro">
+
+  <!-- escena AR (MindAR monta aquí video + canvas + capa CSS3D) -->
+  <div id="ar" class="ar-stage" aria-hidden="true"></div>
+
+  <!-- modo demo: la infografía completa, navegable; cada estación abre su visualización -->
+  <div class="explorer" data-explorer hidden>
+    <div class="map-world" data-world>
+      <img class="map-poster" src="assets/infografia.jpg" alt="Infografía Proceso Minero de Espacio CoWork" draggable="false">
+      <div class="map-spot" data-spot hidden></div>
+      <div class="map-hotspots" data-hotspots></div>
+      <div class="map-layer" data-layer></div>
+    </div>
+    <div class="map-tools" data-map-tools>
+      <button type="button" class="map-tool" data-zoom-in aria-label="Acercar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg></button>
+      <button type="button" class="map-tool" data-zoom-out aria-label="Alejar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+      <button type="button" class="map-tool" data-zoom-fit aria-label="Ver la infografía completa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    </div>
+  </div>
+
+  <!-- capa para fijar la lámina en pantalla (descansar el brazo sin perder la interacción) -->
+  <div class="pin-layer" data-pin-layer hidden></div>
+
+  <!-- lámina viva (estructura de plate de anatomy: Fig · título · pista · lectura) -->
+  <template id="plate-tpl">
+    <article class="plate" aria-label="Lámina interactiva: chancado primario">
+      <header class="plate-head"><span class="plate-fig">Fig 2</span><span class="plate-title">Chancado primario</span></header>
+      <div class="plate-figure" data-figure tabindex="0" role="group"
+           aria-label="Chancado primario. Espacio pausa o reproduce el CAEX; coma y punto cambian de paso; flechas izquierda y derecha cambian la alimentación; arriba y abajo exploran el interior."></div>
+      <footer class="plate-foot"><span>Toca un equipo para conocerlo · desliza para mirar adentro</span><span class="plate-badge">tiempo ×7</span></footer>
+    </article>
+  </template>
+
+  <!-- HUD -->
+  <div class="hud">
+    <header class="topbar">
+      <div class="brand"><span>Espacio</span><b>Co<i>Work</i></b></div>
+      <button type="button" class="back-btn" data-back hidden aria-label="Volver a la infografía">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Infografía</span>
+      </button>
+      <div class="status" data-status role="status">Proceso Minero AR</div>
+      <button class="icon-btn" type="button" data-pin hidden aria-pressed="false" title="Fijar lámina en pantalla">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3v2h-4v5l-1 1-1-1v-5H7v-2l3-3z"/></svg>
+      </button>
+    </header>
+
+    <aside class="info" data-info hidden aria-live="polite">
+      <header class="info-head">
+        <span class="info-kicker" data-info-kicker>Equipo</span>
+        <button type="button" class="info-close" data-info-close aria-label="Cerrar descripción">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </header>
+      <h2 class="info-title" data-info-title></h2>
+      <p class="info-text" data-info-text></p>
+      <ul class="info-specs" data-info-specs></ul>
+      <div class="info-actions" data-info-actions></div>
+    </aside>
+
+    <section class="panel" data-panel aria-label="Controles de la experiencia">
+      <!-- vista general: lista de estaciones -->
+      <div class="panel-view" data-panel-view="map" hidden>
+        <div class="map-head">
+          <div>
+            <p class="map-kicker">Proceso minero · 10 estaciones</p>
+            <h2 class="map-title">Toca una estación para explorarla</h2>
+          </div>
+        </div>
+        <div class="station-list" data-station-list role="list"></div>
+      </div>
+
+      <!-- estación sin animación todavía (vista preparada) -->
+      <div class="panel-view" data-panel-view="station" hidden>
+        <div class="st-head">
+          <span class="st-badge" data-st-n>1</span>
+          <div class="st-titles">
+            <p class="st-kicker" data-st-kicker>Estación</p>
+            <h2 class="st-title" data-st-title>Rajo</h2>
+          </div>
+          <span class="st-status" data-st-status>En desarrollo</span>
+        </div>
+        <p class="st-text" data-st-text></p>
+        <div class="st-nav">
+          <button type="button" class="st-nav-btn" data-st-prev><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span data-st-prev-label>Anterior</span></button>
+          <button type="button" class="st-nav-btn" data-st-next><span data-st-next-label>Siguiente</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+        </div>
+      </div>
+
+      <!-- estación 2 · chancado primario (animación lista) -->
+      <div class="panel-view panel-chancador" data-panel-view="chancador">
+      <div class="readout-row">
+        <div class="meter" data-meter title="Nivel de la tolva"><span></span></div>
+        <output class="readout" data-readout aria-live="polite">—</output>
+      </div>
+
+      <div class="chips" role="group" aria-label="Equipos: toca uno para ver su descripción">
+        <button type="button" class="chip" data-equip-chip="caex"><span>01</span>CAEX</button>
+        <button type="button" class="chip" data-equip-chip="picarrocas"><span>02</span>Picarrocas</button>
+        <button type="button" class="chip" data-equip-chip="chancador"><span>03</span>Chancador</button>
+        <button type="button" class="chip" data-equip-chip="correa"><span>04</span>Correa</button>
+      </div>
+
+      <div class="controls">
+        <label class="ctl">
+          <span class="ctl-label">Explorar interior</span>
+          <input type="range" min="0" max="100" value="0" step="1" data-inside aria-label="Explorar el interior del chancador, porcentaje de corte">
+          <output data-inside-out>0 %</output>
+        </label>
+        <label class="ctl">
+          <span class="ctl-label">Alimentación</span>
+          <input type="range" min="2000" max="10000" value="6000" step="250" data-feed aria-label="Alimentación del chancador, toneladas por hora">
+          <output data-feed-out>6.000 t/h</output>
+        </label>
+      </div>
+
+      <div class="seq" role="group" aria-label="Secuencia del CAEX">
+        <button type="button" class="seq-play" data-play aria-label="Pausar la secuencia del CAEX" aria-pressed="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8 5v14M16 5v14"/><path class="i-play" d="M8 5l11 7-11 7z"/></svg>
+        </button>
+        <div class="seq-body">
+          <div class="seq-steps" data-steps></div>
+          <p class="seq-label"><b data-step-n>1</b><span data-step-label>Ingresa con la tolva cargada</span></p>
+        </div>
+        <div class="seq-nav">
+          <button type="button" class="seq-nav-btn" data-prev aria-label="Paso anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <button type="button" class="seq-nav-btn" data-next aria-label="Paso siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+        </div>
+      </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- intro -->
+  <div class="intro" data-intro>
+    <div class="intro-card">
+      <p class="intro-kicker">Experiencia interactiva · Estación 2</p>
+      <h1>Chancado Primario</h1>
+      <p>Apunta la cámara a la estación <b>Chancado Primario</b> de la infografía. Sobre ella se abrirá una lámina viva: sigue el ciclo de descarga de un CAEX, mira dentro del chancador y regula el flujo de mineral.</p>
+      <div class="intro-actions">
+        <button type="button" class="btn btn--primary" data-start-ar>Escanear infografía</button>
+        <button type="button" class="btn" data-start-demo>Ver demo sin cámara</button>
+      </div>
+      <p class="intro-note" data-ar-note></p>
+    </div>
+  </div>
+
+  <div class="scan-hint" data-scan hidden>
+    <div class="scan-frame"><i></i><i></i><i></i><i></i></div>
+    <p>Encuadra la estación <b>2 · Chancado Primario</b></p>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

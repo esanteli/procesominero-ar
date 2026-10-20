@@ -1,0 +1,23 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Compilar marcador MindAR</title>
+<style>body{font:15px/1.5 system-ui,sans-serif;max-width:560px;margin:40px auto;padding:0 16px;color:#3a2414}h1{color:#ef7835;font-size:24px}
+button{background:#ef7835;color:#fff;border:0;border-radius:12px;padding:10px 16px;font:inherit;cursor:pointer}progress{width:100%}</style></head>
+<body><h1>Compilar marcador (targets.mind)</h1>
+<p>Elige uno o más recortes de la infografía (PNG/JPG, ~1500–2500 px de ancho). El orden define el índice de cada estación (<code>addCSSAnchor(0)</code>, <code>(1)</code>…).</p>
+<p><input type="file" accept="image/*" multiple data-files></p>
+<p><button type="button" data-go>Compilar</button></p><progress max="100" value="0" data-prog></progress>
+<p data-msg></p>
+<script type="module">
+import "../vendor/mindar/mindar-image.prod.js";
+const $ = (s) => document.querySelector(s);
+$("[data-go]").onclick = async () => {
+  const files = [...$("[data-files]").files]; if (!files.length) return;
+  const imgs = await Promise.all(files.map((f) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = URL.createObjectURL(f); })));
+  const c = new window.MINDAR.IMAGE.Compiler();
+  $("[data-msg]").textContent = "Compilando… (puede tardar un minuto)";
+  await c.compileImageTargets(imgs, (p) => ($("[data-prog]").value = p));
+  const blob = new Blob([await c.exportData()]);
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "targets.mind" }); a.click();
+  $("[data-msg]").textContent = "Listo: reemplaza assets/targets.mind (y actualiza STATION.target en js/app.js si cambió el recorte).";
+};
+</script></body></html>

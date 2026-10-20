@@ -1,0 +1,12 @@
+{
+  "name": "ar-chancador",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Prueba de concepto AR · Chancado Primario (Espacio CoWork)",
+  "scripts": {
+    "dev": "npx --yes serve@14.2.4 . -l 3000",
+    "demo": "npx --yes serve@14.2.4 . -l 3000",
+    "giro": "node tools/generar-giro-caex.mjs"
+  },
+  "type": "module"
+}
