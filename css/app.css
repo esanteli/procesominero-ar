@@ -280,3 +280,41 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
   .st-chip { flex: none; }
   .status { font-size: 13px; }
 }
+
+/* ================================================================ estación 1 · rajo (js/stations/rajo.js) */
+/* lámina con la silueta del pozo: calza sobre el pozo impreso y flota un poco (sombra), como el video con alfa */
+.rajo-plate { pointer-events: none; opacity: 0; transition: opacity .6s var(--pm-ease); }
+.rajo-plate[data-in], .rajo-plate--ar { opacity: 1; }
+.rj-svg { display: block; width: 100%; height: 100%; overflow: visible; outline: none; font-family: var(--pm-sans); }
+.rj-svg:focus-visible .rj-sil { stroke: #ef783599; stroke-width: 1.5; }
+.rj-sil { fill: #fff; pointer-events: auto; filter: drop-shadow(0 2px 3px #7a3d1424) drop-shadow(0 12px 16px #7a3d141c); }
+.rj-lines path, .rj-leaders path { stroke-linecap: round; stroke-linejoin: round; transition: opacity .35s; }
+.rj-routes { opacity: 0; transition: opacity .35s var(--pm-ease); pointer-events: none; }
+.rajo-plate[data-routes] .rj-routes { opacity: 1; }
+.rj-route { fill: none; stroke-width: 1.4; stroke-dasharray: 4 3; stroke-linecap: round; }
+.rj-route--down { stroke: #e4572e; }
+.rj-route--up { stroke: #2f6fdb; }
+.rj-arrow--down { fill: #e4572e; }
+.rj-arrow--up { fill: #2f6fdb; }
+.rj-eq { pointer-events: auto; cursor: pointer; transition: opacity .35s var(--pm-ease), filter .35s; }
+.rj-hit { fill: transparent; stroke: none; }
+.rajo-plate[data-sel] .rj-eq:not([data-on]) { opacity: .25; }
+.rajo-plate[data-sel] .rj-lines, .rajo-plate[data-sel] .rj-leaders { opacity: .55; }
+.rj-eq[data-on] { filter: drop-shadow(0 0 1px #ef7835) drop-shadow(0 0 3.5px #ffb36b); }
+.rj-truck .pf { fill: #fff; stroke: #ef8c22; stroke-width: 1.7; stroke-linejoin: round; }
+.rj-truck .pl { fill: none; stroke: #ef8c22; stroke-width: 1.7; }
+.rj-truck .pc { fill: #ffd29a; stroke: #ef8c22; stroke-width: 1.7; stroke-linejoin: round; }
+.rj-drill-head { fill: #fff; stroke: #ef8c22; stroke-width: .7; }
+.rj-hole { fill: #c8641f; stroke: #fff; stroke-width: .5; opacity: 0; }
+.rj-dust { pointer-events: none; }
+.rj-puff { fill: #fff8f0; stroke: #f0b780; stroke-width: .4; }
+.rj-load, .rj-rock { fill: #ffd29a; stroke: #ef8c22; stroke-width: .5; stroke-linejoin: round; pointer-events: none; }
+.rj-tag { opacity: 0; transition: opacity .3s var(--pm-ease); pointer-events: none; }
+.rj-tag[data-on] { opacity: 1; }
+.rj-tag-line { stroke: var(--pm-orange); stroke-width: .7; }
+.rj-tag-pill { fill: var(--pm-orange); }
+.rj-tag-text { fill: #fff; font-size: 7.4px; font-weight: 600; letter-spacing: .01em; }
+.chip--toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.chip--toggle { color: var(--pm-muted); }
+.chip--toggle[aria-pressed="true"] { color: var(--pm-orange); border-color: var(--pm-orange); background: #fff4ea; }
+@media (prefers-reduced-motion: reduce) { .rajo-plate { transition: none; } }

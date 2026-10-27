@@ -104,11 +104,27 @@ function bounds(part) {
   return part.axis === "z" ? [U, W, A] : [A, U, W];
 }
 
-const MODEL = PARTS.map((p) => ({ ...p, faces: facesOf(p), b: bounds(p) }));
+const build = (parts) => parts.map((p) => ({ ...p, faces: facesOf(p), b: bounds(p) }));
+const MODEL0 = build(PARTS);
+
+// carga de mineral en la tolva (rajo): un montón que crece con la carga (0…1); se dibuja con relleno claro.
+// Ocupa el interior de la tolva (entre las paredes laterales, delante del labio trasero y detrás del frontal).
+const LOADED = new Map();
+function modelFor(load) {
+  const lv = Math.round(Math.max(0, Math.min(1, load)) * 12); // 13 niveles: suficiente para que crezca suave
+  if (!lv) return MODEL0;
+  if (!LOADED.has(lv)) {
+    const h = 12 + (lv / 12) * 17; // altura sobre el piso de la tolva
+    const top = 30 + h;
+    const heap = sideways([[-24, 42], [-4, 30.5], [34, 30.5], [34, Math.min(top, 53)], [24, top], [-6, top], [-24, Math.max(42.5, top - 8)]], -21.5, 21.5, "carga");
+    LOADED.set(lv, build([...PARTS, heap]));
+  }
+  return LOADED.get(lv);
+}
 
 // orden de pintado: si dos piezas están separadas a lo largo de un eje local, la que queda
 // del lado del observador va encima; si no, se ordenan por profundidad del centro
-export function paintOrder(v, project) {
+export function paintOrder(v, project, MODEL = MODEL0) {
   const n = MODEL.length, after = Array.from({ length: n }, () => new Set());
   // sólo importa el orden de piezas que de verdad se tapan en pantalla: silueta convexa proyectada (SAT 2D)
   const hulls = MODEL.map((m) => {
@@ -168,12 +184,12 @@ const pathOf = (pts) => `M${pts.map(([x, y]) => `${f2(x)} ${f2(y)}`).join("L")}Z
  * Dibuja el camión con rumbo phi. Devuelve las capas SVG (fondo blanco + línea naranja, como los sprites),
  * la caja que ocupa y su punto de apoyo (centro‑abajo), en coordenadas relativas al origen del camión.
  */
-export function renderTruck(phi) {
+export function renderTruck(phi, load = 0) {
   const pr = projector(phi);
   const out = [];
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   const grow = ([x, y]) => { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; };
-  for (const m of paintOrder(pr.v, pr.p)) {
+  for (const m of paintOrder(pr.v, pr.p, modelFor(load))) {
     const vis = m.faces.filter((f) => f.n[0] * pr.v[0] + f.n[1] * pr.v[1] + f.n[2] * pr.v[2] > 1e-4);
     if (m.kind === "wheel") {
       // banda de rodado: una sola silueta (envolvente de ambas tapas), luego la tapa visible con sus aros
@@ -187,7 +203,8 @@ export function renderTruck(phi) {
       }
       continue;
     }
-    for (const f of vis) { const pts = f.pts.map(pr.p); pts.forEach(grow); out.push({ d: pathOf(pts), c: "f" }); }
+    const c = m.tag === "carga" ? "c" : "f";
+    for (const f of vis) { const pts = f.pts.map(pr.p); pts.forEach(grow); out.push({ d: pathOf(pts), c }); }
   }
   return { paths: out, bbox: [minX, minY, maxX, maxY], anchor: [(minX + maxX) / 2, maxY] };
 }

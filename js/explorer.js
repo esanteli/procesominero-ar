@@ -175,15 +175,22 @@ export function createExplorer({ stage, builtins = {}, onView = () => {} }) {
       // módulo externo: js/stations/<id>.js con export async function mount(ctx)
       try {
         const mod = await import(st.module.replace(/^\.\//, "./"));
-        const m = await mod.mount({ station: st, layer, poster: POSTER });
+        const m = await mod.mount({ station: st, layer, poster: POSTER, focus: focusTo });
         focus = m?.focus || focus;
         mounted = { leave: () => m?.destroy?.() };
         view = m?.view || "station";
       } catch (err) { console.error(err); }
     }
     showSpot(focus);
+    stationFocus = focus;
     onView(view, st);
     flyTo(fitRect(focus, 0.06), 800);
+  }
+  // una estación puede acercar la cámara a una zona suya (p. ej. el equipo elegido); sin rect vuelve a su encuadre
+  let stationFocus = null;
+  function focusTo(rect) {
+    if (!current || !stationFocus) return;
+    flyTo(fitRect(rect || stationFocus, rect ? 0.12 : 0.06), 650);
   }
   function leaveCurrent() {
     mounted?.leave();

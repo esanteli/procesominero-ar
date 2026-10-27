@@ -3,7 +3,7 @@
 //
 // mount(ctx) se llama al abrir la estación en el explorador:
 //   ctx.station → la ficha de la estación (id, n, name, label, focus, text…)
-//   ctx.layer   → capa sobre la infografía, en px de la imagen de 3012 × 812 (lo que se agrega aquí
+//   ctx.layer   → capa sobre la infografía, en px de la imagen de 5497 × 1623 (lo que se agrega aquí
 //                 se mueve y escala con el mapa: se ancla a la ilustración impresa)
 //   ctx.poster  → { src, w, h }
 // Devuelve:

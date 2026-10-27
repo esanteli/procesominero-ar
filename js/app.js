@@ -127,7 +127,12 @@ document.querySelectorAll("[data-equip-chip]").forEach((chip) => {
 });
 $("[data-info-close]").addEventListener("click", () => live.select(null));
 addEventListener("keydown", (e) => {
-  if (e.target.closest?.("input, [data-intro]") || document.body.dataset.mode === "intro") return;
+  if (e.target.closest?.("input, [data-intro]") || document.body.dataset.mode === "intro" || e.defaultPrevented) return;
+  // otras vistas (mapa, ficha, rajo…): sus módulos manejan sus teclas; aquí sólo Escape vuelve al mapa
+  if (document.body.dataset.view && document.body.dataset.view !== "chancador") {
+    if (e.key === "Escape") { explorer?.back(); e.preventDefault(); }
+    return;
+  }
   const feed = Number(ui.feed.value), inside = Number(ui.inside.value) / 100;
   if (e.key === " " && !e.target.closest("button, [data-equip]")) live.togglePlay();
   else if (e.key === "," ) live.prevStep();
@@ -150,7 +155,8 @@ const panel = $("[data-panel]");
 const sizeHud = () => {
   document.documentElement.style.setProperty("--hud-h", `${panel.offsetHeight + 8}px`);
   const room = document.querySelector("[data-pin-layer]").getBoundingClientRect();
-  const s = Math.min((innerWidth - 24) / 1000, (innerHeight - 64 - panel.offsetHeight - 24) / (plate.offsetHeight || 760));
+  const pe = document.querySelector(".plate--pinned") || plate;
+  const s = Math.min((innerWidth - 24) / (pe.offsetWidth || 1000), (innerHeight - 64 - panel.offsetHeight - 24) / (pe.offsetHeight || 760));
   document.documentElement.style.setProperty("--pin-s", Math.max(0.2, s).toFixed(3));
   void room;
 };
@@ -187,9 +193,10 @@ function setMode(mode) {
 }
 
 // ---------------------------------------------------------------- DEMO: la infografía completa, navegable por estaciones
-// El target del chancador es un recorte ×1,5 de la infografía desde (580, 60): con eso la lámina se ubica
-// sobre la infografía completa con el mismo registro que usa el AR.
-const CROP = { x: 580, y: 60, k: 1.5 };
+// El target del chancador es un recorte ×1,5 de la infografía desde (580, 60) en la escala vieja (3012×812);
+// la imagen actual mantiene el mismo registro a escala uniforme ×2 (5497×1623 ≈ el mismo arte a 2×, recortado
+// de espacio en blanco sobrante), así que el recorte se reescala con el mismo factor ×2.
+const CROP = { x: 580 * 2, y: 60 * 2, k: 1.5 / 2 };
 const PRINT_ON_POSTER = [CROP.x + STATION.target.print[0] / CROP.k, CROP.y + STATION.target.print[1] / CROP.k];
 const PLATE_W_ON_POSTER = (STATION.scale * STATION.target.w) / CROP.k;
 let explorer = null;
@@ -255,8 +262,15 @@ async function startDemo() {
   $("[data-st-next]").addEventListener("click", () => explorer.next());
 }
 
-// ---------------------------------------------------------------- AR: MindAR + CSS3D (la lámina sigue siendo DOM: se puede tocar)
-let anchorObj = null, anchor = null, mindar = null;
+// ---------------------------------------------------------------- AR: MindAR + CSS3D (las láminas siguen siendo DOM: se pueden tocar)
+// assets/targets.mind trae dos marcadores: 0 = chancado primario (target-chancado.png), 1 = rajo (target-rajo.png).
+// MindAR sigue uno a la vez; al encontrar uno se activa su lámina y su panel.
+// Recorte del rajo en la infografía (px de assets/infografia.jpg): así la lámina del rajo, que vive en esas
+// coordenadas, se ubica sobre el marcador sin más cuentas.
+const RAJO_TARGET = { x: 60, y: 440, w: 1400, h: 850, lift: 10 };
+let mindar = null, pinned = false;
+const arStations = [];   // { id, view, status, anchor, obj, el, setActive }
+let arCurrent = null;
 async function startAR() {
   setMode("ar");
   showView("chancador", { n: "2", name: "Chancado Primario" });
@@ -274,29 +288,51 @@ async function startAR() {
       filterMinCF: 0.0001, filterBeta: 0.001, // menos temblor con la lámina grande
     });
     const { renderer, cssRenderer, cssScene, scene, camera } = mindar;
-    anchor = mindar.addCSSAnchor(0);
-    // se mide la lámina en el documento antes de pasarla a CSS3D
+
+    // 0 · chancado primario: se mide la lámina en el documento antes de pasarla a CSS3D
     plate.style.visibility = "hidden";
     document.body.appendChild(plate);
     const o = plateOffset();
     plate.style.visibility = "";
-    anchorObj = new CSS3DObject(plate);
-    anchorObj.position.set(o.x, o.y, STATION.lift);
-    anchorObj.scale.setScalar(o.k);
-    anchor.group.add(anchorObj);
-    anchor.onTargetFound = () => {
-      scan.hidden = true;
-      ui.status.textContent = "Estación 2 · Chancado Primario";
-      document.body.dataset.tracking = "on";
-      live.setActive(true);
-    };
-    anchor.onTargetLost = () => {
-      if (pinned) return;
-      scan.hidden = false;
-      ui.status.textContent = "Buscando la infografía…";
-      delete document.body.dataset.tracking;
-      live.setActive(false);
-    };
+    const chObj = new CSS3DObject(plate);
+    chObj.position.set(o.x, o.y, STATION.lift);
+    chObj.scale.setScalar(o.k);
+    arStations.push({ id: "chancado", view: "chancador", st: { n: "2", name: "Chancado Primario" }, anchor: mindar.addCSSAnchor(0), obj: chObj, el: plate, setActive: (v) => live.setActive(v) });
+
+    // 1 · rajo: la lámina está en px de la infografía; su centro se lleva al espacio del marcador (ancho = 1000)
+    const { createRajo, bindPanel } = await import("./stations/rajo.js");
+    const rajo = await createRajo();
+    window.pmRajo = rajo;
+    const rel = rajo.el;
+    const L = parseFloat(rel.style.left), T = parseFloat(rel.style.top), W = parseFloat(rel.style.width), H = parseFloat(rel.style.height);
+    rel.style.left = "0px"; rel.style.top = "0px";
+    rel.classList.add("rajo-plate--ar");
+    const k = 1000 / RAJO_TARGET.w;
+    const rjObj = new CSS3DObject(rel);
+    rjObj.position.set((L + W / 2 - RAJO_TARGET.x - RAJO_TARGET.w / 2) * k, -(T + H / 2 - RAJO_TARGET.y - RAJO_TARGET.h / 2) * k, RAJO_TARGET.lift);
+    rjObj.scale.setScalar(k);
+    bindPanel(rajo, { onEscape: () => rajo.select(null) });
+    arStations.push({ id: "rajo", view: "rajo", st: { n: "1", name: "Rajo" }, anchor: mindar.addCSSAnchor(1), obj: rjObj, el: rel, setActive: (v) => rajo.setActive(v) });
+
+    for (const S of arStations) {
+      S.anchor.group.add(S.obj);
+      S.anchor.onTargetFound = () => {
+        if (pinned) return;
+        arCurrent?.setActive(false);
+        arCurrent = S;
+        scan.hidden = true;
+        showView(S.view, S.st);
+        document.body.dataset.tracking = "on";
+        S.setActive(true);
+      };
+      S.anchor.onTargetLost = () => {
+        if (pinned || arCurrent !== S) return;
+        scan.hidden = false;
+        ui.status.textContent = "Buscando la infografía…";
+        delete document.body.dataset.tracking;
+        S.setActive(false);
+      };
+    }
     await mindar.start();
     scan.hidden = false;
     ui.status.textContent = "Buscando la infografía…";
@@ -313,28 +349,30 @@ async function startAR() {
   }
 }
 
-// ---------------------------------------------------------------- fijar la lámina en pantalla
-let pinned = false;
+// ---------------------------------------------------------------- fijar la lámina en pantalla (la que se está viendo)
 const pinLayer = $("[data-pin-layer]");
 $("[data-pin]").addEventListener("click", (e) => {
+  const S = arCurrent || arStations[0];
+  if (!S) return;
   pinned = !pinned;
   e.currentTarget.setAttribute("aria-pressed", String(pinned));
   if (pinned) {
-    anchor.group.remove(anchorObj);           // CSS3D suelta el elemento…
+    S.anchor.group.remove(S.obj);              // CSS3D suelta el elemento…
     pinLayer.hidden = false;
-    pinLayer.appendChild(plate);               // …y lo ponemos plano en pantalla
-    plate.style.transform = "";
-    plate.style.visibility = "visible";
-    plate.classList.add("plate--pinned");
+    pinLayer.appendChild(S.el);                // …y lo ponemos plano en pantalla
+    S.el.style.transform = "";
+    S.el.style.visibility = "visible";
+    S.el.classList.add("plate--pinned");
+    showView(S.view, S.st);
     sizeHud();
     $("[data-scan]").hidden = true;
     ui.status.textContent = "Lámina fijada en pantalla";
-    live.setActive(true);
+    S.setActive(true);
   } else {
-    plate.classList.remove("plate--pinned");
+    S.el.classList.remove("plate--pinned");
     pinLayer.hidden = true;
-    anchor.group.add(anchorObj);
-    ui.status.textContent = document.body.dataset.tracking ? "Estación 2 · Chancado Primario" : "Buscando la infografía…";
-    if (!document.body.dataset.tracking) { $("[data-scan]").hidden = false; live.setActive(false); }
+    S.anchor.group.add(S.obj);
+    ui.status.textContent = document.body.dataset.tracking ? `Estación ${S.st.n} · ${S.st.name}` : "Buscando la infografía…";
+    if (!document.body.dataset.tracking) { $("[data-scan]").hidden = false; S.setActive(false); }
   }
 });

@@ -1,6 +1,6 @@
-# Chancado Primario AR · prueba de concepto
+# Proceso Minero AR · prueba de concepto
 
-Lámina viva sobre la estación **2 · Chancado Primario** de la infografía *Proceso Minero* (Espacio CoWork).
+Láminas vivas sobre las estaciones **1 · Rajo** y **2 · Chancado Primario** de la infografía *Proceso Minero* (Espacio CoWork).
 Reutiliza el SVG de Illustrator tal cual y le aplica la lógica de animación e interacción de la skill `anatomy`
 (la misma del circuito SAG en `anatomy-test/sag-circuit`).
 
@@ -13,7 +13,7 @@ npx serve .            # o "Live Server" de VS Code
 
 - **Escritorio / sin cámara:** abre `http://localhost:3000/?demo`. La imagen de la infografía hace de papel escaneado.
 - **AR en el celular:** la cámara exige **HTTPS**. Sube la carpeta a `cowork.ceim.cl` (o cualquier hosting estático con HTTPS)
-  y escanea la estación 2 de la infografía impresa. También sirve un túnel temporal (`npx localtunnel --port 3000`).
+  y escanea el Rajo o el Chancado Primario de la infografía impresa. También sirve un túnel temporal (`npx localtunnel --port 3000`).
 - `?maxdt=0.4` sólo para QA en equipos muy lentos (deja que la simulación avance aunque haya pocos fps).
 
 ## Demo sin cámara: la infografía completa
@@ -22,15 +22,47 @@ npx serve .            # o "Live Server" de VS Code
 sea nítido). Se arrastra, se hace zoom (rueda, pellizco o botones) y cada etiqueta impresa es un punto tocable.
 Al tocar una estación la cámara vuela a su encuadre, el resto se apaga y el panel muestra su ficha.
 
-- `js/stations.js` registra las 10 estaciones: número, nombre, zona de la etiqueta y encuadre (en px de la imagen de 3012 × 812),
+- `js/stations.js` registra las 10 estaciones: número, nombre, zona de la etiqueta y encuadre (en px de la imagen de 5497 × 1623),
   descripción, estado (`lista` / `en desarrollo`) y el módulo de su visualización.
 - `js/explorer.js` maneja el mapa, la cámara, los puntos y la navegación (anterior/siguiente, volver, enlaces `#rajo`).
-- Chancado primario ya abre su lámina viva sobre la misma infografía, con el mismo registro que usa el AR.
+- Rajo y Chancado primario ya abren su lámina viva sobre la misma infografía, con el mismo registro que usa el AR.
 - Para dar vida a otra estación: copia `js/stations/plantilla.js` como `js/stations/<id>.js`, y en `stations.js` pon
   `module: "./stations/<id>.js"` y `status: "lista"`.
 - Enlace directo a una estación: `index.html?demo#rajo`.
 
-## Qué se puede hacer
+## Estación 1 · Rajo (iteración 4)
+
+La lámina del rajo es la **silueta del pozo** (blanca, con sus curvas de nivel) calzada sobre el pozo impreso, como el
+video con alfa de referencia, y encima los equipos animados. Secuencia (≈ 49 s, en bucle), igual al storyboard:
+
+| Paso | Qué pasa |
+|---|---|
+| 1 | El CAEX ingresa vacío por la rampa de entrada |
+| 2 | Baja por las rampas (frena en las horquillas) |
+| 3 | Rodea el círculo de maniobra y retrocede hasta dejar la tolva bajo el balde |
+| 4 | La pala gira 0° → 60° y descarga: 3 pases de ~100 t (la carga crece en la tolva) |
+| 5 | El CAEX avanza y sube cargado por las rampas |
+| 6 | Sale del rajo hacia chancado |
+
+| Interacción | Dónde | Qué pasa |
+|---|---|---|
+| Equipos | tocar la perforadora, la pala o el CAEX, o los chips; teclas 1–3 | foco de anatomy: el resto se apaga, etiqueta sobre el equipo, ficha con datos en vivo; en la demo la cámara se acerca |
+| Secuencia | ▶/❚❚, barra de 6 pasos, ‹ ›, espacio, `,` `.` | pausa, salta de paso o retrocede sin acumular errores (`state(t)` es puro) |
+| Rutas | chip "Rutas" o tecla R | muestra la ruta de bajada (roja) y la de subida (azul) que trazó Emilio en la mesa 5 |
+| Perforadora | siempre activa | el cabezal baja por el mástil y la malla de pozos crece (6 pozos) junto a ella |
+| Escape | | suelta la selección; otra vez, vuelve a la infografía |
+
+Cómo está armada:
+- `tools/extraer-rajo.py` lee `rajo_animacion_procesominero_v2.ai` (es un PDF por dentro) y genera `js/stations/rajo-geo.js`:
+  curvas del pozo, silueta, rutas roja/azul, círculo de maniobra y líneas de minerales oxidados/sulfurados, en puntos del `.ai`.
+  `REG` (escala 1,3731 + traslación) los lleva a px de la infografía; se obtuvo ajustando las curvas sobre la imagen (error < 1 px).
+- `js/stations/rajo.js`: modelo puro `state(t)` (CAEX, pala, carga, perforadora), dibujo y panel. El CAEX usa el modelo 3D
+  de `caex3d.js` (cualquier rumbo, ahora con carga en la tolva); la pala son las orugas fijas + 5 vistas de la tornamesa
+  (`assets/rajo/pala-00…60.svg`) que se funden al girar, alineadas por el pie del pórtico.
+- AR: `assets/targets.mind` ahora trae 2 marcadores (0 = chancado, 1 = rajo, recorte `assets/target-rajo.png`).
+  Al encontrar uno se activa su lámina y su panel; el alfiler fija la que se está viendo.
+
+## Chancado primario · qué se puede hacer
 
 | Interacción | Dónde | Qué pasa |
 |---|---|---|
@@ -77,14 +109,19 @@ ar-chancador/
 ├─ js/explorer.js             demo: infografía navegable, cámara, puntos y rutas por estación
 ├─ js/stations.js             registro de las 10 estaciones (zonas, encuadres, fichas, módulos)
 ├─ js/stations/plantilla.js   plantilla para la visualización de una estación nueva
+├─ js/stations/rajo.js        estación 1: modelo, dibujo, panel y montaje (demo y AR)
+├─ js/stations/rajo-geo.js    geometría del rajo extraída del .ai (generado)
+├─ assets/rajo/*.svg              pala (orugas + 5 vistas de giro) y perforadora
+├─ assets/target-rajo.png         recorte de la infografía: marcador del rajo
 ├─ assets/chancador_primario.svg   SVG original de Illustrator, sin tocar (base de la escena)
 ├─ assets/caex/*.svg               sprites del CAEX (cargada, descargando, vacía, giro180)
 ├─ assets/picarrocas.svg           picarrocas articulado
 ├─ assets/infografia.jpg           infografía completa a 2× (demo sin cámara)
 ├─ assets/target-chancado.png      recorte de la infografía usado como marcador
-├─ assets/targets.mind             marcador compilado para MindAR
+├─ assets/targets.mind             marcadores compilados para MindAR (0 chancado, 1 rajo)
 ├─ tools/compilar-marcador.html    compila nuevos recortes a targets.mind en el navegador
 ├─ tools/generar-giro-caex.mjs     exporta los fotogramas del giro como SVG (npm run giro)
+├─ tools/extraer-rajo.py           .ai del rajo → js/stations/rajo-geo.js
 └─ vendor/                    three 0.160 + MindAR 1.2.5 (autohospedados, sin CDN)
 ```
 
@@ -108,6 +145,8 @@ La lámina es DOM real dentro de la escena (CSS3D), por eso los camiones se pued
    `PARTS` en `rig.js` acepta `"#id"`, así el rig deja de depender del orden del archivo.
 2. **Marcador en alta**: exportar la zona de la estación desde el `.ai` a ~2000 px y recompilar `targets.mind`
    (con `tools/compilar-marcador.html`). Hoy sale de un JPG de 3012 px.
-3. **Una estación por marcador**: cada estación (rajo, concentradora, lixiviación…) = un recorte + su SVG + su `model.js`.
-   MindAR compila varios recortes en un solo `.mind`; `addCSSAnchor(i)` por estación.
-4. Ajustar `STATION.scale` / `lift` en `app.js` con la infografía impresa a tamaño real.
+3. **Una estación por marcador**: cada estación = un recorte + su SVG + su modelo. Ya funciona con rajo (1) y chancado (0);
+   para sumar otra, agrega su recorte a la compilación de `targets.mind` y su `addCSSAnchor(i)` en `app.js`.
+4. **Infografía en CMYK**: `assets/infografia.jpg` viene en CMYK. Chrome y Safari la muestran bien, pero conviene exportarla en RGB (sRGB)
+   para que los colores sean iguales en todos los equipos y pese menos.
+5. Ajustar `STATION.scale` / `lift` y `RAJO_TARGET.lift` en `app.js` con la infografía impresa a tamaño real.
