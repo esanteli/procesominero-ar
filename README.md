@@ -1,6 +1,6 @@
 # Proceso Minero AR · prueba de concepto
 
-Láminas vivas sobre las estaciones **1 · Rajo**, **1 · Mina subterránea** y **2 · Chancado Primario** de la infografía *Proceso Minero* (Espacio CoWork).
+Láminas vivas sobre las estaciones **1 · Rajo**, **1 · Mina subterránea**, **2 · Chancado Primario** y **2.2 · Chancado secundario y terciario** de la infografía *Proceso Minero* (Espacio CoWork).
 Reutiliza el SVG de Illustrator tal cual y le aplica la lógica de animación e interacción de la skill `anatomy`
 (la misma del circuito SAG en `anatomy-test/sag-circuit`).
 
@@ -94,6 +94,30 @@ Cómo está armada:
 - AR: marcador 2 de `assets/targets.mind` (recorte `assets/target-mina.png`). Se probó la detección con cámara simulada;
   un recorte más ancho (con mucho blanco) no se detectaba, por eso el recorte va centrado en la etiqueta y el portal.
 
+## Estación 2.2 · Chancado secundario y terciario (iteración 6)
+
+Sobre el dibujo de Emilio (`assets/secundario/chancado-secundario.svg`): correa inclinada → distribuidora sobre los marcos
+→ 4 tolvas → alimentadores de correa → HPGR → correa de producto. Todo el circuito se mueve a la vez; las correas van a
+velocidad constante y cambia la carga; el alimentador cambia de velocidad para regular la tolva.
+
+| Interacción | Dónde | Qué pasa |
+|---|---|---|
+| Interior tolva | deslizador, flechas ←→ | la pared frontal de la tolva (módulo 4) se vuelve transparente: nivel, cono de reposo bajo la entrada, flujo de masa hacia la descarga. Abre el **Detalle A** ampliado |
+| Interior rodillos | deslizador, flechas ↑↓ | un plano de corte avanza por el HPGR (losa, cuerpo, descansos, rodillos): rodillo fijo y flotante en contrarrotación, cilindros hidráulicos, lecho comprimido y queque bajo la garganta. Abre el **Detalle B** ampliado |
+| Alimentación | deslizador | 6.000–13.000 t/h: cambia la carga de las correas y el nivel de la tolva (sobre ~12.900 t/h la tolva se llena y aparece el aviso) |
+| Equipos | chips o tocar el dibujo; teclas 1–5 | foco (el resto se apaga), etiqueta y ficha con datos en vivo; en la demo la cámara se acerca |
+| Sigue una colpa | ▶/❚❚, 6 pasos, ‹ ›, `,` `.` | una colpa marcada recorre todo el circuito; cuando va por dentro de un equipo se marca con un pulso, y se ve si el corte está abierto |
+
+Cómo está armada:
+- `js/stations/chancado-secundario.js`: modelo (nivel ↔ alimentador ↔ HPGR), dibujo, detalles y panel. El cuerpo y la losa
+  del HPGR del módulo 4 se redibujan como volúmenes 3D con las cotas exactas del dibujo (para poder cortarlos); la
+  puerta y el marco frontal son los de Emilio, recortados en el plano de corte.
+- Cotas del HPGR (unidades del SVG, ejes isométricos desde la esquina inferior del cuerpo): cuerpo 57,8 × 45,8 × 34,7,
+  losa X −13,4…69 · Y −46,2…2 · Z 34,7…40; rodillos con eje en X (los motores del dibujo entran por −X), Ø 18, gap 1–1,8.
+- Tolva: el perfil de la cara frontal sale de sus 6 vértices (resuelve a planos horizontales exactos) y el fondo a 23,1 / 16,5.
+- `js/stations/secundario-geo.js`: silueta blanca del dibujo (rasterizado, cerrado y dilatado).
+- AR: marcador 3 de `assets/targets.mind` (recorte `assets/target-secundario.png`).
+
 ## Chancado primario · qué se puede hacer
 
 | Interacción | Dónde | Qué pasa |
@@ -145,6 +169,10 @@ ar-chancador/
 ├─ js/stations/rajo-geo.js    geometría del rajo extraída del .ai (generado)
 ├─ js/stations/mina-subterranea.js  estación 1 (mina): radiografía, carguío LHD → dumper, panel
 ├─ js/stations/balde3d.js     balde del cargador reconstruido en 3D (gira sin deformarse)
+├─ js/stations/chancado-secundario.js  estación 2.2: flujo, tolva por dentro, corte del HPGR, detalles A/B
+├─ js/stations/secundario-geo.js  silueta del dibujo del chancado secundario
+├─ assets/secundario/*.svg        dibujo de Emilio (correas, tolvas, alimentadores, HPGR)
+├─ assets/target-secundario.png   marcador del chancado secundario y terciario
 ├─ assets/mina/*.svg              túnel, cargador frontal y dumper
 ├─ assets/target-mina.png         recorte de la infografía: marcador de la mina
 ├─ assets/rajo/*.svg              pala (orugas + 5 vistas de giro) y perforadora
@@ -154,7 +182,7 @@ ar-chancador/
 ├─ assets/picarrocas.svg           picarrocas articulado
 ├─ assets/infografia.jpg           infografía completa a 2× (demo sin cámara)
 ├─ assets/target-chancado.png      recorte de la infografía usado como marcador
-├─ assets/targets.mind             marcadores compilados para MindAR (0 chancado, 1 rajo, 2 mina)
+├─ assets/targets.mind             marcadores compilados para MindAR (0 chancado, 1 rajo, 2 mina, 3 secundario)
 ├─ tools/compilar-marcador.html    compila nuevos recortes a targets.mind en el navegador
 ├─ tools/generar-giro-caex.mjs     exporta los fotogramas del giro como SVG (npm run giro)
 ├─ tools/extraer-rajo.py           .ai del rajo → js/stations/rajo-geo.js
@@ -181,7 +209,7 @@ La lámina es DOM real dentro de la escena (CSS3D), por eso los camiones se pued
    `PARTS` en `rig.js` acepta `"#id"`, así el rig deja de depender del orden del archivo.
 2. **Marcador en alta**: exportar la zona de la estación desde el `.ai` a ~2000 px y recompilar `targets.mind`
    (con `tools/compilar-marcador.html`). Hoy sale de un JPG de 3012 px.
-3. **Una estación por marcador**: cada estación = un recorte + su SVG + su modelo. Ya funciona con chancado (0), rajo (1) y mina (2);
+3. **Una estación por marcador**: cada estación = un recorte + su SVG + su modelo. Ya funciona con chancado (0), rajo (1), mina (2) y secundario (3);
    para sumar otra, agrega su recorte a la compilación de `targets.mind` y su `addCSSAnchor(i)` en `app.js`.
 4. **Infografía en CMYK**: `assets/infografia.jpg` viene en CMYK. Chrome y Safari la muestran bien, pero conviene exportarla en RGB (sRGB)
    para que los colores sean iguales en todos los equipos y pese menos.

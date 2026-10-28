@@ -39,7 +39,7 @@ export const STATIONS = [
     id: "chancado-secundario", n: "2.2", name: "Chancado secundario y terciario", tone: "naranja",
     label: [2416, 882, 274, 100], focus: [1880, 580, 840, 440],
     text: "Chancadores de cono reducen el mineral a pocos centímetros y harneros lo clasifican, preparándolo para la lixiviación o la molienda.",
-    status: "en desarrollo", module: null,
+    status: "lista", module: "./stations/chancado-secundario.js",
   },
   {
     id: "pilas-lixiviacion", n: "3", name: "Pilas de lixiviación", tone: "naranja",

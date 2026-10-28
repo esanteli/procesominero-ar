@@ -264,12 +264,13 @@ async function startDemo() {
 
 // ---------------------------------------------------------------- AR: MindAR + CSS3D (las láminas siguen siendo DOM: se pueden tocar)
 // assets/targets.mind trae tres marcadores: 0 = chancado primario (target-chancado.png), 1 = rajo (target-rajo.png),
-// 2 = mina subterránea (target-mina.png).
+// 2 = mina subterránea (target-mina.png), 3 = chancado secundario y terciario (target-secundario.png).
 // MindAR sigue uno a la vez; al encontrar uno se activa su lámina y su panel.
 // Recorte del rajo en la infografía (px de assets/infografia.jpg): así la lámina del rajo, que vive en esas
 // coordenadas, se ubica sobre el marcador sin más cuentas.
 const RAJO_TARGET = { x: 60, y: 440, w: 1400, h: 850, lift: 10 };
 const MINA_TARGET = { x: 980, y: 880, w: 1070, h: 600, lift: 10 };
+const SEC_TARGET = { x: 1880, y: 620, w: 840, h: 380, lift: 10 };
 // lámina en px de la infografía → objeto CSS3D sobre su marcador (ancho del marcador = 1000 en el espacio del ancla)
 function onTarget(el, T, CSS3DObject) {
   const L = parseFloat(el.style.left), Tp = parseFloat(el.style.top), W = parseFloat(el.style.width), H = parseFloat(el.style.height);
@@ -327,6 +328,15 @@ async function startAR() {
     M.bindPanel(mina, { onEscape: () => mina.select(null) });
     arStations.push({ id: "mina", view: "mina", st: { n: "1", name: "Mina subterránea" }, anchor: mindar.addCSSAnchor(2), obj: mnObj, el: mina.el,
       setActive: (v) => { mina.setActive(v); if (v) { mina.setXray(0, true); mina.setXray(1); } } });
+
+    // 3 · chancado secundario y terciario
+    const SC = await import("./stations/chancado-secundario.js");
+    const sec = await SC.createSecundario();
+    window.pmSec = sec;
+    sec.el.classList.add("sec-plate--ar");
+    const scObj = onTarget(sec.el, SEC_TARGET, CSS3DObject);
+    SC.bindPanel(sec, { onEscape: () => sec.select(null) });
+    arStations.push({ id: "secundario", view: "secundario", st: { n: "2.2", name: "Chancado secundario y terciario" }, anchor: mindar.addCSSAnchor(3), obj: scObj, el: sec.el, setActive: (v) => sec.setActive(v) });
 
     for (const S of arStations) {
       S.anchor.group.add(S.obj);

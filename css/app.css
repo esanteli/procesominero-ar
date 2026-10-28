@@ -348,3 +348,57 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
 .mn-bf { fill: #fff; stroke: #ef8c22; stroke-width: .75; stroke-linejoin: round; }
 .mn-be { fill: none; stroke: #ef8c22; stroke-width: .75; stroke-linecap: round; }
 .mn-bl { fill: #ffd29a; stroke: #ef8c22; stroke-width: .75; stroke-linejoin: round; }
+
+/* ================================================================ estación 2.2 · chancado secundario y terciario */
+.sec-plate { pointer-events: none; opacity: 0; transition: opacity .6s var(--pm-ease); }
+.sec-plate[data-in], .sec-plate--ar { opacity: 1; }
+.sc-svg { display: block; width: 100%; height: 100%; overflow: visible; outline: none; font-family: var(--pm-sans); }
+.sc-sil { fill: #fff; pointer-events: auto; filter: drop-shadow(0 2px 3px #7a3d1420) drop-shadow(0 12px 18px #7a3d1418); }
+.sc-art [data-eq], .sc-hpgr, .sc-dist { pointer-events: auto; cursor: pointer; transition: opacity .35s var(--pm-ease); }
+.sc-dim { opacity: .26; transition: opacity .35s var(--pm-ease); }
+.hp-f { fill: #fff; stroke: #ef8c22; stroke-width: 2.73; stroke-linejoin: round; }
+.hp-void { fill: #f7e6d3; stroke: none; }
+.hp-sec { fill: #ffe4c4; stroke: #ef8c22; stroke-width: 2.2; stroke-linejoin: round; }
+.hp-roll { fill: #fff; stroke: #ef8c22; stroke-width: 1.8; stroke-linejoin: round; }
+.hp-stud { fill: #ef8c22; }
+.hp-mark { stroke: #ef8c22; stroke-width: 1.2; stroke-linecap: round; }
+.hp-shaft { fill: #fff; stroke: #ef8c22; stroke-width: 1.2; }
+.hp-shaft-sec { fill: #ffd29a; stroke: #ef8c22; stroke-width: 1.2; }
+.hp-cyl { fill: #fff; stroke: #ef8c22; stroke-width: 1.2; }
+.hp-bed { fill: #ffd29a; stroke: #ef8c22; stroke-width: 1; stroke-linejoin: round; }
+.hp-cake { fill: #f6b46b; stroke: #ef8c22; stroke-width: 1; stroke-linejoin: round; }
+.hp-crack { stroke: #c8641f; stroke-width: .8; }
+.hp-rock { fill: #ffd29a; stroke: #ef8c22; stroke-width: .6; }
+.hp-rock--fine { fill: #f6b46b; }
+.sc-rocks, .sc-top .sc-rocks { pointer-events: none; }
+.sc-rock { fill: #ffd29a; stroke: #ef8c22; stroke-width: .7; stroke-linejoin: round; }
+.sc-rock--fine { fill: #f6b46b; stroke-width: .5; }
+.sc-plow { stroke: #ef8c22; stroke-width: 2; stroke-linecap: round; }
+.hb-wall { fill: #fff6ec; }
+.hb-edge { fill: none; stroke: #f3b97a; stroke-width: 1.1; stroke-dasharray: 3 2; }
+.hb-surf { fill: #ffe3bf; stroke: #ef8c22; stroke-width: .9; stroke-linejoin: round; }
+.hb-bed { fill: #ffd29a; stroke: #ef8c22; stroke-width: 1; stroke-linejoin: round; }
+.hb-rock { fill: #ffc982; stroke: #ef8c22; stroke-width: .5; }
+.hb-level { stroke: #c8641f; stroke-width: 1.2; stroke-dasharray: 4 3; }
+.hb-outline { fill: none; stroke: #ef8c22; stroke-width: 2; stroke-linejoin: round; }
+.sc-tour { pointer-events: none; }
+.sc-tour-ring { fill: #fff8; stroke: var(--pm-orange); stroke-width: 2; }
+.sc-tour-rock { fill: #f39a3c; stroke: #a8501a; stroke-width: .7; }
+.sc-tour-pulse { fill: none; stroke: var(--pm-orange); stroke-width: 2.5; pointer-events: none; }
+.sc-callout { transition: opacity .3s var(--pm-ease); pointer-events: none; }
+.sc-card { fill: #fff; stroke: #ef783555; stroke-width: 2; filter: drop-shadow(0 6px 14px #7a3d1426); }
+.sc-cal-title { font-size: 13px; font-weight: 700; fill: var(--pm-orange); letter-spacing: .02em; }
+.sc-cal-k * { vector-effect: non-scaling-stroke; }
+.sc-cal-art * { vector-effect: non-scaling-stroke; }
+.sc-lead { fill: none; stroke: var(--pm-orange); stroke-width: 1.5; stroke-dasharray: 5 4; opacity: .8; }
+.sc-lead-dot { fill: #fff; stroke: var(--pm-orange); stroke-width: 2; }
+.sc-cal-lead { stroke: #8a4a1e; stroke-width: 1; }
+.sc-cal-dot { fill: var(--pm-orange); }
+.sc-cal-text { font-size: 11.5px; font-weight: 600; fill: #5a3b27; paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
+.sc-tag { opacity: 0; transition: opacity .3s var(--pm-ease); pointer-events: none; }
+.sc-tag[data-on] { opacity: 1; }
+.sc-tag-line { stroke: var(--pm-orange); stroke-width: 1.6; }
+.sc-tag-pill { fill: var(--pm-orange); }
+.sc-tag-text { fill: #fff; font-size: 14px; font-weight: 600; }
+.controls--3 { gap: 6px; }
+@media (max-width: 520px) { .controls--3 .ctl { padding-top: 0; padding-bottom: 0; } }

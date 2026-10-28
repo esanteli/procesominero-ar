@@ -34,10 +34,10 @@ export function createExplorer({ stage, builtins = {}, onView = () => {} }) {
   // ---------------------------------------------------------------- cámara
   const apply = () => { world.style.transform = `translate(${cam.x.toFixed(2)}px, ${cam.y.toFixed(2)}px) scale(${cam.s.toFixed(5)})`; };
   const box = () => stage.getBoundingClientRect();
-  function fitRect([x, y, w, h], pad = 0.08) {
+  function fitRect([x, y, w, h], pad = 0.08, cap = MAX_ZOOM) {
     const b = box();
-    // tope de zoom: más allá la imagen de la infografía se ve pixelada
-    const s = Math.min(b.width / (w * (1 + 2 * pad)), b.height / (h * (1 + 2 * pad)), MAX_ZOOM);
+    // tope de zoom: más allá la imagen de la infografía se ve pixelada (una estación vectorial puede pedir más)
+    const s = Math.min(b.width / (w * (1 + 2 * pad)), b.height / (h * (1 + 2 * pad)), cap);
     return { s, x: b.width / 2 - (x + w / 2) * s, y: b.height / 2 - (y + h / 2) * s };
   }
   function fitAll() {
@@ -188,9 +188,9 @@ export function createExplorer({ stage, builtins = {}, onView = () => {} }) {
   }
   // una estación puede acercar la cámara a una zona suya (p. ej. el equipo elegido); sin rect vuelve a su encuadre
   let stationFocus = null;
-  function focusTo(rect) {
+  function focusTo(rect, maxZoom = MAX_ZOOM) {
     if (!current || !stationFocus) return;
-    flyTo(fitRect(rect || stationFocus, rect ? 0.12 : 0.06), 650);
+    flyTo(fitRect(rect || stationFocus, rect ? 0.12 : 0.06, rect ? maxZoom : MAX_ZOOM), 650);
   }
   function leaveCurrent() {
     mounted?.leave();

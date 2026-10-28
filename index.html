@@ -162,6 +162,51 @@
         </div>
       </div>
 
+      <!-- estación 2.2 · chancado secundario y terciario (js/stations/chancado-secundario.js conecta estos controles) -->
+      <div class="panel-view panel-sec" data-panel-view="secundario" hidden>
+        <div class="readout-row">
+          <div class="meter" data-sc-meter title="Nivel de la tolva"><span></span></div>
+          <output class="readout" data-sc-readout aria-live="polite">—</output>
+        </div>
+        <div class="chips" role="group" aria-label="Equipos: toca uno para ver su descripción">
+          <button type="button" class="chip" data-sc-chip="alim"><span>01</span>Correas</button>
+          <button type="button" class="chip" data-sc-chip="tolva"><span>02</span>Tolva</button>
+          <button type="button" class="chip" data-sc-chip="alimentador"><span>03</span>Alimentador</button>
+          <button type="button" class="chip" data-sc-chip="hpgr"><span>04</span>HPGR</button>
+          <button type="button" class="chip" data-sc-chip="producto"><span>05</span>Producto</button>
+        </div>
+        <div class="controls controls--3">
+          <label class="ctl">
+            <span class="ctl-label">Interior tolva</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-sc-hop aria-label="Interior de la tolva del chancador secundario: transparencia de la pared frontal">
+            <output data-sc-hop-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Interior rodillos</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-sc-cut aria-label="Corte del HPGR: avance del plano de corte hacia los rodillos">
+            <output data-sc-cut-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Alimentación</span>
+            <input type="range" min="6000" max="13000" value="10500" step="250" data-sc-feed aria-label="Alimentación total, toneladas por hora">
+            <output data-sc-feed-out>10.500 t/h</output>
+          </label>
+        </div>
+        <div class="seq" role="group" aria-label="Sigue una colpa por el circuito">
+          <button type="button" class="seq-play" data-sc-play aria-label="Pausar" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8 5v14M16 5v14"/><path class="i-play" d="M8 5l11 7-11 7z"/></svg>
+          </button>
+          <div class="seq-body">
+            <div class="seq-steps" data-sc-steps></div>
+            <p class="seq-label"><b data-sc-step-n>1</b><span data-sc-step-label>Sube por la correa de alimentación</span></p>
+          </div>
+          <div class="seq-nav">
+            <button type="button" class="seq-nav-btn" data-sc-prev aria-label="Paso anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <button type="button" class="seq-nav-btn" data-sc-next aria-label="Paso siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+
       <!-- estación 2 · chancado primario (animación lista) -->
       <div class="panel-view panel-chancador" data-panel-view="chancador">
       <div class="readout-row">
@@ -210,8 +255,8 @@
   <div class="intro" data-intro>
     <div class="intro-card">
       <p class="intro-kicker">Experiencia interactiva · Proceso Minero</p>
-      <h1>Rajo, Mina subterránea y Chancado Primario</h1>
-      <p>Apunta la cámara al <b>Rajo</b>, a la <b>Mina subterránea</b> o al <b>Chancado Primario</b> de la infografía. Sobre cada estación se abre una lámina viva: mira el terreno por dentro, sigue el carguío y el transporte del mineral y conoce los equipos.</p>
+      <h1>Proceso Minero en AR</h1>
+      <p>Apunta la cámara al <b>Rajo</b>, la <b>Mina subterránea</b>, el <b>Chancado Primario</b> o el <b>Chancado secundario y terciario</b> de la infografía. Sobre cada estación se abre una lámina viva: mira el terreno por dentro, sigue el carguío y el transporte del mineral y conoce los equipos.</p>
       <div class="intro-actions">
         <button type="button" class="btn btn--primary" data-start-ar>Escanear infografía</button>
         <button type="button" class="btn" data-start-demo>Ver demo sin cámara</button>
@@ -222,7 +267,7 @@
 
   <div class="scan-hint" data-scan hidden>
     <div class="scan-frame"><i></i><i></i><i></i><i></i></div>
-    <p>Encuadra el <b>Rajo</b>, la <b>Mina subterránea</b> o el <b>Chancado Primario</b></p>
+    <p>Encuadra una estación con animación: <b>Rajo</b>, <b>Mina</b>, <b>Chancado</b> 2 o 2.2</p>
   </div>
 
   <script type="module" src="js/app.js"></script>
