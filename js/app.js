@@ -264,13 +264,15 @@ async function startDemo() {
 
 // ---------------------------------------------------------------- AR: MindAR + CSS3D (las láminas siguen siendo DOM: se pueden tocar)
 // assets/targets.mind trae tres marcadores: 0 = chancado primario (target-chancado.png), 1 = rajo (target-rajo.png),
-// 2 = mina subterránea (target-mina.png), 3 = chancado secundario y terciario (target-secundario.png).
+// 2 = mina subterránea (target-mina.png), 3 = chancado secundario y terciario (target-secundario.png),
+// 4 = pilas de lixiviación (target-pilas.png).
 // MindAR sigue uno a la vez; al encontrar uno se activa su lámina y su panel.
 // Recorte del rajo en la infografía (px de assets/infografia.jpg): así la lámina del rajo, que vive en esas
 // coordenadas, se ubica sobre el marcador sin más cuentas.
 const RAJO_TARGET = { x: 60, y: 440, w: 1400, h: 850, lift: 10 };
 const MINA_TARGET = { x: 980, y: 880, w: 1070, h: 600, lift: 10 };
 const SEC_TARGET = { x: 1880, y: 620, w: 840, h: 380, lift: 10 };
+const LIX_TARGET = { x: 2190, y: 270, w: 740, h: 450, lift: 10 };
 // lámina en px de la infografía → objeto CSS3D sobre su marcador (ancho del marcador = 1000 en el espacio del ancla)
 function onTarget(el, T, CSS3DObject) {
   const L = parseFloat(el.style.left), Tp = parseFloat(el.style.top), W = parseFloat(el.style.width), H = parseFloat(el.style.height);
@@ -337,6 +339,15 @@ async function startAR() {
     const scObj = onTarget(sec.el, SEC_TARGET, CSS3DObject);
     SC.bindPanel(sec, { onEscape: () => sec.select(null) });
     arStations.push({ id: "secundario", view: "secundario", st: { n: "2.2", name: "Chancado secundario y terciario" }, anchor: mindar.addCSSAnchor(3), obj: scObj, el: sec.el, setActive: (v) => sec.setActive(v) });
+
+    // 4 · pilas de lixiviación
+    const LX = await import("./stations/pilas-lixiviacion.js");
+    const lix = await LX.createPilas();
+    window.pmPilas = lix;
+    lix.el.classList.add("lx-plate--ar");
+    const lxObj = onTarget(lix.el, LIX_TARGET, CSS3DObject);
+    LX.bindPanel(lix, { onEscape: () => lix.select(null) });
+    arStations.push({ id: "pilas", view: "pilas", st: { n: "3", name: "Pilas de lixiviación" }, anchor: mindar.addCSSAnchor(4), obj: lxObj, el: lix.el, setActive: (v) => lix.setActive(v) });
 
     for (const S of arStations) {
       S.anchor.group.add(S.obj);

@@ -402,3 +402,96 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
 .sc-tag-text { fill: #fff; font-size: 14px; font-weight: 600; }
 .controls--3 { gap: 6px; }
 @media (max-width: 520px) { .controls--3 .ctl { padding-top: 0; padding-bottom: 0; } }
+
+/* ---------------------------------------------------------------- estación 3 · pilas de lixiviación (px de la infografía) */
+.lx-plate { pointer-events: none; opacity: 0; transition: opacity .6s var(--pm-ease); }
+.lx-plate[data-in], .lx-plate--ar { opacity: 1; }
+.lx-svg { display: block; width: 100%; height: 100%; overflow: visible; outline: none; font-family: var(--pm-sans); --ref: #36b3ad; --pls: #2166b8; }
+.lx-sil { fill: #fff; pointer-events: auto; filter: drop-shadow(0 1px 1.5px #7a3d1420) drop-shadow(0 5px 8px #7a3d1418); }
+.lx-svg [data-eq] { pointer-events: auto; cursor: pointer; transition: opacity .35s var(--pm-ease); }
+.lx-dim { opacity: .24; transition: opacity .35s var(--pm-ease); }
+.lx-rocks, .lx-flow, .lx-tour, .lx-tour-pulse, .lx-callout, .lx-tag { pointer-events: none; }
+.lx-canal-w { fill: #fff; }
+.lx-canal-o { fill: #ef8c22; }
+.lx-pls-flow { fill: none; stroke: var(--pls); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 1.4 5; opacity: .9; transition: opacity .6s; }
+.lx-slab { fill: #fff; stroke: #ef8c22; stroke-width: 1.5; stroke-linejoin: round; }
+.lx-padtop { fill: #fff; stroke: #ef8c22; stroke-width: 1.5; stroke-linejoin: round; }
+.lx-sec { fill: #ffe4c4; stroke: #ef8c22; stroke-width: 1.2; stroke-linejoin: round; }
+.lx-liner { fill: none; stroke: #5a3b27; stroke-width: 1.1; stroke-linecap: round; }
+.lx-gravel { fill: none; stroke: #c8641f; stroke-width: .8; stroke-dasharray: .8 1.4; stroke-linecap: round; }
+.lx-heap-f { fill: #fff6ec; stroke: #ef8c22; stroke-width: 1.1; stroke-linejoin: round; }
+.lx-heap-s { fill: #ffe9d2; stroke: #ef8c22; stroke-width: 1.1; stroke-linejoin: round; }
+.lx-heap-t { fill: #fff8ee; stroke: #ef8c22; stroke-width: 1.1; stroke-linejoin: round; }
+.lx-heap-sec { fill: #ffd8a8; stroke: #ef8c22; stroke-width: 1.1; stroke-linejoin: round; }
+.lx-wet { fill: #8fd6d0; opacity: .4; mix-blend-mode: multiply; pointer-events: none; }
+.lx-drip { stroke: #ef8c22; stroke-width: .7; stroke-linecap: round; }
+.lx-drop { fill: var(--ref); }
+.lx-pls-toe { stroke: var(--pls); stroke-width: 1.4; stroke-linecap: round; fill: none; }
+.lx-ref-dot { fill: var(--ref); }
+.lx-pls-dot { fill: var(--pls); }
+.lx-glom { fill: #f6b46b; stroke: #c8641f; stroke-width: .35; }
+.lx-rock { fill: #ffd29a; stroke: #ef8c22; stroke-width: .45; stroke-linejoin: round; }
+.lx-ext { fill: #fff; stroke: #ef8c22; stroke-width: 1.1; stroke-linejoin: round; }
+.lx-ext-s { fill: #ffe9d2; stroke: #ef8c22; stroke-width: 1.1; stroke-linejoin: round; }
+.lx-belt { fill: #fff; stroke: #ef8c22; stroke-width: 1.2; stroke-linejoin: round; }
+.lx-ro-f { fill: #fff; stroke: #ef8c22; stroke-width: .9; stroke-linejoin: round; }
+.lx-ro-boom { stroke: #ef8c22; stroke-width: 2.2; stroke-linecap: round; }
+.lx-ro-wheel { fill: #fff; stroke: #ef8c22; stroke-width: 1; }
+.lx-ro-bucket { fill: #fff; stroke: #ef8c22; stroke-width: .7; stroke-linejoin: round; }
+.lx-ro-full { fill: #f6b46b; }
+/* tambor (unidades del SVG del aglomerador) */
+.lx-seam-l { stroke: #f3b97a; stroke-width: 1; stroke-linecap: round; fill: none; }
+.lx-mouth-l { stroke: #ef8c22; stroke-width: 1.6; stroke-linecap: round; }
+.lx-dvoid { fill: #f7e6d3; }
+.lx-dlift { stroke: #e7a35c; stroke-width: 1.3; stroke-linecap: round; }
+.lx-dbed { fill: #ffd29a; stroke: #ef8c22; stroke-width: .9; stroke-linejoin: round; }
+.lx-dripple { stroke: #e9a256; stroke-width: .8; stroke-linecap: round; fill: none; }
+.lx-drock { fill: #ffc982; stroke: #ef8c22; stroke-width: .4; }
+.lx-dbar { stroke: #e0a020; stroke-width: 1.6; stroke-linecap: round; }
+.lx-dbar2 { stroke: #5fb0d9; stroke-width: 1.2; stroke-linecap: round; }
+.lx-dspray { fill: var(--ref); opacity: .28; stroke: none; }
+.lx-dcut { fill: none; stroke: #ef8c22; stroke-width: 1.75; stroke-linejoin: round; }
+/* detalle A: dentro del tambor */
+.lx-a-wall { fill: #efe6dc; }
+.lx-a-end { fill: #e3d6c8; stroke: #c9b49e; stroke-width: .8; }
+.lx-a-seam { stroke: #d9c8b6; stroke-width: .8; fill: none; }
+.lx-a-lift { stroke: #b9a38c; stroke-width: 1.1; fill: none; stroke-linecap: round; }
+.lx-a-chute { fill: #c9ddd0; stroke: #6f9a80; stroke-width: .8; }
+.lx-a-bed { fill: #e6cf9f; stroke: #c49a5a; stroke-width: .7; }
+.lx-a-ripple { fill: none; stroke: #c9a46b; stroke-linecap: round; }
+.lx-a-glom { fill: #d8b77a; stroke: #a87d3e; stroke-width: .35; }
+.lx-a-rock { fill: #d9bd84; stroke: #a07a44; stroke-width: .4; }
+.lx-a-spray { fill: var(--ref); opacity: .18; }
+.lx-a-mist { fill: var(--ref); opacity: .8; }
+.lx-a-acid { stroke: #e0a020; fill: none; stroke-linecap: round; }
+.lx-a-water { stroke: #5fb0d9; stroke-width: 2; fill: none; stroke-linecap: round; }
+.lx-a-truss { stroke: #2f6fb0; stroke-width: 1.1; fill: none; stroke-linejoin: round; }
+/* detalle B: corte de la pila */
+.lx-b-slab { fill: #ffe4c4; stroke: #ef8c22; stroke-width: .8; }
+.lx-b-canal { fill: #fff; stroke: #ef8c22; stroke-width: .9; stroke-linejoin: round; }
+.lx-b-plsfill { fill: var(--pls); opacity: .9; }
+.lx-b-heap { fill: #fff2e1; stroke: #ef8c22; stroke-width: 1; stroke-linejoin: round; }
+.lx-b-glom { fill: #ffd29a; stroke: #e9a256; stroke-width: .4; }
+.lx-b-liner { stroke: #5a3b27; stroke-width: 1.6; fill: none; }
+.lx-b-drain { fill: #fff; stroke: #5a3b27; stroke-width: .7; }
+.lx-b-emit { fill: var(--ref); }
+.lx-b-pipe { stroke: var(--ref); stroke-width: .9; fill: none; }
+.lx-b-ref { fill: var(--ref); }
+.lx-b-pls { fill: var(--pls); }
+/* glómero que se sigue, detalles, etiquetas */
+.lx-tour-ring { fill: #fff8; stroke: var(--pm-orange); stroke-width: 1; }
+.lx-tour-glom { fill: #f39a3c; stroke: #a8501a; stroke-width: .5; }
+.lx-tour-pulse { fill: none; stroke: var(--pm-orange); stroke-width: 1.3; }
+.lx-callout { transition: opacity .3s var(--pm-ease); }
+.lx-card { fill: #fff; stroke: #ef783555; stroke-width: 1; filter: drop-shadow(0 3px 7px #7a3d1426); }
+.lx-cal-title { font-size: 6.6px; font-weight: 700; fill: var(--pm-orange); letter-spacing: .02em; }
+.lx-lead { fill: none; stroke: var(--pm-orange); stroke-width: .8; stroke-dasharray: 2.6 2; opacity: .8; }
+.lx-lead-dot { fill: #fff; stroke: var(--pm-orange); stroke-width: 1; }
+.lx-cal-lead { stroke: #8a4a1e; stroke-width: .5; }
+.lx-cal-dot { fill: var(--pm-orange); }
+.lx-cal-text { font-size: 5.6px; font-weight: 600; fill: #5a3b27; paint-order: stroke; stroke: #fff; stroke-width: 1.6px; stroke-linejoin: round; }
+.lx-tag { opacity: 0; transition: opacity .3s var(--pm-ease); }
+.lx-tag[data-on] { opacity: 1; }
+.lx-tag-line { stroke: var(--pm-orange); stroke-width: .8; }
+.lx-tag-pill { fill: var(--pm-orange); }
+.lx-tag-text { fill: #fff; font-size: 6.2px; font-weight: 600; }

@@ -207,6 +207,51 @@
         </div>
       </div>
 
+      <!-- estación 3 · pilas de lixiviación (js/stations/pilas-lixiviacion.js conecta estos controles) -->
+      <div class="panel-view panel-lx" data-panel-view="pilas" hidden>
+        <div class="readout-row">
+          <div class="meter" data-lx-meter title="Avance del módulo que se apila"><span></span></div>
+          <output class="readout" data-lx-readout aria-live="polite">—</output>
+        </div>
+        <div class="chips" role="group" aria-label="Equipos: toca uno para ver su descripción">
+          <button type="button" class="chip" data-lx-chip="aglomerador"><span>01</span>Aglomerador</button>
+          <button type="button" class="chip" data-lx-chip="correas"><span>02</span>Correas</button>
+          <button type="button" class="chip" data-lx-chip="apiladora"><span>03</span>Apiladora</button>
+          <button type="button" class="chip" data-lx-chip="pilas"><span>04</span>Pilas</button>
+          <button type="button" class="chip" data-lx-chip="solucion"><span>05</span>Riego y PLS</button>
+        </div>
+        <div class="controls controls--3">
+          <label class="ctl">
+            <span class="ctl-label">Interior tambor</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-lx-drum aria-label="Interior del tambor aglomerador: abre una ventana en el manto y muestra el detalle por dentro">
+            <output data-lx-drum-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Corte de la pila</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-lx-cut aria-label="Corte de la pila: un plano avanza por la pila de la derecha y muestra la percolación">
+            <output data-lx-cut-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Tasa de riego</span>
+            <input type="range" min="6" max="14" value="10" step="1" data-lx-rate aria-label="Tasa de riego, litros por hora por metro cuadrado">
+            <output data-lx-rate-out>10 L/h·m²</output>
+          </label>
+        </div>
+        <div class="seq" role="group" aria-label="Sigue un glómero por el proceso">
+          <button type="button" class="seq-play" data-lx-play aria-label="Pausar" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8 5v14M16 5v14"/><path class="i-play" d="M8 5l11 7-11 7z"/></svg>
+          </button>
+          <div class="seq-body">
+            <div class="seq-steps" data-lx-steps></div>
+            <p class="seq-label"><b data-lx-step-n>1</b><span data-lx-step-label>En el tambor, el agua y el ácido aglomeran y curan el mineral</span></p>
+          </div>
+          <div class="seq-nav">
+            <button type="button" class="seq-nav-btn" data-lx-prev aria-label="Paso anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <button type="button" class="seq-nav-btn" data-lx-next aria-label="Paso siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+
       <!-- estación 2 · chancado primario (animación lista) -->
       <div class="panel-view panel-chancador" data-panel-view="chancador">
       <div class="readout-row">

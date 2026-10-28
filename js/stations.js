@@ -45,7 +45,7 @@ export const STATIONS = [
     id: "pilas-lixiviacion", n: "3", name: "Pilas de lixiviación", tone: "naranja",
     label: [2634, 616, 282, 100], focus: [2180, 240, 780, 500],
     text: "El mineral oxidado se apila y se riega con una solución ácida que disuelve el cobre; la solución rica se recoge para extraer el metal.",
-    status: "en desarrollo", module: null,
+    status: "lista", module: "./stations/pilas-lixiviacion.js",
   },
   {
     id: "celdas-flotacion", n: "3", name: "Celdas de flotación", tone: "amarillo",

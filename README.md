@@ -1,6 +1,6 @@
 # Proceso Minero AR · prueba de concepto
 
-Láminas vivas sobre las estaciones **1 · Rajo**, **1 · Mina subterránea**, **2 · Chancado Primario** y **2.2 · Chancado secundario y terciario** de la infografía *Proceso Minero* (Espacio CoWork).
+Láminas vivas sobre las estaciones **1 · Rajo**, **1 · Mina subterránea**, **2 · Chancado Primario**, **2.2 · Chancado secundario y terciario** y **3 · Pilas de lixiviación** de la infografía *Proceso Minero* (Espacio CoWork).
 Reutiliza el SVG de Illustrator tal cual y le aplica la lógica de animación e interacción de la skill `anatomy`
 (la misma del circuito SAG en `anatomy-test/sag-circuit`).
 
@@ -13,7 +13,7 @@ npx serve .            # o "Live Server" de VS Code
 
 - **Escritorio / sin cámara:** abre `http://localhost:3000/?demo`. La imagen de la infografía hace de papel escaneado.
 - **AR en el celular:** la cámara exige **HTTPS**. Sube la carpeta a `cowork.ceim.cl` (o cualquier hosting estático con HTTPS)
-  y escanea el Rajo, la Mina subterránea o el Chancado Primario de la infografía impresa. También sirve un túnel temporal (`npx localtunnel --port 3000`).
+  y escanea el Rajo, la Mina subterránea, el Chancado Primario, el Chancado secundario o las Pilas de lixiviación de la infografía impresa. También sirve un túnel temporal (`npx localtunnel --port 3000`).
 - `?maxdt=0.4` sólo para QA en equipos muy lentos (deja que la simulación avance aunque haya pocos fps).
 
 ## Demo sin cámara: la infografía completa
@@ -118,6 +118,36 @@ Cómo está armada:
 - `js/stations/secundario-geo.js`: silueta blanca del dibujo (rasterizado, cerrado y dilatado).
 - AR: marcador 3 de `assets/targets.mind` (recorte `assets/target-secundario.png`).
 
+## Estación 3 · Pilas de lixiviación (iteración 7)
+
+Sobre los dibujos de Emilio (`assets/pilas/aglomerador.svg`, `apiladoras.svg`) más las losas, las franjas y los arcos
+del PDF de la infografía (×2). Flujo: correa de alimentación → **tambor aglomerador** (agua + ácido: aglomerado y
+curado) → correa a la **casa de traspaso** → un desviador manda los glómeros al módulo que se apila (o siguen "hacia
+otros módulos") → **apiladora** (tripper + pluma telescópica) → **riego** con refino ácido → **percolación** → **PLS** por
+la carpeta a las canaletas → al final del ciclo la **rotopala** retira los ripios (pila dinámica).
+
+| Interacción | Dónde | Qué pasa |
+|---|---|---|
+| Interior tambor | deslizador, flechas ←→ | se abre una ventana en el manto del tambor (levantadores girando, lecho, cascada, barra de riego). Abre el **Detalle A**: la vista hacia adentro del tambor, como la referencia (levantadores, cascada, lecho que rueda y forma glómeros, barra reticulada con cañería de agua y de ácido, chute de alimentación) |
+| Corte de la pila | deslizador, flechas ↑↓ | un plano corta la pila de la derecha (losa, carpeta, pila en riego). Abre el **Detalle B**: corte con goteros, gotas de refino que bajan y se vuelven PLS, carpeta HDPE con drenes y canaleta |
+| Tasa de riego | deslizador | 6–14 L/h·m²: más gotas y PLS más rápido; el PLS se diluye al subir el riego (modelo referencial) |
+| Equipos | chips o tocar el dibujo; teclas 1–5 | aglomerador, correas, apiladora, pilas (incluye la rotopala), riego y PLS: foco, etiqueta y ficha |
+| Sigue un glómero | ▶/❚❚, 6 pasos, ‹ ›, `,` `.` | el glómero marcado sale del tambor, sube por la correa, pasa por la casa de traspaso y la apiladora y cae a la pila; luego el pulso sigue el riego, el PLS y la rotopala |
+
+Ciclo del módulo izquierdo (60 s): vacío → apilando (17–35 s; la pila avanza desde el extremo lejano y la apiladora
+retrocede) → riego (36–50 s) → percolación y PLS (42–54 s) → ripios con rotopala (51–60 s). Las otras tres pilas están
+siempre en riego. Los arcos llevan PLS: la mitad izquierda sólo cuando el módulo izquierdo produce.
+
+Interpretaciones por validar: franjas entre pilas = canaletas de PLS; arcos = canaletas que llevan el PLS a la piscina;
+pluma telescópica agregada a la apiladora (la del dibujo llega sólo al borde de la pila); rotopala y correa corta de
+alimentación agregadas; valores (ácido kg/t, rpm, g/L, m³/h) típicos/referenciales.
+
+Cómo está armada:
+- `js/stations/pilas-lixiviacion.js`: modelo del ciclo, dibujo (pilas en 3D isométrico ajustado a las losas del PDF:
+  X → (0,8615; 0,5085), Y → (−0,8615; 0,5085), losa 140 × 80 × 6), tambor en las unidades de su SVG, detalles y panel.
+- `js/stations/pilas-geo.js`: canaletas (franjas y arcos) del PDF y silueta blanca de la lámina.
+- AR: marcador 4 de `assets/targets.mind` (recorte `assets/target-pilas.png`, x 2190 y 270, 740 × 450).
+
 ## Chancado primario · qué se puede hacer
 
 | Interacción | Dónde | Qué pasa |
@@ -171,6 +201,10 @@ ar-chancador/
 ├─ js/stations/balde3d.js     balde del cargador reconstruido en 3D (gira sin deformarse)
 ├─ js/stations/chancado-secundario.js  estación 2.2: flujo, tolva por dentro, corte del HPGR, detalles A/B
 ├─ js/stations/secundario-geo.js  silueta del dibujo del chancado secundario
+├─ js/stations/pilas-lixiviacion.js  estación 3: aglomerador, apiladora, riego, PLS, rotopala, detalles A/B
+├─ js/stations/pilas-geo.js      canaletas y silueta de las pilas
+├─ assets/pilas/*.svg             dibujos de Emilio (aglomerador, apiladoras y correas)
+├─ assets/target-pilas.png        marcador de las pilas de lixiviación
 ├─ assets/secundario/*.svg        dibujo de Emilio (correas, tolvas, alimentadores, HPGR)
 ├─ assets/target-secundario.png   marcador del chancado secundario y terciario
 ├─ assets/mina/*.svg              túnel, cargador frontal y dumper
@@ -182,7 +216,7 @@ ar-chancador/
 ├─ assets/picarrocas.svg           picarrocas articulado
 ├─ assets/infografia.jpg           infografía completa a 2× (demo sin cámara)
 ├─ assets/target-chancado.png      recorte de la infografía usado como marcador
-├─ assets/targets.mind             marcadores compilados para MindAR (0 chancado, 1 rajo, 2 mina, 3 secundario)
+├─ assets/targets.mind             marcadores compilados para MindAR (0 chancado, 1 rajo, 2 mina, 3 secundario, 4 pilas)
 ├─ tools/compilar-marcador.html    compila nuevos recortes a targets.mind en el navegador
 ├─ tools/generar-giro-caex.mjs     exporta los fotogramas del giro como SVG (npm run giro)
 ├─ tools/extraer-rajo.py           .ai del rajo → js/stations/rajo-geo.js
