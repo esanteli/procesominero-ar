@@ -130,6 +130,38 @@
         </div>
       </div>
 
+      <!-- estación 1 · mina subterránea (js/stations/mina-subterranea.js conecta estos controles) -->
+      <div class="panel-view panel-mina" data-panel-view="mina" hidden>
+        <div class="readout-row">
+          <div class="meter" data-mn-meter title="Carga del dumper"><span></span></div>
+          <output class="readout" data-mn-readout aria-live="polite">—</output>
+        </div>
+        <div class="chips" role="group" aria-label="Equipos de la mina: toca uno para ver su descripción">
+          <button type="button" class="chip" data-mn-chip="cargador"><span>01</span>Cargador frontal</button>
+          <button type="button" class="chip" data-mn-chip="dumper"><span>02</span>Dumper</button>
+        </div>
+        <div class="controls">
+          <label class="ctl">
+            <span class="ctl-label">Radiografía</span>
+            <input type="range" min="0" max="100" value="100" step="1" data-mn-xray aria-label="Radiografía del terreno: cuánto del interior se muestra">
+            <output data-mn-xray-out>100 %</output>
+          </label>
+        </div>
+        <div class="seq" role="group" aria-label="Secuencia de la mina subterránea">
+          <button type="button" class="seq-play" data-mn-play aria-label="Pausar la secuencia de la mina" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8 5v14M16 5v14"/><path class="i-play" d="M8 5l11 7-11 7z"/></svg>
+          </button>
+          <div class="seq-body">
+            <div class="seq-steps" data-mn-steps></div>
+            <p class="seq-label"><b data-mn-step-n data-total="5">1</b><span data-mn-step-label>El dumper ingresa en reversa</span></p>
+          </div>
+          <div class="seq-nav">
+            <button type="button" class="seq-nav-btn" data-mn-prev aria-label="Paso anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <button type="button" class="seq-nav-btn" data-mn-next aria-label="Paso siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+
       <!-- estación 2 · chancado primario (animación lista) -->
       <div class="panel-view panel-chancador" data-panel-view="chancador">
       <div class="readout-row">
@@ -178,8 +210,8 @@
   <div class="intro" data-intro>
     <div class="intro-card">
       <p class="intro-kicker">Experiencia interactiva · Proceso Minero</p>
-      <h1>Rajo y Chancado Primario</h1>
-      <p>Apunta la cámara al <b>Rajo</b> o al <b>Chancado Primario</b> de la infografía. Sobre cada estación se abre una lámina viva: sigue al CAEX desde la pala hasta el chancador, conoce los equipos y mira cómo trabajan.</p>
+      <h1>Rajo, Mina subterránea y Chancado Primario</h1>
+      <p>Apunta la cámara al <b>Rajo</b>, a la <b>Mina subterránea</b> o al <b>Chancado Primario</b> de la infografía. Sobre cada estación se abre una lámina viva: mira el terreno por dentro, sigue el carguío y el transporte del mineral y conoce los equipos.</p>
       <div class="intro-actions">
         <button type="button" class="btn btn--primary" data-start-ar>Escanear infografía</button>
         <button type="button" class="btn" data-start-demo>Ver demo sin cámara</button>
@@ -190,7 +222,7 @@
 
   <div class="scan-hint" data-scan hidden>
     <div class="scan-frame"><i></i><i></i><i></i><i></i></div>
-    <p>Encuadra el <b>Rajo</b> o el <b>Chancado Primario</b></p>
+    <p>Encuadra el <b>Rajo</b>, la <b>Mina subterránea</b> o el <b>Chancado Primario</b></p>
   </div>
 
   <script type="module" src="js/app.js"></script>

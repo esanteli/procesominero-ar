@@ -128,7 +128,7 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
 .seq-play[aria-pressed="false"] .i-play { display: block; }
 .seq-play[aria-pressed="false"] .i-pause { display: none; }
 .seq-body { min-width: 0; display: grid; gap: 7px; }
-.seq-steps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.seq-steps { display: grid; grid-template-columns: repeat(var(--n, 6), 1fr); gap: 4px; }
 .seq-step { height: 22px; border: 0; padding: 8px 0; background: none; cursor: pointer; }
 .seq-step i { display: block; height: 6px; border-radius: 99px; background: #ef78352b; overflow: hidden; position: relative; }
 .seq-step i::after { content: ""; position: absolute; inset: 0; width: 0; background: var(--pm-orange); border-radius: inherit; }
@@ -137,7 +137,8 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
 .seq-step:focus-visible { outline: 2px solid #ef783580; border-radius: 6px; }
 .seq-label { margin: 0; display: flex; gap: 8px; align-items: baseline; font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .seq-label b { font-family: var(--pm-mono); font-size: 12px; color: var(--pm-orange); font-weight: 500; }
-.seq-label b::after { content: "/6"; color: #ef78357a; }
+.seq-label b::after { content: "/" attr(data-total); color: #ef78357a; }
+.seq-label b:not([data-total])::after { content: "/6"; }
 .seq-nav { display: flex; gap: 4px; }
 .seq-nav-btn { width: 36px; height: 36px; border: 0; border-radius: 50%; background: #fff4ea; cursor: pointer; display: grid; place-items: center; }
 .seq-nav-btn svg { width: 18px; height: 18px; fill: none; stroke: var(--pm-orange); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
@@ -318,3 +319,32 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
 .chip--toggle { color: var(--pm-muted); }
 .chip--toggle[aria-pressed="true"] { color: var(--pm-orange); border-color: var(--pm-orange); background: #fff4ea; }
 @media (prefers-reduced-motion: reduce) { .rajo-plate { transition: none; } }
+
+/* ================================================================ estación 1 · mina subterránea (js/stations/mina-subterranea.js) */
+/* radiografía del terreno: el haz barre el bloque impreso y deja ver el túnel con el carguío */
+.mina-plate { pointer-events: none; }
+.mn-svg { display: block; width: 100%; height: 100%; overflow: visible; outline: none; font-family: var(--pm-sans); }
+.mn-glow { fill: #fff; pointer-events: auto; filter: drop-shadow(0 0 6px #ffb36b88) drop-shadow(0 10px 14px #7a3d141c); }
+.mn-eq { pointer-events: auto; cursor: pointer; transition: opacity .35s var(--pm-ease), filter .35s; }
+.mn-hit { fill: transparent; stroke: none; }
+.mina-plate[data-sel] .mn-eq:not([data-on]) { opacity: .25; }
+.mina-plate[data-sel] .mn-tunnel, .mina-plate[data-sel] .mn-ring, .mina-plate[data-sel] .mn-pile { opacity: .55; }
+.mn-tunnel, .mn-ring, .mn-pile { transition: opacity .35s var(--pm-ease); }
+.mn-eq[data-on] { filter: drop-shadow(0 0 1.5px #ef7835) drop-shadow(0 0 5px #ffb36b); }
+.mn-pile-body { fill: #ffe3bf; stroke: #ef8c22; stroke-width: 1; stroke-linejoin: round; }
+.mn-load { fill: #ffd29a; stroke: #ef8c22; stroke-width: 1; stroke-linejoin: round; pointer-events: none; }
+.mn-rock { fill: #ffd29a; stroke: #ef8c22; stroke-width: .8; stroke-linejoin: round; pointer-events: none; }
+.mn-dust, .mn-pour { pointer-events: none; }
+.mn-puff { fill: #fff8f0; stroke: #f0b780; stroke-width: .6; }
+.mn-beam { pointer-events: none; transition: opacity .3s; }
+.mn-beam-glow { fill: #ffb36b33; }
+.mn-beam-line { stroke: var(--pm-orange); stroke-width: 2; }
+.mn-tag { opacity: 0; transition: opacity .3s var(--pm-ease); pointer-events: none; }
+.mn-tag[data-on] { opacity: 1; }
+.mn-tag-line { stroke: var(--pm-orange); stroke-width: 1.2; }
+.mn-tag-pill { fill: var(--pm-orange); }
+.mn-tag-text { fill: #fff; font-size: 11.5px; font-weight: 600; }
+.mn-bs { fill: #fff; stroke: #fff; stroke-width: .4; }
+.mn-bf { fill: #fff; stroke: #ef8c22; stroke-width: .75; stroke-linejoin: round; }
+.mn-be { fill: none; stroke: #ef8c22; stroke-width: .75; stroke-linecap: round; }
+.mn-bl { fill: #ffd29a; stroke: #ef8c22; stroke-width: .75; stroke-linejoin: round; }

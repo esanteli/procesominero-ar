@@ -21,7 +21,7 @@ export const STATIONS = [
     id: "mina-subterranea", n: "1", name: "Mina subterránea", tone: "naranja",
     label: [1484, 1122, 282, 100], focus: [1120, 1040, 720, 400],
     text: "Explotación bajo tierra por túneles y galerías. El mineral se arranca en el interior y se transporta a superficie para seguir el mismo proceso que el del rajo.",
-    status: "en desarrollo", module: null,
+    status: "lista", module: "./stations/mina-subterranea.js",
   },
   {
     id: "chancado-primario", n: "2", name: "Chancado primario", tone: "naranja",

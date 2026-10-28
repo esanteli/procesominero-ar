@@ -263,11 +263,22 @@ async function startDemo() {
 }
 
 // ---------------------------------------------------------------- AR: MindAR + CSS3D (las láminas siguen siendo DOM: se pueden tocar)
-// assets/targets.mind trae dos marcadores: 0 = chancado primario (target-chancado.png), 1 = rajo (target-rajo.png).
+// assets/targets.mind trae tres marcadores: 0 = chancado primario (target-chancado.png), 1 = rajo (target-rajo.png),
+// 2 = mina subterránea (target-mina.png).
 // MindAR sigue uno a la vez; al encontrar uno se activa su lámina y su panel.
 // Recorte del rajo en la infografía (px de assets/infografia.jpg): así la lámina del rajo, que vive en esas
 // coordenadas, se ubica sobre el marcador sin más cuentas.
 const RAJO_TARGET = { x: 60, y: 440, w: 1400, h: 850, lift: 10 };
+const MINA_TARGET = { x: 980, y: 880, w: 1070, h: 600, lift: 10 };
+// lámina en px de la infografía → objeto CSS3D sobre su marcador (ancho del marcador = 1000 en el espacio del ancla)
+function onTarget(el, T, CSS3DObject) {
+  const L = parseFloat(el.style.left), Tp = parseFloat(el.style.top), W = parseFloat(el.style.width), H = parseFloat(el.style.height);
+  el.style.left = "0px"; el.style.top = "0px";
+  const k = 1000 / T.w, o = new CSS3DObject(el);
+  o.position.set((L + W / 2 - T.x - T.w / 2) * k, -(Tp + H / 2 - T.y - T.h / 2) * k, T.lift);
+  o.scale.setScalar(k);
+  return o;
+}
 let mindar = null, pinned = false;
 const arStations = [];   // { id, view, status, anchor, obj, el, setActive }
 let arCurrent = null;
@@ -303,16 +314,19 @@ async function startAR() {
     const { createRajo, bindPanel } = await import("./stations/rajo.js");
     const rajo = await createRajo();
     window.pmRajo = rajo;
-    const rel = rajo.el;
-    const L = parseFloat(rel.style.left), T = parseFloat(rel.style.top), W = parseFloat(rel.style.width), H = parseFloat(rel.style.height);
-    rel.style.left = "0px"; rel.style.top = "0px";
-    rel.classList.add("rajo-plate--ar");
-    const k = 1000 / RAJO_TARGET.w;
-    const rjObj = new CSS3DObject(rel);
-    rjObj.position.set((L + W / 2 - RAJO_TARGET.x - RAJO_TARGET.w / 2) * k, -(T + H / 2 - RAJO_TARGET.y - RAJO_TARGET.h / 2) * k, RAJO_TARGET.lift);
-    rjObj.scale.setScalar(k);
+    rajo.el.classList.add("rajo-plate--ar");
+    const rjObj = onTarget(rajo.el, RAJO_TARGET, CSS3DObject);
     bindPanel(rajo, { onEscape: () => rajo.select(null) });
-    arStations.push({ id: "rajo", view: "rajo", st: { n: "1", name: "Rajo" }, anchor: mindar.addCSSAnchor(1), obj: rjObj, el: rel, setActive: (v) => rajo.setActive(v) });
+    arStations.push({ id: "rajo", view: "rajo", st: { n: "1", name: "Rajo" }, anchor: mindar.addCSSAnchor(1), obj: rjObj, el: rajo.el, setActive: (v) => rajo.setActive(v) });
+
+    // 2 · mina subterránea: al encontrar el marcador, el haz de radiografía barre el terreno
+    const M = await import("./stations/mina-subterranea.js");
+    const mina = await M.createMina();
+    window.pmMina = mina;
+    const mnObj = onTarget(mina.el, MINA_TARGET, CSS3DObject);
+    M.bindPanel(mina, { onEscape: () => mina.select(null) });
+    arStations.push({ id: "mina", view: "mina", st: { n: "1", name: "Mina subterránea" }, anchor: mindar.addCSSAnchor(2), obj: mnObj, el: mina.el,
+      setActive: (v) => { mina.setActive(v); if (v) { mina.setXray(0, true); mina.setXray(1); } } });
 
     for (const S of arStations) {
       S.anchor.group.add(S.obj);

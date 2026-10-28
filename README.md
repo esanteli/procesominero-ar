@@ -1,6 +1,6 @@
 # Proceso Minero AR · prueba de concepto
 
-Láminas vivas sobre las estaciones **1 · Rajo** y **2 · Chancado Primario** de la infografía *Proceso Minero* (Espacio CoWork).
+Láminas vivas sobre las estaciones **1 · Rajo**, **1 · Mina subterránea** y **2 · Chancado Primario** de la infografía *Proceso Minero* (Espacio CoWork).
 Reutiliza el SVG de Illustrator tal cual y le aplica la lógica de animación e interacción de la skill `anatomy`
 (la misma del circuito SAG en `anatomy-test/sag-circuit`).
 
@@ -13,7 +13,7 @@ npx serve .            # o "Live Server" de VS Code
 
 - **Escritorio / sin cámara:** abre `http://localhost:3000/?demo`. La imagen de la infografía hace de papel escaneado.
 - **AR en el celular:** la cámara exige **HTTPS**. Sube la carpeta a `cowork.ceim.cl` (o cualquier hosting estático con HTTPS)
-  y escanea el Rajo o el Chancado Primario de la infografía impresa. También sirve un túnel temporal (`npx localtunnel --port 3000`).
+  y escanea el Rajo, la Mina subterránea o el Chancado Primario de la infografía impresa. También sirve un túnel temporal (`npx localtunnel --port 3000`).
 - `?maxdt=0.4` sólo para QA en equipos muy lentos (deja que la simulación avance aunque haya pocos fps).
 
 ## Demo sin cámara: la infografía completa
@@ -61,6 +61,38 @@ Cómo está armada:
   (`assets/rajo/pala-00…60.svg`) que se funden al girar, alineadas por el pie del pórtico.
 - AR: `assets/targets.mind` ahora trae 2 marcadores (0 = chancado, 1 = rajo, recorte `assets/target-rajo.png`).
   Al encontrar uno se activa su lámina y su panel; el alfiler fija la que se está viendo.
+
+## Estación 1 · Mina subterránea (iteración 5)
+
+"Radiografía" del terreno: al abrir la estación (o encontrar su marcador) un haz barre el bloque impreso y deja ver el
+túnel por dentro con el carguío. Secuencia (≈ 26 s, en bucle), según los frames Inicio AR · Carga · Descarga:
+
+| Paso | Qué pasa |
+|---|---|
+| 1 | El dumper entra en reversa hasta el punto de carguío |
+| 2 | El cargador frontal (LHD) sale del punto de extracción con el balde lleno y avanza al dumper |
+| 3 | Levanta el balde, lo inclina y lo vacía en la tolva (la carga crece: 3 pases de ~10 t) |
+| 4 | Vuelve en reversa, muerde la marina y carga otra vez (el mineral baja por gravedad desde el nicho) |
+| 5 | El dumper sale cargado de frente |
+
+| Interacción | Dónde | Qué pasa |
+|---|---|---|
+| Equipos | tocar el cargador o el dumper, o los chips; teclas 1–2 | foco: el resto se apaga, etiqueta, ficha con datos en vivo; en la demo la cámara se acerca |
+| Radiografía | deslizador, flechas ↑↓ | 0–100 %: cuánto del interior se ve; el haz sigue el valor con seguimiento exponencial |
+| Secuencia | ▶/❚❚, barra de 5 pasos, ‹ ›, espacio, `,` `.` | pausa, salta de paso o retrocede (`state(t)` puro) |
+
+Cómo está armada:
+- `js/stations/mina-subterranea.js`: modelo puro, dibujo, panel y montaje (demo y AR). Recursos en `assets/mina/`
+  (`tunel.svg`, `cargador.svg`, `dumper.svg`, tal como los exportó Emilio). El arco del túnel se separa del resto para que
+  el cargador quede detrás de él al entrar al frente; los equipos se recortan con la silueta del túnel.
+- Sin perspectivas inventadas: ambos equipos se mueven por el eje de la galería con su vista dibujada (el dumper entra
+  en reversa y sale de frente, como en la operación real).
+- Pala del cargador articulada: los brazos giran sobre su pasador en el plano vertical del equipo (transformación
+  isométrica exacta para ese plano) y el balde se reconstruye en 3D desde su placa lateral (`js/stations/balde3d.js`),
+  así se inclina para vaciar sin deformarse y con el mismo trazo.
+- Ubicación sobre la infografía: `REG` en el módulo (escala 0,688), dentro del bloque de terreno junto al portal impreso.
+- AR: marcador 2 de `assets/targets.mind` (recorte `assets/target-mina.png`). Se probó la detección con cámara simulada;
+  un recorte más ancho (con mucho blanco) no se detectaba, por eso el recorte va centrado en la etiqueta y el portal.
 
 ## Chancado primario · qué se puede hacer
 
@@ -111,6 +143,10 @@ ar-chancador/
 ├─ js/stations/plantilla.js   plantilla para la visualización de una estación nueva
 ├─ js/stations/rajo.js        estación 1: modelo, dibujo, panel y montaje (demo y AR)
 ├─ js/stations/rajo-geo.js    geometría del rajo extraída del .ai (generado)
+├─ js/stations/mina-subterranea.js  estación 1 (mina): radiografía, carguío LHD → dumper, panel
+├─ js/stations/balde3d.js     balde del cargador reconstruido en 3D (gira sin deformarse)
+├─ assets/mina/*.svg              túnel, cargador frontal y dumper
+├─ assets/target-mina.png         recorte de la infografía: marcador de la mina
 ├─ assets/rajo/*.svg              pala (orugas + 5 vistas de giro) y perforadora
 ├─ assets/target-rajo.png         recorte de la infografía: marcador del rajo
 ├─ assets/chancador_primario.svg   SVG original de Illustrator, sin tocar (base de la escena)
@@ -118,7 +154,7 @@ ar-chancador/
 ├─ assets/picarrocas.svg           picarrocas articulado
 ├─ assets/infografia.jpg           infografía completa a 2× (demo sin cámara)
 ├─ assets/target-chancado.png      recorte de la infografía usado como marcador
-├─ assets/targets.mind             marcadores compilados para MindAR (0 chancado, 1 rajo)
+├─ assets/targets.mind             marcadores compilados para MindAR (0 chancado, 1 rajo, 2 mina)
 ├─ tools/compilar-marcador.html    compila nuevos recortes a targets.mind en el navegador
 ├─ tools/generar-giro-caex.mjs     exporta los fotogramas del giro como SVG (npm run giro)
 ├─ tools/extraer-rajo.py           .ai del rajo → js/stations/rajo-geo.js
@@ -145,7 +181,7 @@ La lámina es DOM real dentro de la escena (CSS3D), por eso los camiones se pued
    `PARTS` en `rig.js` acepta `"#id"`, así el rig deja de depender del orden del archivo.
 2. **Marcador en alta**: exportar la zona de la estación desde el `.ai` a ~2000 px y recompilar `targets.mind`
    (con `tools/compilar-marcador.html`). Hoy sale de un JPG de 3012 px.
-3. **Una estación por marcador**: cada estación = un recorte + su SVG + su modelo. Ya funciona con rajo (1) y chancado (0);
+3. **Una estación por marcador**: cada estación = un recorte + su SVG + su modelo. Ya funciona con chancado (0), rajo (1) y mina (2);
    para sumar otra, agrega su recorte a la compilación de `targets.mind` y su `addCSSAnchor(i)` en `app.js`.
 4. **Infografía en CMYK**: `assets/infografia.jpg` viene en CMYK. Chrome y Safari la muestran bien, pero conviene exportarla en RGB (sRGB)
    para que los colores sean iguales en todos los equipos y pese menos.
