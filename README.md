@@ -1,6 +1,6 @@
 # Proceso Minero AR · prueba de concepto
 
-Láminas vivas sobre las estaciones **1 · Rajo**, **1 · Mina subterránea**, **2 · Chancado Primario**, **2.2 · Chancado secundario y terciario** y **3 · Pilas de lixiviación** de la infografía *Proceso Minero* (Espacio CoWork).
+Láminas vivas sobre las estaciones **1 · Rajo**, **1 · Mina subterránea**, **2 · Chancado Primario**, **2 · Molino SAG y de bolas**, **2.2 · Chancado secundario y terciario** y **3 · Pilas de lixiviación** de la infografía *Proceso Minero* (Espacio CoWork).
 Reutiliza el SVG de Illustrator tal cual y le aplica la lógica de animación e interacción de la skill `anatomy`
 (la misma del circuito SAG en `anatomy-test/sag-circuit`).
 
@@ -118,6 +118,36 @@ Cómo está armada:
 - `js/stations/secundario-geo.js`: silueta blanca del dibujo (rasterizado, cerrado y dilatado).
 - AR: marcador 3 de `assets/targets.mind` (recorte `assets/target-secundario.png`).
 
+## Estación 2 · Molino SAG y de bolas (iteración 8)
+
+Sobre el dibujo de Emilio (`assets/molienda/molienda.svg`), registrado a la infografía (escala 1,032; error medio ~1 px).
+Flujo de planta: correa de alimentación → **SAG** (bolas + impacto del propio mineral) → descarga por parrillas al
+trómel → **harnero**: los **pebbles** (sobretamaño) salen por su correa al chancado de pebbles y vuelven al circuito; la
+**pulpa** (bajo tamaño) baja por el chute al **cajón** → **bombas** → **hidrociclones** → la descarga (gruesos) entra al
+**molino de bolas** y su descarga vuelve al mismo cajón (circuito cerrado); el **rebalse** (finos) sigue a flotación.
+
+Lectura del dibujo: los dos tubos que nacen del cajón son las succiones de las bombas; los tubos cortos que llegan al
+cajón son las descargas de los molinos de bolas (extremo izquierdo); los chutes junto a cada batería llevan la descarga
+de los hidrociclones a la alimentación del molino (extremo derecho).
+
+| Interacción | Dónde | Qué pasa |
+|---|---|---|
+| Interior SAG | deslizador, flechas ←→ | ventana en el manto del SAG (carga de bolas y rocas, levantadores, catarata) y detalle del SAG en corte |
+| Interior bolas | deslizador, flechas ↑↓ | ventanas en los dos molinos de bolas y detalle del molino de bolas en corte |
+| Alimentación | deslizador | 2.500–5.500 t/h: carga de las correas, llenado del SAG, carga circulante y P80 del rebalse (modelo referencial) |
+| Equipos | chips o tocar el dibujo; teclas 1–5 | SAG, harnero, molinos de bolas, bombas, hidrociclones: foco, ficha y **detalle ampliado** (harnero vibrando con pebbles y pulpa; bomba con impulsor y voluta; hidrociclón en corte con gruesos a la pared y finos al centro) |
+| Sigue una partícula | ▶/❚❚, 6 pasos, ‹ ›, `,` `.` | entra al SAG, pasa por el harnero y el cajón, sube por la bomba al hidrociclón, vuelve como gruesa al molino de bolas y al cajón, y sale fina por el rebalse |
+
+Agregados (por validar): correa de alimentación del SAG, correa de pebbles, tubos de rebalse "→ flotación".
+Valores (llenado, potencia, carga circulante, P80, caudal, presión) típicos/referenciales.
+
+Cómo está armada:
+- `js/stations/molienda.js`: modelo, dibujo, ventanas en los tambores, detalles y panel. Tambores: elipses del dibujo
+  ajustadas en el plano YZ (SAG: centro 362,3 / 153,3, R 26,9, eje (0,866; 0,553), largo 38,8; molinos de bolas: R 15,4
+  y 14,35, largo 57,5 y 53,6). Tubos: eje sacado esqueletizando su relleno.
+- `js/stations/molienda-geo.js`: silueta blanca.
+- AR: marcador 5 de `assets/targets.mind` (recorte `assets/target-molienda.png`, x 1900 y 930, 560 × 450).
+
 ## Estación 3 · Pilas de lixiviación (iteración 7)
 
 Sobre los dibujos de Emilio (`assets/pilas/aglomerador.svg`, `apiladoras.svg`) más las losas, las franjas y los arcos
@@ -201,6 +231,10 @@ ar-chancador/
 ├─ js/stations/balde3d.js     balde del cargador reconstruido en 3D (gira sin deformarse)
 ├─ js/stations/chancado-secundario.js  estación 2.2: flujo, tolva por dentro, corte del HPGR, detalles A/B
 ├─ js/stations/secundario-geo.js  silueta del dibujo del chancado secundario
+├─ js/stations/molienda.js       estación 2: SAG, harnero, bombas, hidrociclones, molinos de bolas, detalles
+├─ js/stations/molienda-geo.js   silueta de la concentradora
+├─ assets/molienda/molienda.svg   dibujo de Emilio (molino SAG y de bolas)
+├─ assets/target-molienda.png     marcador del molino SAG y de bolas
 ├─ js/stations/pilas-lixiviacion.js  estación 3: aglomerador, apiladora, riego, PLS, rotopala, detalles A/B
 ├─ js/stations/pilas-geo.js      canaletas y silueta de las pilas
 ├─ assets/pilas/*.svg             dibujos de Emilio (aglomerador, apiladoras y correas)
@@ -216,7 +250,7 @@ ar-chancador/
 ├─ assets/picarrocas.svg           picarrocas articulado
 ├─ assets/infografia.jpg           infografía completa a 2× (demo sin cámara)
 ├─ assets/target-chancado.png      recorte de la infografía usado como marcador
-├─ assets/targets.mind             marcadores compilados para MindAR (0 chancado, 1 rajo, 2 mina, 3 secundario, 4 pilas)
+├─ assets/targets.mind             marcadores compilados para MindAR (0 chancado, 1 rajo, 2 mina, 3 secundario, 4 pilas, 5 molienda)
 ├─ tools/compilar-marcador.html    compila nuevos recortes a targets.mind en el navegador
 ├─ tools/generar-giro-caex.mjs     exporta los fotogramas del giro como SVG (npm run giro)
 ├─ tools/extraer-rajo.py           .ai del rajo → js/stations/rajo-geo.js

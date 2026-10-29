@@ -30,10 +30,10 @@ export const STATIONS = [
     status: "lista", module: "builtin:chancador",
   },
   {
-    id: "concentradora", n: "2", name: "Concentradora", tone: "amarillo",
+    id: "concentradora", n: "2", name: "Molino SAG y de bolas", tone: "amarillo",
     label: [2058, 1334, 322, 102], focus: [1880, 900, 600, 580],
-    text: "Molinos SAG y de bolas muelen el mineral sulfurado con agua hasta formar una pulpa fina, lista para la flotación.",
-    status: "en desarrollo", module: null,
+    text: "El molino SAG y los molinos de bolas muelen el mineral sulfurado con agua hasta una pulpa fina; los hidrociclones devuelven los gruesos a molienda y mandan los finos a flotación.",
+    status: "lista", module: "./stations/molienda.js",
   },
   {
     id: "chancado-secundario", n: "2.2", name: "Chancado secundario y terciario", tone: "naranja",

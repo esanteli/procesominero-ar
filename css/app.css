@@ -495,3 +495,79 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
 .lx-tag-line { stroke: var(--pm-orange); stroke-width: .8; }
 .lx-tag-pill { fill: var(--pm-orange); }
 .lx-tag-text { fill: #fff; font-size: 6.2px; font-weight: 600; }
+
+/* ---------------------------------------------------------------- estación 2 · molino SAG y de bolas (unidades del SVG ≈ px) */
+.mo-plate { pointer-events: none; opacity: 0; transition: opacity .6s var(--pm-ease); }
+.mo-plate[data-in], .mo-plate--ar { opacity: 1; }
+.mo-svg { display: block; width: 100%; height: 100%; overflow: visible; outline: none; font-family: var(--pm-sans); --pulp: #6d8294; --fine: #7fb3d6; --coarse: #8a6a4a; }
+.mo-sil { fill: #fff; pointer-events: auto; filter: drop-shadow(0 1px 1.5px #7a3d1420) drop-shadow(0 5px 8px #7a3d1418); }
+.mo-svg [data-eq] { pointer-events: auto; cursor: pointer; transition: opacity .35s var(--pm-ease); }
+.mo-dim { opacity: .24; transition: opacity .35s var(--pm-ease); }
+.mo-rocks, .mo-flowg, .mo-seams, .mo-win, .mo-spin, .mo-tour, .mo-tour-pulse, .mo-callout, .mo-tag, .mo-oftag { pointer-events: none; }
+.mo-belt { fill: #fff; stroke: #ef8c22; stroke-width: .97; stroke-linejoin: round; }
+.mo-rock { fill: #ffd29a; stroke: #ef8c22; stroke-width: .45; stroke-linejoin: round; }
+.mo-rock--peb { fill: #f6b46b; }
+.mo-flow { fill: none; stroke: var(--pulp); stroke-width: 1.5; stroke-linecap: round; stroke-dasharray: 1.2 5.8; }
+.mo-flow--coarse { stroke: var(--coarse); stroke-width: 1.7; }
+.mo-flow--fine { stroke: var(--fine); }
+.mo-pipe-o { fill: none; stroke: #ef8c22; stroke-width: 4.6; stroke-linecap: round; stroke-linejoin: round; }
+.mo-pipe-w { fill: none; stroke: #fff; stroke-width: 2.7; stroke-linecap: round; stroke-linejoin: round; }
+.mo-small { font-size: 4.6px; font-weight: 600; fill: #a8501a; paint-order: stroke; stroke: #fff; stroke-width: 1.4px; }
+.mo-seam { stroke: #f3b97a; stroke-width: .8; stroke-linecap: round; fill: none; }
+.mo-spinl { stroke: #ef8c22; stroke-width: .8; stroke-linecap: round; }
+.mo-dvoid { fill: #f7e6d3; }
+.mo-dlift { stroke: #e7a35c; stroke-width: 1.1; stroke-linecap: round; }
+.mo-dbed { fill: #e9d3b0; stroke: #ef8c22; stroke-width: .7; stroke-linejoin: round; }
+.mo-dball { fill: #c9ced3; stroke: #7d8791; stroke-width: .3; }
+.mo-drock { fill: #ffc982; stroke: #ef8c22; stroke-width: .35; }
+.mo-dcut { fill: none; stroke: #ef8c22; stroke-width: 1.2; stroke-linejoin: round; }
+/* detalles */
+.mo-s-shell { fill: #fff; stroke: #ef8c22; stroke-width: 1.4; }
+.mo-s-in { fill: #f7efe6; stroke: #e7a35c; stroke-width: .6; }
+.mo-s-charge { fill: #ead8b8; stroke: #c9a46b; stroke-width: .6; }
+.mo-s-ball { fill: #c9ced3; stroke: #6f7a85; stroke-width: .35; }
+.mo-s-rock { fill: #e9b877; stroke: #a8702e; stroke-width: .35; }
+.mo-s-lift { fill: #ef8c22; }
+.mo-s-traj { fill: none; stroke: #a8501a; stroke-width: .6; stroke-dasharray: 1.6 1.6; }
+.mo-s-arrow { fill: none; stroke: #ef8c22; stroke-width: .9; }
+.mo-s-arrowh { fill: #ef8c22; }
+.mo-h-pan { fill: #ffe9d2; stroke: #ef8c22; stroke-width: .8; stroke-linejoin: round; }
+.mo-h-pulp { fill: var(--pulp); }
+.mo-h-out { fill: #fff; stroke: #ef8c22; stroke-width: .8; stroke-linejoin: round; }
+.mo-h-deck { stroke: #ef8c22; stroke-width: 2.2; stroke-linecap: round; }
+.mo-h-holes { stroke: #fff; stroke-width: .9; stroke-dasharray: 1.2 1.6; }
+.mo-h-spring { fill: none; stroke: #a8501a; stroke-width: .6; }
+.mo-h-leg { stroke: #ef8c22; stroke-width: 1.2; }
+.mo-h-spray { stroke: #5fb0d9; stroke-width: 1.2; stroke-linecap: round; }
+.mo-h-drop { fill: #5fb0d9; }
+.mo-h-rock { fill: #ffd29a; stroke: #ef8c22; stroke-width: .4; }
+.mo-h-fine { fill: var(--pulp); }
+.mo-p-casing { fill: #fff3e6; stroke: #ef8c22; stroke-width: 1.2; stroke-linejoin: round; }
+.mo-p-pipe { stroke: #ef8c22; stroke-width: 1.2; }
+.mo-p-imp { fill: #fff; stroke: #ef8c22; stroke-width: .9; }
+.mo-p-vane { fill: none; stroke: #ef8c22; stroke-width: 1.3; stroke-linecap: round; }
+.mo-p-eye { fill: #e3e9ee; stroke: #6d8294; stroke-width: .7; }
+.mo-p-pulp { fill: var(--pulp); }
+.mo-c-body { fill: #fff3e6; stroke: #ef8c22; stroke-width: 1.2; stroke-linejoin: round; }
+.mo-c-inlet { fill: #fff; stroke: #ef8c22; stroke-width: .9; }
+.mo-c-vf { fill: #fff; stroke: #ef8c22; stroke-width: .9; }
+.mo-c-air { stroke: #c9b49e; stroke-width: .7; stroke-dasharray: 1.5 1.5; }
+.mo-c-swirl { fill: none; stroke: #e9c79c; stroke-width: .6; }
+.mo-c-coarse { fill: var(--coarse); }
+.mo-c-fine { fill: var(--fine); }
+/* partícula que se sigue, tarjeta, etiquetas */
+.mo-tour-ring { fill: #fff8; stroke: var(--pm-orange); stroke-width: .9; }
+.mo-tour-dot { fill: #f39a3c; stroke: #a8501a; stroke-width: .45; }
+.mo-tour-pulse { fill: none; stroke: var(--pm-orange); stroke-width: 1.2; }
+.mo-card { fill: #fff; stroke: #ef783555; stroke-width: 1; filter: drop-shadow(0 3px 7px #7a3d1426); }
+.mo-cal-title { font-size: 6.4px; font-weight: 700; fill: var(--pm-orange); letter-spacing: .02em; }
+.mo-lead { fill: none; stroke: var(--pm-orange); stroke-width: .8; stroke-dasharray: 2.6 2; opacity: .8; }
+.mo-lead-dot { fill: #fff; stroke: var(--pm-orange); stroke-width: 1; }
+.mo-cal-lead { stroke: #8a4a1e; stroke-width: .5; }
+.mo-cal-dot { fill: var(--pm-orange); }
+.mo-cal-text { font-size: 5.3px; font-weight: 600; fill: #5a3b27; paint-order: stroke; stroke: #fff; stroke-width: 1.6px; stroke-linejoin: round; }
+.mo-tag { opacity: 0; transition: opacity .3s var(--pm-ease); }
+.mo-tag[data-on] { opacity: 1; }
+.mo-tag-line { stroke: var(--pm-orange); stroke-width: .8; }
+.mo-tag-pill { fill: var(--pm-orange); }
+.mo-tag-text { fill: #fff; font-size: 6px; font-weight: 600; }

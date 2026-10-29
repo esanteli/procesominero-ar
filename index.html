@@ -252,6 +252,51 @@
         </div>
       </div>
 
+      <!-- estación 2 · molino SAG y de bolas (js/stations/molienda.js conecta estos controles) -->
+      <div class="panel-view panel-mo" data-panel-view="molienda" hidden>
+        <div class="readout-row">
+          <div class="meter" data-mo-meter title="Llenado del molino SAG"><span></span></div>
+          <output class="readout" data-mo-readout aria-live="polite">—</output>
+        </div>
+        <div class="chips" role="group" aria-label="Equipos: toca uno para ver su descripción y su detalle">
+          <button type="button" class="chip" data-mo-chip="sag"><span>01</span>Molino SAG</button>
+          <button type="button" class="chip" data-mo-chip="harnero"><span>02</span>Harnero</button>
+          <button type="button" class="chip" data-mo-chip="bolas"><span>03</span>Molinos de bolas</button>
+          <button type="button" class="chip" data-mo-chip="bombas"><span>04</span>Bombas</button>
+          <button type="button" class="chip" data-mo-chip="hidrociclones"><span>05</span>Hidrociclones</button>
+        </div>
+        <div class="controls controls--3">
+          <label class="ctl">
+            <span class="ctl-label">Interior SAG</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-mo-sag aria-label="Interior del molino SAG: abre una ventana en el manto y muestra la carga por dentro">
+            <output data-mo-sag-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Interior bolas</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-mo-bm aria-label="Interior de los molinos de bolas: abre una ventana en el manto y muestra la carga por dentro">
+            <output data-mo-bm-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Alimentación</span>
+            <input type="range" min="2500" max="5500" value="4000" step="100" data-mo-feed aria-label="Alimentación fresca al molino SAG, toneladas por hora">
+            <output data-mo-feed-out>4.000 t/h</output>
+          </label>
+        </div>
+        <div class="seq" role="group" aria-label="Sigue una partícula por el circuito de molienda">
+          <button type="button" class="seq-play" data-mo-play aria-label="Pausar" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8 5v14M16 5v14"/><path class="i-play" d="M8 5l11 7-11 7z"/></svg>
+          </button>
+          <div class="seq-body">
+            <div class="seq-steps" data-mo-steps></div>
+            <p class="seq-label"><b data-mo-step-n>1</b><span data-mo-step-label>La correa alimenta el molino SAG</span></p>
+          </div>
+          <div class="seq-nav">
+            <button type="button" class="seq-nav-btn" data-mo-prev aria-label="Paso anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <button type="button" class="seq-nav-btn" data-mo-next aria-label="Paso siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+
       <!-- estación 2 · chancado primario (animación lista) -->
       <div class="panel-view panel-chancador" data-panel-view="chancador">
       <div class="readout-row">
