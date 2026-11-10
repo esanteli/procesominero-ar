@@ -297,6 +297,50 @@
         </div>
       </div>
 
+      <!-- estación 3 · celdas de flotación (js/stations/flotacion.js conecta estos controles) -->
+      <div class="panel-view panel-fl" data-panel-view="flotacion" hidden>
+        <div class="readout-row">
+          <div class="meter" data-fl-meter title="Recuperación de cobre"><span></span></div>
+          <output class="readout" data-fl-readout aria-live="polite">—</output>
+        </div>
+        <div class="chips" role="group" aria-label="Equipos: toca uno para ver su descripción y su detalle">
+          <button type="button" class="chip" data-fl-chip="rougher"><span>01</span>Rougher</button>
+          <button type="button" class="chip" data-fl-chip="limpieza"><span>02</span>Limpieza</button>
+          <button type="button" class="chip" data-fl-chip="concentrado"><span>03</span>Esp. concentrado</button>
+          <button type="button" class="chip" data-fl-chip="relaves"><span>04</span>Esp. relaves</button>
+        </div>
+        <div class="controls controls--3">
+          <label class="ctl">
+            <span class="ctl-label">Interior celda</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-fl-cell aria-label="Interior de la celda: abre una ventana en la primera celda rougher y muestra el detalle en corte">
+            <output data-fl-cell-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Corte espesador</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-fl-th aria-label="Corte del espesador de concentrado: abre una ventana en el estanque y muestra las zonas de decantación">
+            <output data-fl-th-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Flujo de aire</span>
+            <input type="range" min="0.6" max="1.6" value="1" step="0.1" data-fl-air aria-label="Flujo de aire a las celdas, veces el nominal">
+            <output data-fl-air-out>1,0×</output>
+          </label>
+        </div>
+        <div class="seq" role="group" aria-label="Sigue una partícula de sulfuro por la flotación">
+          <button type="button" class="seq-play" data-fl-play aria-label="Pausar" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8 5v14M16 5v14"/><path class="i-play" d="M8 5l11 7-11 7z"/></svg>
+          </button>
+          <div class="seq-body">
+            <div class="seq-steps" data-fl-steps></div>
+            <p class="seq-label"><b data-fl-step-n>1</b><span data-fl-step-label>La pulpa de molienda entra a la primera celda</span></p>
+          </div>
+          <div class="seq-nav">
+            <button type="button" class="seq-nav-btn" data-fl-prev aria-label="Paso anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <button type="button" class="seq-nav-btn" data-fl-next aria-label="Paso siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+
       <!-- estación 2 · chancado primario (animación lista) -->
       <div class="panel-view panel-chancador" data-panel-view="chancador">
       <div class="readout-row">

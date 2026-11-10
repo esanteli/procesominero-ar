@@ -571,3 +571,91 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
 .mo-tag-line { stroke: var(--pm-orange); stroke-width: .8; }
 .mo-tag-pill { fill: var(--pm-orange); }
 .mo-tag-text { fill: #fff; font-size: 6px; font-weight: 600; }
+
+/* ---------------------------------------------------------------- estación 3 · celdas de flotación (px de la infografía; capas vivas en unidades de cada dibujo, ×2) */
+.fl-plate { pointer-events: none; opacity: 0; transition: opacity .6s var(--pm-ease); }
+.fl-plate[data-in], .fl-plate--ar { opacity: 1; }
+.fl-svg { display: block; width: 100%; height: 100%; overflow: visible; outline: none; font-family: var(--pm-sans); --pulp: #7d8a95; --conc: #4b5a52; --tails: #b6bcc1; --water: #6fb6dc; --sulf: #c9a227; }
+.fl-sil { fill: #fff; pointer-events: auto; filter: drop-shadow(0 1px 1.5px #7a3d1420) drop-shadow(0 5px 8px #7a3d1418); }
+.fl-svg [data-eq] { pointer-events: auto; cursor: pointer; transition: opacity .35s var(--pm-ease); }
+.fl-dim { opacity: .24; transition: opacity .35s var(--pm-ease); }
+.fl-win, .fl-rakes, .fl-laund, .fl-well, .fl-tour, .fl-tour-pulse, .fl-callouts, .fl-tag, .fl-labels, .fl-top .fl-flow { pointer-events: none; }
+.fl-pipe-o { fill: none; stroke: #ef8c22; stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; }
+.fl-pipe-w { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.fl-flow { fill: none; stroke: var(--pulp); stroke-width: 1.5; stroke-linecap: round; stroke-dasharray: 1.2 5.8; }
+.fl-flow--conc { stroke: var(--conc); }
+.fl-flow--tails { stroke: var(--tails); stroke-width: 1.7; }
+.fl-small { font-size: 4.8px; font-weight: 600; fill: #a8501a; paint-order: stroke; stroke: #fff; stroke-width: 1.4px; }
+.fl-rake { stroke: #ef8c22; stroke-width: .75; stroke-linecap: round; }
+.fl-over { fill: none; stroke: var(--water); stroke-width: .55; stroke-linecap: round; stroke-dasharray: .5 2.7; }
+.fl-swirl { stroke: var(--conc); stroke-width: .4; stroke-linecap: round; opacity: .7; }
+.fl-void { fill: #f2ebe3; }
+.fl-cut { fill: none; stroke: #ef8c22; stroke-width: .75; stroke-linejoin: round; }
+.fl-pulp { fill: #c7cfd5; }
+.fl-froth { fill: #eef1f3; }
+.fl-shaft { stroke: #8a4a1e; stroke-width: .5; }
+.fl-stator { fill: none; stroke: #8a4a1e; stroke-width: .35; }
+.fl-rotor { fill: none; stroke: #c0392b; stroke-width: .45; stroke-linejoin: round; }
+.fl-bub { fill: #fff; stroke: #7d8a95; stroke-width: .12; }
+.fl-sulf { fill: var(--sulf); }
+.fl-gangue { fill: #9aa3aa; }
+.fl-frothb { fill: #fff; stroke: #a7b0b6; stroke-width: .1; }
+.fl-z-clear { fill: #d9edf6; }
+.fl-z-settle { fill: #b9c2bc; }
+.fl-z-bed { fill: #7b8a80; }
+.fl-z-settle.fl-z-tails { fill: #d4d6d8; } .fl-z-bed.fl-z-tails { fill: #b2b6ba; }
+.fl-floc { fill: #4b5a52; } .fl-floc--tails { fill: #9aa0a5; }
+.fl-rake-b { stroke: #8a4a1e; stroke-width: .6; stroke-linecap: round; }
+/* detalle A · celda en corte */
+.fl-a-tank { fill: #fff; stroke: #ef8c22; stroke-width: 1.4; stroke-linejoin: round; }
+.fl-a-pulp { fill: #d5dce1; }
+.fl-a-frothz { fill: #f3f5f6; }
+.fl-a-launder { fill: none; stroke: #ef8c22; stroke-width: 1.1; stroke-linejoin: round; }
+.fl-a-box { fill: #fff; stroke: #ef8c22; stroke-width: 1; }
+.fl-a-dart { fill: #fff; stroke: #8a4a1e; stroke-width: .8; stroke-linejoin: round; }
+.fl-a-feed, .fl-a-air { fill: none; stroke: #ef8c22; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.fl-a-air { stroke: #6fb6dc; stroke-width: 1.6; }
+.fl-a-cone { fill: #fff; stroke: #ef8c22; stroke-width: .9; stroke-linejoin: round; }
+.fl-a-beam, .fl-a-motor { fill: #fff; stroke: #ef8c22; stroke-width: .9; }
+.fl-a-shaft { fill: #fff; stroke: #8a4a1e; stroke-width: .8; }
+.fl-a-stator { fill: none; stroke: #8a4a1e; stroke-width: 1.1; }
+.fl-a-rotor { fill: #d4473b; }
+.fl-a-hub { fill: #a8352b; }
+.fl-a-airb { fill: #6fb6dc; }
+.fl-a-bub { fill: #fff; stroke: #7d8a95; stroke-width: .4; }
+.fl-a-sulf { fill: var(--sulf); }
+.fl-a-gangue { fill: #8f989f; }
+.fl-a-frothb { fill: #fff; stroke: #a7b0b6; stroke-width: .35; }
+/* detalle B · espesador en corte */
+.fl-b-clear { fill: #dcf0f8; } .fl-b-settle { fill: #c3ccc6; } .fl-b-bed { fill: #7f8e84; }
+.fl-b-settle.fl-b-tails { fill: #dadcde; } .fl-b-bed.fl-b-tails { fill: #b8bcc0; }
+.fl-b-tank { fill: none; stroke: #ef8c22; stroke-width: 1.4; stroke-linejoin: round; }
+.fl-b-launder { fill: none; stroke: #ef8c22; stroke-width: 1; stroke-linejoin: round; }
+.fl-b-water { fill: var(--water); }
+.fl-b-under, .fl-b-feed { fill: none; stroke: #ef8c22; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.fl-b-pump { fill: #fff; stroke: #ef8c22; stroke-width: 1; }
+.fl-b-mud { fill: #4b5a52; } .fl-b-mud--tails { fill: #9aa0a5; }
+.fl-b-bridge, .fl-b-drive { fill: #fff; stroke: #ef8c22; stroke-width: .9; }
+.fl-b-shaft { stroke: #8a4a1e; stroke-width: 1.4; }
+.fl-b-arm { stroke: #8a4a1e; stroke-width: 1.2; stroke-linecap: round; }
+.fl-b-blade { stroke: #8a4a1e; stroke-width: .8; stroke-linecap: round; }
+.fl-b-well { stroke: #ef8c22; stroke-width: 1.1; }
+.fl-b-floc { stroke: #6fb6dc; stroke-width: .9; }
+.fl-b-flocd { fill: #6fb6dc; }
+/* partícula, tarjetas, etiquetas */
+.fl-tour-ring { fill: #fff8; stroke: var(--pm-orange); stroke-width: 1; }
+.fl-tour-dot { fill: var(--sulf); stroke: #8a6a10; stroke-width: .5; }
+.fl-tour-pulse { fill: none; stroke: var(--pm-orange); stroke-width: 1.3; }
+.fl-callout { transition: opacity .3s var(--pm-ease); }
+.fl-card { fill: #fff; stroke: #ef783555; stroke-width: 1; filter: drop-shadow(0 3px 7px #7a3d1426); }
+.fl-cal-title { font-size: 6.6px; font-weight: 700; fill: var(--pm-orange); letter-spacing: .02em; }
+.fl-lead { fill: none; stroke: var(--pm-orange); stroke-width: .8; stroke-dasharray: 2.6 2; opacity: .8; }
+.fl-lead-dot { fill: #fff; stroke: var(--pm-orange); stroke-width: 1; }
+.fl-cal-lead { stroke: #8a4a1e; stroke-width: .5; }
+.fl-cal-dot { fill: var(--pm-orange); }
+.fl-cal-text { font-size: 5.4px; font-weight: 600; fill: #5a3b27; paint-order: stroke; stroke: #fff; stroke-width: 1.6px; stroke-linejoin: round; }
+.fl-tag { opacity: 0; transition: opacity .3s var(--pm-ease); }
+.fl-tag[data-on] { opacity: 1; }
+.fl-tag-line { stroke: var(--pm-orange); stroke-width: .8; }
+.fl-tag-pill { fill: var(--pm-orange); }
+.fl-tag-text { fill: #fff; font-size: 6.2px; font-weight: 600; }

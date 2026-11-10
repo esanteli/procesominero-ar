@@ -1,6 +1,6 @@
 # Proceso Minero AR · prueba de concepto
 
-Láminas vivas sobre las estaciones **1 · Rajo**, **1 · Mina subterránea**, **2 · Chancado Primario**, **2 · Molino SAG y de bolas**, **2.2 · Chancado secundario y terciario** y **3 · Pilas de lixiviación** de la infografía *Proceso Minero* (Espacio CoWork).
+Láminas vivas sobre las estaciones **1 · Rajo**, **1 · Mina subterránea**, **2 · Chancado Primario**, **2 · Molino SAG y de bolas**, **2.2 · Chancado secundario y terciario**, **3 · Pilas de lixiviación** y **3 · Celdas de flotación** de la infografía *Proceso Minero* (Espacio CoWork).
 Reutiliza el SVG de Illustrator tal cual y le aplica la lógica de animación e interacción de la skill `anatomy`
 (la misma del circuito SAG en `anatomy-test/sag-circuit`).
 
@@ -118,6 +118,35 @@ Cómo está armada:
 - `js/stations/secundario-geo.js`: silueta blanca del dibujo (rasterizado, cerrado y dilatado).
 - AR: marcador 3 de `assets/targets.mind` (recorte `assets/target-secundario.png`).
 
+## Estación 3 · Celdas de flotación (iteración 9)
+
+Sobre los dibujos de Emilio: `assets/flotacion/zona.svg` (la etapa completa, registrada a la infografía con error de
+0,24 px) y encima `celdas.svg` y `espesadoras.svg` en su mismo registro (~0,3 px), con las capas vivas.
+
+Proceso: la pulpa de molienda entra a la fila de adelante (**rougher**). En cada celda el rotor gira dentro del estator,
+toma el aire del eje hueco y lo reparte en burbujas; los sulfuros (hidrofóbicos por el colector) se pegan a las burbujas
+y suben a la espuma, que rebalsa a la canaleta: es el concentrado. La ganga sigue en la pulpa de celda en celda (cajones
+con válvula dardo) hasta el relave. La fila de atrás (**limpieza**) sube la ley. El concentrado llega por la canaleta del
+puente al pozo de alimentación del **espesador de concentrado**: el floculante forma flóculos que decantan (agua clara,
+sedimentación, compresión), las rastras los llevan al cono y la descarga sale a ~65 % sólidos hacia filtros; el agua
+clara rebalsa por la canaleta perimetral. El segundo espesador trata el **relave** (descarga → tranque).
+
+| Interacción | Dónde | Qué pasa |
+|---|---|---|
+| Interior celda | deslizador, flechas ←→ | ventana en la primera celda rougher (pulpa, burbujas con sulfuro, rotor girando, espuma) y detalle de la celda en corte (motor, aire por el eje hueco, rotor/estator, cono de espuma, canaletas, válvula dardo) |
+| Corte espesador | deslizador, flechas ↑↓ | corte en el manto del espesador de concentrado (agua clara, sedimentación, compresión, flóculos, rastra) y detalle en corte (pozo, floculante, rastras, rebalse, descarga) |
+| Flujo de aire | deslizador | 0,6–1,6× nominal: más burbujas; sube la recuperación y baja la ley (más arrastre de ganga). Modelo referencial |
+| Equipos | chips o tocar el dibujo; teclas 1–4 | rougher, limpieza, espesador de concentrado, espesador de relaves: foco, ficha y detalle |
+| Sigue una partícula | ▶/❚❚, 6 pasos, ‹ ›, `,` `.` | entra a la celda, se pega a una burbuja, sube a la espuma, pasa por limpieza y decanta en el espesador |
+
+En la lámina siempre: rastras girando en los dos espesadores, rebalse por la canaleta perimetral, alimentación por la
+canaleta del puente. Agregado: tubería "desde molienda". Interpretaciones por validar: fila de adelante = rougher, fila de
+atrás = limpieza; espesador de atrás = concentrado, de adelante = relaves; los cilindros delgados = cajones con válvula
+dardo. Valores (recuperación, ley, % sólidos) típicos; el 25 % → 65 % sólidos viene de la referencia de Sierra Gorda.
+
+Cómo está armada: `js/stations/flotacion.js` (modelo, dibujo, ventanas, detalles, panel), `js/stations/flotacion-geo.js`
+(silueta). AR: marcador 6 de `assets/targets.mind` (recorte `assets/target-flotacion.png`, x 2780 y 700, 900 × 500).
+
 ## Estación 2 · Molino SAG y de bolas (iteración 8)
 
 Sobre el dibujo de Emilio (`assets/molienda/molienda.svg`), registrado a la infografía (escala 1,032; error medio ~1 px).
@@ -231,6 +260,10 @@ ar-chancador/
 ├─ js/stations/balde3d.js     balde del cargador reconstruido en 3D (gira sin deformarse)
 ├─ js/stations/chancado-secundario.js  estación 2.2: flujo, tolva por dentro, corte del HPGR, detalles A/B
 ├─ js/stations/secundario-geo.js  silueta del dibujo del chancado secundario
+├─ js/stations/flotacion.js      estación 3: celdas de flotación y espesadores, detalles
+├─ js/stations/flotacion-geo.js  silueta de la etapa de flotación
+├─ assets/flotacion/*.svg         dibujos de Emilio (zona, celdas, espesadores)
+├─ assets/target-flotacion.png    marcador de las celdas de flotación
 ├─ js/stations/molienda.js       estación 2: SAG, harnero, bombas, hidrociclones, molinos de bolas, detalles
 ├─ js/stations/molienda-geo.js   silueta de la concentradora
 ├─ assets/molienda/molienda.svg   dibujo de Emilio (molino SAG y de bolas)
@@ -250,7 +283,7 @@ ar-chancador/
 ├─ assets/picarrocas.svg           picarrocas articulado
 ├─ assets/infografia.jpg           infografía completa a 2× (demo sin cámara)
 ├─ assets/target-chancado.png      recorte de la infografía usado como marcador
-├─ assets/targets.mind             marcadores compilados para MindAR (0 chancado, 1 rajo, 2 mina, 3 secundario, 4 pilas, 5 molienda)
+├─ assets/targets.mind             marcadores compilados para MindAR (0 chancado, 1 rajo, 2 mina, 3 secundario, 4 pilas, 5 molienda, 6 flotación)
 ├─ tools/compilar-marcador.html    compila nuevos recortes a targets.mind en el navegador
 ├─ tools/generar-giro-caex.mjs     exporta los fotogramas del giro como SVG (npm run giro)
 ├─ tools/extraer-rajo.py           .ai del rajo → js/stations/rajo-geo.js

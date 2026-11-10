@@ -51,7 +51,7 @@ export const STATIONS = [
     id: "celdas-flotacion", n: "3", name: "Celdas de flotación", tone: "amarillo",
     label: [3076, 1148, 282, 100], focus: [2680, 660, 1060, 620],
     text: "La pulpa se agita con aire y reactivos: las partículas de sulfuro de cobre se pegan a las burbujas y forman un concentrado de ~25–30 % de cobre.",
-    status: "en desarrollo", module: null,
+    status: "lista", module: "./stations/flotacion.js",
   },
   {
     id: "electroobtencion", n: "4", name: "Electroobtención", tone: "naranja",
