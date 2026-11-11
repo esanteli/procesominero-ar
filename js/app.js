@@ -265,7 +265,8 @@ async function startDemo() {
 // ---------------------------------------------------------------- AR: MindAR + CSS3D (las láminas siguen siendo DOM: se pueden tocar)
 // assets/targets.mind trae tres marcadores: 0 = chancado primario (target-chancado.png), 1 = rajo (target-rajo.png),
 // 2 = mina subterránea (target-mina.png), 3 = chancado secundario y terciario (target-secundario.png),
-// 4 = pilas de lixiviación (target-pilas.png).
+// 4 = pilas de lixiviación (target-pilas.png), 5 = molino SAG y de bolas (target-molienda.png), 6 = celdas de flotación (target-flotacion.png),
+// 7 = extracción por solvente y electroobtención (target-sxew.png).
 // MindAR sigue uno a la vez; al encontrar uno se activa su lámina y su panel.
 // Recorte del rajo en la infografía (px de assets/infografia.jpg): así la lámina del rajo, que vive en esas
 // coordenadas, se ubica sobre el marcador sin más cuentas.
@@ -273,6 +274,11 @@ const RAJO_TARGET = { x: 60, y: 440, w: 1400, h: 850, lift: 10 };
 const MINA_TARGET = { x: 980, y: 880, w: 1070, h: 600, lift: 10 };
 const SEC_TARGET = { x: 1880, y: 620, w: 840, h: 380, lift: 10 };
 const LIX_TARGET = { x: 2190, y: 270, w: 740, h: 450, lift: 10 };
+const MOL_TARGET = { x: 1900, y: 930, w: 560, h: 450, lift: 10 };
+const FLO_TARGET = { x: 2780, y: 700, w: 900, h: 500, lift: 10 };
+const SXEW_TARGET = { x: 2950, y: 300, w: 760, h: 420, lift: 10 };
+const FUN_TARGET = { x: 4085, y: 925, w: 640, h: 400, lift: 10 };
+const PUE_TARGET = { x: 4180, y: 420, w: 960, h: 450, lift: 10 };
 // lámina en px de la infografía → objeto CSS3D sobre su marcador (ancho del marcador = 1000 en el espacio del ancla)
 function onTarget(el, T, CSS3DObject) {
   const L = parseFloat(el.style.left), Tp = parseFloat(el.style.top), W = parseFloat(el.style.width), H = parseFloat(el.style.height);
@@ -348,6 +354,51 @@ async function startAR() {
     const lxObj = onTarget(lix.el, LIX_TARGET, CSS3DObject);
     LX.bindPanel(lix, { onEscape: () => lix.select(null) });
     arStations.push({ id: "pilas", view: "pilas", st: { n: "3", name: "Pilas de lixiviación" }, anchor: mindar.addCSSAnchor(4), obj: lxObj, el: lix.el, setActive: (v) => lix.setActive(v) });
+
+    // 5 · molino SAG y de bolas
+    const MO = await import("./stations/molienda.js");
+    const mol = await MO.createMolienda();
+    window.pmMol = mol;
+    mol.el.classList.add("mo-plate--ar");
+    const moObj = onTarget(mol.el, MOL_TARGET, CSS3DObject);
+    MO.bindPanel(mol, { onEscape: () => mol.select(null) });
+    arStations.push({ id: "molienda", view: "molienda", st: { n: "2", name: "Molino SAG y de bolas" }, anchor: mindar.addCSSAnchor(5), obj: moObj, el: mol.el, setActive: (v) => mol.setActive(v) });
+
+    // 6 · celdas de flotación
+    const FL = await import("./stations/flotacion.js");
+    const flo = await FL.createFlotacion();
+    window.pmFlo = flo;
+    flo.el.classList.add("fl-plate--ar");
+    const flObj = onTarget(flo.el, FLO_TARGET, CSS3DObject);
+    FL.bindPanel(flo, { onEscape: () => flo.select(null) });
+    arStations.push({ id: "flotacion", view: "flotacion", st: { n: "3", name: "Celdas de flotación" }, anchor: mindar.addCSSAnchor(6), obj: flObj, el: flo.el, setActive: (v) => flo.setActive(v) });
+
+    // 7 · extracción por solvente y electroobtención
+    const SXM = await import("./stations/sx-ew.js");
+    const sxew = await SXM.createSxEw();
+    window.pmSx = sxew;
+    sxew.el.classList.add("sx-plate--ar");
+    const sxObj = onTarget(sxew.el, SXEW_TARGET, CSS3DObject);
+    SXM.bindPanel(sxew, { onEscape: () => sxew.select(null) });
+    arStations.push({ id: "sxew", view: "sxew", st: { n: "4", name: "Extracción por solvente y electroobtención" }, anchor: mindar.addCSSAnchor(7), obj: sxObj, el: sxew.el, setActive: (v) => sxew.setActive(v) });
+
+    // 8 · fundición
+    const FUM = await import("./stations/fundicion.js");
+    const fun = await FUM.createFundicion();
+    window.pmFu = fun;
+    fun.el.classList.add("fu-plate--ar");
+    const fuObj = onTarget(fun.el, FUN_TARGET, CSS3DObject);
+    FUM.bindPanel(fun, { onEscape: () => fun.select(null) });
+    arStations.push({ id: "fundicion", view: "fundicion", st: { n: "4", name: "Fundición" }, anchor: mindar.addCSSAnchor(8), obj: fuObj, el: fun.el, setActive: (v) => fun.setActive(v) });
+
+    // 9 · puerto
+    const PUM = await import("./stations/puerto.js");
+    const pue = await PUM.createPuerto();
+    window.pmPu = pue;
+    pue.el.classList.add("pu-plate--ar");
+    const puObj = onTarget(pue.el, PUE_TARGET, CSS3DObject);
+    PUM.bindPanel(pue, { onEscape: () => pue.select(null) });
+    arStations.push({ id: "puerto", view: "puerto", st: { n: "5", name: "Puerto" }, anchor: mindar.addCSSAnchor(9), obj: puObj, el: pue.el, setActive: (v) => pue.setActive(v) });
 
     for (const S of arStations) {
       S.anchor.group.add(S.obj);

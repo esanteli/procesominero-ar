@@ -495,3 +495,539 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
 .lx-tag-line { stroke: var(--pm-orange); stroke-width: .8; }
 .lx-tag-pill { fill: var(--pm-orange); }
 .lx-tag-text { fill: #fff; font-size: 6.2px; font-weight: 600; }
+
+/* ---------------------------------------------------------------- estación 2 · molino SAG y de bolas (unidades del SVG ≈ px) */
+.mo-plate { pointer-events: none; opacity: 0; transition: opacity .6s var(--pm-ease); }
+.mo-plate[data-in], .mo-plate--ar { opacity: 1; }
+.mo-svg { display: block; width: 100%; height: 100%; overflow: visible; outline: none; font-family: var(--pm-sans); --pulp: #6d8294; --fine: #7fb3d6; --coarse: #8a6a4a; }
+.mo-sil { fill: #fff; pointer-events: auto; filter: drop-shadow(0 1px 1.5px #7a3d1420) drop-shadow(0 5px 8px #7a3d1418); }
+.mo-svg [data-eq] { pointer-events: auto; cursor: pointer; transition: opacity .35s var(--pm-ease); }
+.mo-dim { opacity: .24; transition: opacity .35s var(--pm-ease); }
+.mo-rocks, .mo-flowg, .mo-seams, .mo-win, .mo-spin, .mo-tour, .mo-tour-pulse, .mo-callout, .mo-tag, .mo-oftag { pointer-events: none; }
+.mo-belt { fill: #fff; stroke: #ef8c22; stroke-width: .97; stroke-linejoin: round; }
+.mo-rock { fill: #ffd29a; stroke: #ef8c22; stroke-width: .45; stroke-linejoin: round; }
+.mo-rock--peb { fill: #f6b46b; }
+.mo-flow { fill: none; stroke: var(--pulp); stroke-width: 1.5; stroke-linecap: round; stroke-dasharray: 1.2 5.8; }
+.mo-flow--coarse { stroke: var(--coarse); stroke-width: 1.7; }
+.mo-flow--fine { stroke: var(--fine); }
+.mo-pipe-o { fill: none; stroke: #ef8c22; stroke-width: 4.6; stroke-linecap: round; stroke-linejoin: round; }
+.mo-pipe-w { fill: none; stroke: #fff; stroke-width: 2.7; stroke-linecap: round; stroke-linejoin: round; }
+.mo-small { font-size: 4.6px; font-weight: 600; fill: #a8501a; paint-order: stroke; stroke: #fff; stroke-width: 1.4px; }
+.mo-seam { stroke: #f3b97a; stroke-width: .8; stroke-linecap: round; fill: none; }
+.mo-spinl { stroke: #ef8c22; stroke-width: .8; stroke-linecap: round; }
+.mo-dvoid { fill: #f7e6d3; }
+.mo-dlift { stroke: #e7a35c; stroke-width: 1.1; stroke-linecap: round; }
+.mo-dbed { fill: #e9d3b0; stroke: #ef8c22; stroke-width: .7; stroke-linejoin: round; }
+.mo-dball { fill: #c9ced3; stroke: #7d8791; stroke-width: .3; }
+.mo-drock { fill: #ffc982; stroke: #ef8c22; stroke-width: .35; }
+.mo-dcut { fill: none; stroke: #ef8c22; stroke-width: 1.2; stroke-linejoin: round; }
+/* detalles */
+.mo-s-shell { fill: #fff; stroke: #ef8c22; stroke-width: 1.4; }
+.mo-s-in { fill: #f7efe6; stroke: #e7a35c; stroke-width: .6; }
+.mo-s-charge { fill: #ead8b8; stroke: #c9a46b; stroke-width: .6; }
+.mo-s-ball { fill: #c9ced3; stroke: #6f7a85; stroke-width: .35; }
+.mo-s-rock { fill: #e9b877; stroke: #a8702e; stroke-width: .35; }
+.mo-s-lift { fill: #ef8c22; }
+.mo-s-traj { fill: none; stroke: #a8501a; stroke-width: .6; stroke-dasharray: 1.6 1.6; }
+.mo-s-arrow { fill: none; stroke: #ef8c22; stroke-width: .9; }
+.mo-s-arrowh { fill: #ef8c22; }
+.mo-h-pan { fill: #ffe9d2; stroke: #ef8c22; stroke-width: .8; stroke-linejoin: round; }
+.mo-h-pulp { fill: var(--pulp); }
+.mo-h-out { fill: #fff; stroke: #ef8c22; stroke-width: .8; stroke-linejoin: round; }
+.mo-h-deck { stroke: #ef8c22; stroke-width: 2.2; stroke-linecap: round; }
+.mo-h-holes { stroke: #fff; stroke-width: .9; stroke-dasharray: 1.2 1.6; }
+.mo-h-spring { fill: none; stroke: #a8501a; stroke-width: .6; }
+.mo-h-leg { stroke: #ef8c22; stroke-width: 1.2; }
+.mo-h-spray { stroke: #5fb0d9; stroke-width: 1.2; stroke-linecap: round; }
+.mo-h-drop { fill: #5fb0d9; }
+.mo-h-rock { fill: #ffd29a; stroke: #ef8c22; stroke-width: .4; }
+.mo-h-fine { fill: var(--pulp); }
+.mo-p-casing { fill: #fff3e6; stroke: #ef8c22; stroke-width: 1.2; stroke-linejoin: round; }
+.mo-p-pipe { stroke: #ef8c22; stroke-width: 1.2; }
+.mo-p-imp { fill: #fff; stroke: #ef8c22; stroke-width: .9; }
+.mo-p-vane { fill: none; stroke: #ef8c22; stroke-width: 1.3; stroke-linecap: round; }
+.mo-p-eye { fill: #e3e9ee; stroke: #6d8294; stroke-width: .7; }
+.mo-p-pulp { fill: var(--pulp); }
+.mo-c-body { fill: #fff3e6; stroke: #ef8c22; stroke-width: 1.2; stroke-linejoin: round; }
+.mo-c-inlet { fill: #fff; stroke: #ef8c22; stroke-width: .9; }
+.mo-c-vf { fill: #fff; stroke: #ef8c22; stroke-width: .9; }
+.mo-c-air { stroke: #c9b49e; stroke-width: .7; stroke-dasharray: 1.5 1.5; }
+.mo-c-swirl { fill: none; stroke: #e9c79c; stroke-width: .6; }
+.mo-c-coarse { fill: var(--coarse); }
+.mo-c-fine { fill: var(--fine); }
+/* partícula que se sigue, tarjeta, etiquetas */
+.mo-tour-ring { fill: #fff8; stroke: var(--pm-orange); stroke-width: .9; }
+.mo-tour-dot { fill: #f39a3c; stroke: #a8501a; stroke-width: .45; }
+.mo-tour-pulse { fill: none; stroke: var(--pm-orange); stroke-width: 1.2; }
+.mo-card { fill: #fff; stroke: #ef783555; stroke-width: 1; filter: drop-shadow(0 3px 7px #7a3d1426); }
+.mo-cal-title { font-size: 6.4px; font-weight: 700; fill: var(--pm-orange); letter-spacing: .02em; }
+.mo-lead { fill: none; stroke: var(--pm-orange); stroke-width: .8; stroke-dasharray: 2.6 2; opacity: .8; }
+.mo-lead-dot { fill: #fff; stroke: var(--pm-orange); stroke-width: 1; }
+.mo-cal-lead { stroke: #8a4a1e; stroke-width: .5; }
+.mo-cal-dot { fill: var(--pm-orange); }
+.mo-cal-text { font-size: 5.3px; font-weight: 600; fill: #5a3b27; paint-order: stroke; stroke: #fff; stroke-width: 1.6px; stroke-linejoin: round; }
+.mo-tag { opacity: 0; transition: opacity .3s var(--pm-ease); }
+.mo-tag[data-on] { opacity: 1; }
+.mo-tag-line { stroke: var(--pm-orange); stroke-width: .8; }
+.mo-tag-pill { fill: var(--pm-orange); }
+.mo-tag-text { fill: #fff; font-size: 6px; font-weight: 600; }
+
+/* ---------------------------------------------------------------- estación 3 · celdas de flotación (px de la infografía; capas vivas en unidades de cada dibujo, ×2) */
+.fl-plate { pointer-events: none; opacity: 0; transition: opacity .6s var(--pm-ease); }
+.fl-plate[data-in], .fl-plate--ar { opacity: 1; }
+.fl-svg { display: block; width: 100%; height: 100%; overflow: visible; outline: none; font-family: var(--pm-sans); --pulp: #7d8a95; --conc: #4b5a52; --tails: #b6bcc1; --water: #6fb6dc; --sulf: #c9a227; }
+.fl-sil { fill: #fff; pointer-events: auto; filter: drop-shadow(0 1px 1.5px #7a3d1420) drop-shadow(0 5px 8px #7a3d1418); }
+.fl-svg [data-eq] { pointer-events: auto; cursor: pointer; transition: opacity .35s var(--pm-ease); }
+.fl-dim { opacity: .24; transition: opacity .35s var(--pm-ease); }
+.fl-win, .fl-rakes, .fl-laund, .fl-well, .fl-tour, .fl-tour-pulse, .fl-callouts, .fl-tag, .fl-labels, .fl-top .fl-flow { pointer-events: none; }
+.fl-pipe-o { fill: none; stroke: #ef8c22; stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; }
+.fl-pipe-w { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.fl-flow { fill: none; stroke: var(--pulp); stroke-width: 1.5; stroke-linecap: round; stroke-dasharray: 1.2 5.8; }
+.fl-flow--conc { stroke: var(--conc); }
+.fl-flow--tails { stroke: var(--tails); stroke-width: 1.7; }
+.fl-flow--local { stroke-width: .75; stroke-dasharray: .6 2.9; pointer-events: none; }
+.fl-flow--local.fl-flow--tails { stroke-width: .85; }
+.fl-small { font-size: 4.8px; font-weight: 600; fill: #a8501a; paint-order: stroke; stroke: #fff; stroke-width: 1.4px; }
+.fl-rake { stroke: #ef8c22; stroke-width: .75; stroke-linecap: round; }
+.fl-over { fill: none; stroke: var(--water); stroke-width: .55; stroke-linecap: round; stroke-dasharray: .5 2.7; }
+.fl-swirl { stroke: var(--conc); stroke-width: .4; stroke-linecap: round; opacity: .7; }
+.fl-void { fill: #f2ebe3; }
+.fl-cut { fill: none; stroke: #ef8c22; stroke-width: .75; stroke-linejoin: round; }
+.fl-pulp { fill: #c7cfd5; }
+.fl-froth { fill: #eef1f3; }
+.fl-shaft { stroke: #8a4a1e; stroke-width: .5; }
+.fl-stator { fill: none; stroke: #8a4a1e; stroke-width: .35; }
+.fl-rotor { fill: none; stroke: #c0392b; stroke-width: .45; stroke-linejoin: round; }
+.fl-bub { fill: #fff; stroke: #7d8a95; stroke-width: .12; }
+.fl-sulf { fill: var(--sulf); }
+.fl-gangue { fill: #9aa3aa; }
+.fl-frothb { fill: #fff; stroke: #a7b0b6; stroke-width: .1; }
+.fl-z-clear { fill: #d9edf6; }
+.fl-z-settle { fill: #b9c2bc; }
+.fl-z-bed { fill: #7b8a80; }
+.fl-z-settle.fl-z-tails { fill: #d4d6d8; } .fl-z-bed.fl-z-tails { fill: #b2b6ba; }
+.fl-floc { fill: #4b5a52; } .fl-floc--tails { fill: #9aa0a5; }
+.fl-rake-b { stroke: #8a4a1e; stroke-width: .6; stroke-linecap: round; }
+/* detalle A · celda en corte */
+.fl-a-tank { fill: #fff; stroke: #ef8c22; stroke-width: 1.4; stroke-linejoin: round; }
+.fl-a-pulp { fill: #d5dce1; }
+.fl-a-frothz { fill: #f3f5f6; }
+.fl-a-launder { fill: none; stroke: #ef8c22; stroke-width: 1.1; stroke-linejoin: round; }
+.fl-a-box { fill: #fff; stroke: #ef8c22; stroke-width: 1; }
+.fl-a-dart { fill: #fff; stroke: #8a4a1e; stroke-width: .8; stroke-linejoin: round; }
+.fl-a-feed, .fl-a-air { fill: none; stroke: #ef8c22; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.fl-a-air { stroke: #6fb6dc; stroke-width: 1.6; }
+.fl-a-cone { fill: #fff; stroke: #ef8c22; stroke-width: .9; stroke-linejoin: round; }
+.fl-a-beam, .fl-a-motor { fill: #fff; stroke: #ef8c22; stroke-width: .9; }
+.fl-a-shaft { fill: #fff; stroke: #8a4a1e; stroke-width: .8; }
+.fl-a-stator { fill: none; stroke: #8a4a1e; stroke-width: 1.1; }
+.fl-a-rotor { fill: #d4473b; }
+.fl-a-hub { fill: #a8352b; }
+.fl-a-airb { fill: #6fb6dc; }
+.fl-a-bub { fill: #fff; stroke: #7d8a95; stroke-width: .4; }
+.fl-a-sulf { fill: var(--sulf); }
+.fl-a-gangue { fill: #8f989f; }
+.fl-a-frothb { fill: #fff; stroke: #a7b0b6; stroke-width: .35; }
+/* detalle B · espesador en corte */
+.fl-b-clear { fill: #dcf0f8; } .fl-b-settle { fill: #c3ccc6; } .fl-b-bed { fill: #7f8e84; }
+.fl-b-settle.fl-b-tails { fill: #dadcde; } .fl-b-bed.fl-b-tails { fill: #b8bcc0; }
+.fl-b-tank { fill: none; stroke: #ef8c22; stroke-width: 1.4; stroke-linejoin: round; }
+.fl-b-launder { fill: none; stroke: #ef8c22; stroke-width: 1; stroke-linejoin: round; }
+.fl-b-water { fill: var(--water); }
+.fl-b-under, .fl-b-feed { fill: none; stroke: #ef8c22; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.fl-b-pump { fill: #fff; stroke: #ef8c22; stroke-width: 1; }
+.fl-b-mud { fill: #4b5a52; } .fl-b-mud--tails { fill: #9aa0a5; }
+.fl-b-bridge, .fl-b-drive { fill: #fff; stroke: #ef8c22; stroke-width: .9; }
+.fl-b-shaft { stroke: #8a4a1e; stroke-width: 1.4; }
+.fl-b-arm { stroke: #8a4a1e; stroke-width: 1.2; stroke-linecap: round; }
+.fl-b-blade { stroke: #8a4a1e; stroke-width: .8; stroke-linecap: round; }
+.fl-b-well { stroke: #ef8c22; stroke-width: 1.1; }
+.fl-b-floc { stroke: #6fb6dc; stroke-width: .9; }
+.fl-b-flocd { fill: #6fb6dc; }
+/* partícula, tarjetas, etiquetas */
+.fl-tour-ring { fill: #fff8; stroke: var(--pm-orange); stroke-width: 1; }
+.fl-tour-dot { fill: var(--sulf); stroke: #8a6a10; stroke-width: .5; }
+.fl-tour-pulse { fill: none; stroke: var(--pm-orange); stroke-width: 1.3; }
+.fl-callout { transition: opacity .3s var(--pm-ease); }
+.fl-card { fill: #fff; stroke: #ef783555; stroke-width: 1; filter: drop-shadow(0 3px 7px #7a3d1426); }
+.fl-cal-title { font-size: 6.6px; font-weight: 700; fill: var(--pm-orange); letter-spacing: .02em; }
+.fl-lead { fill: none; stroke: var(--pm-orange); stroke-width: .8; stroke-dasharray: 2.6 2; opacity: .8; }
+.fl-lead-dot { fill: #fff; stroke: var(--pm-orange); stroke-width: 1; }
+.fl-cal-lead { stroke: #8a4a1e; stroke-width: .5; }
+.fl-cal-dot { fill: var(--pm-orange); }
+.fl-cal-text { font-size: 5.4px; font-weight: 600; fill: #5a3b27; paint-order: stroke; stroke: #fff; stroke-width: 1.6px; stroke-linejoin: round; }
+.fl-tag { opacity: 0; transition: opacity .3s var(--pm-ease); }
+.fl-tag[data-on] { opacity: 1; }
+.fl-tag-line { stroke: var(--pm-orange); stroke-width: .8; }
+.fl-tag-pill { fill: var(--pm-orange); }
+.fl-tag-text { fill: #fff; font-size: 6.2px; font-weight: 600; }
+
+/* ---------------------------------------------------------------- estación 4 · extracción por solvente y electroobtención (px de la infografía; dibujos a escala 2) */
+.sx-plate { pointer-events: none; opacity: 0; transition: opacity .6s var(--pm-ease); }
+.sx-plate[data-in], .sx-plate--ar { opacity: 1; }
+.sx-svg { display: block; width: 100%; height: 100%; overflow: visible; outline: none; font-family: var(--pm-sans);
+  --pls: #3f9f7d; --raf: #a9bd97; --org: #d79a2b; --org-s: #ecd29a; --elec: #2b78bd; --lean: #8cc0e3; --cu: #c8733a; }
+.sx-sil { fill: #fff; pointer-events: auto; filter: drop-shadow(0 1px 1.5px #7a3d1420) drop-shadow(0 5px 8px #7a3d1418); }
+.sx-svg [data-eq] { pointer-events: auto; cursor: pointer; transition: opacity .35s var(--pm-ease); }
+.sx-dim { opacity: .22; transition: opacity .35s var(--pm-ease); }
+.sx-tour, .sx-tour-pulse, .sx-callouts, .sx-tag, .sx-labels, .sx-unit-labels, .sx-drips, .sx-cells, .sx-interior, .sx-flow--can { pointer-events: none; }
+.sx-roof { transition: none; }
+/* tuberías y flujo */
+.sx-pipe-o { fill: none; stroke: #ef8c22; stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
+.sx-pipe-w { fill: none; stroke: #fff; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+.sx-flow { fill: none; stroke-width: 1.3; stroke-linecap: round; stroke-dasharray: 1.2 5.8; }
+.sx-flow--can { stroke-width: 1.6; }
+.sx-flow--pls, .sx-flow--canA, .sx-flow--feed { stroke: var(--pls); }
+.sx-flow--raf, .sx-flow--ref { stroke: #8fa77a; }
+.sx-flow--rich { stroke: var(--elec); }
+.sx-flow--lean { stroke: var(--lean); }
+.sx-small { font-size: 4.8px; font-weight: 600; fill: #a8501a; paint-order: stroke; stroke: #fff; stroke-width: 1.4px; }
+.sx-unit { font: 600 4.4px/1 var(--pm-mono); fill: #8a4a1e; paint-order: stroke; stroke: #fff; stroke-width: 1.2px; }
+/* piezas agregadas (mismo trazo del dibujo: blanco con borde naranjo) */
+.sx-box, .sx-mbox, .sx-beam, .sx-mixer, .sx-motor, .sx-launder { fill: #fff; stroke: #ee8b22; stroke-width: .55; stroke-linejoin: round; }
+.sx-box--side, .sx-mbox--side, .sx-mixer--side, .sx-beam--side { fill: #fdf3ea; }
+.sx-motor { fill: #fff6ee; stroke-width: .45; }
+.sx-launder { stroke-width: .4; }
+.sx-mslot { fill: #6b5a4c; stroke: #ee8b22; stroke-width: .4; }
+.sx-cubox { fill: #e3a06b; stroke: #a8501a; stroke-width: .3; }
+.sx-cable { fill: none; stroke: #6b4a33; stroke-width: .45; stroke-linecap: round; }
+.sx-copper [class$="cls-4"] { fill: #b4602b; }
+.sx-copper [class$="cls-1"] { fill: #e39a63; }
+.sx-drip { fill: var(--elec); }
+/* nave SX por dentro */
+.sx-floor { fill: #f6efe7; }
+.sx-wall-in { fill: #fbf6f1; stroke: #ee8b22; stroke-width: .5; stroke-linejoin: round; }
+.sx-wall-in--end { fill: #f7eee6; }
+.sx-wall { fill: #fff; stroke: #ee8b22; stroke-width: .55; stroke-linejoin: round; }
+.sx-wall--gable { fill: #fdf3ea; }
+.sx-cut { fill: none; stroke: #ef7835; stroke-width: .8; stroke-linecap: round; stroke-linejoin: round; }
+.sx-set-rim { fill: #fff; stroke: #ee8b22; stroke-width: .45; stroke-linejoin: round; }
+.sx-org { fill: #e6b45b; stroke: none; }
+.sx-org--strip { fill: #f1dcae; }
+.sx-org-flow { stroke: #a8701c; stroke-width: .35; stroke-linecap: round; }
+.sx-picket { stroke: #8a4a1e; stroke-width: .35; }
+.sx-aq { fill: #8cc7ac; }
+.sx-aq--raf { fill: #c9d8b8; }
+.sx-aq--elec { fill: #6ea9da; }
+.sx-orgside { fill: #e3a947; }
+.sx-orgside--strip { fill: #efd6a0; }
+.sx-drop-o { fill: #c98a22; }
+.sx-drop-a { fill: #4f9e83; }
+.sx-glass { fill: none; stroke: #ee8b22; stroke-width: .5; stroke-linejoin: round; }
+.sx-swirl { stroke: #a8701c; stroke-width: .4; stroke-linecap: round; }
+.sx-swirl--strip { stroke: #2b78bd; }
+/* celdas EW abiertas */
+.sx-elyte { fill: #a9d1ee; }
+.sx-elyte-rim { fill: none; stroke: #ee8b22; stroke-width: .45; stroke-linejoin: round; }
+.sx-anode { stroke: #5b6168; stroke-width: .5; }
+.sx-cathode { stroke-width: .55; }
+.sx-o2 { fill: #fff; stroke: #5b9cc9; stroke-width: .12; }
+/* piscina */
+.sx-pond-w { fill: #cfe8dc; }
+.sx-ripple { fill: none; stroke: #6dbb9a; stroke-width: .35; }
+.sx-jet { fill: var(--pls); }
+/* detalle A · mezclador-decantador */
+.sx-a-tank { fill: none; stroke: #ef8c22; stroke-width: 1.4; stroke-linejoin: round; }
+.sx-a-pls { fill: #bfe2d1; } .sx-a-elec { fill: #b9daf2; }
+.sx-a-org { fill: #f2cf86; } .sx-a-org--strip { fill: #f6e6c2; }
+.sx-a-disp { fill: #e8d7a6; opacity: .55; }
+.sx-a-mixfill { fill: #dccf9e; }
+.sx-a-dropo { fill: #d39a2c; } .sx-a-dropa { fill: #5aa98a; }
+.sx-a-cu { fill: var(--cu); stroke: #fff; stroke-width: .4; }
+.sx-a-picket { fill: #8a4a1e; }
+.sx-a-weir, .sx-a-under { stroke: #ef8c22; stroke-width: 1.2; }
+.sx-a-out, .sx-a-in { fill: none; stroke-width: 2.2; stroke-linecap: round; }
+.sx-a-out--org, .sx-a-in--org { stroke: var(--org); } .sx-a-out--raf { stroke: #9fb58a; } .sx-a-out--elec, .sx-a-in--elec { stroke: var(--elec); } .sx-a-in--pls { stroke: var(--pls); }
+.sx-a-motor { fill: #fff; stroke: #ef8c22; stroke-width: .9; }
+.sx-a-shaft { stroke: #8a4a1e; stroke-width: 1.2; }
+.sx-a-blade { fill: #d4473b; } .sx-a-hub { fill: #a8352b; }
+/* detalle B · celda de electroobtención */
+.sx-b-elyte { fill: #cfe5f6; }
+.sx-b-tank { fill: none; stroke: #ef8c22; stroke-width: 1.4; stroke-linejoin: round; }
+.sx-b-anode { fill: #6f767d; }
+.sx-b-steel { fill: #c3cbd1; stroke: #8d979f; stroke-width: .3; }
+.sx-b-cu { fill: #d9844a; }
+.sx-b-hanger { stroke: #6b4a33; stroke-width: .8; }
+.sx-b-bus { stroke: none; } .sx-b-bus--a { fill: #b8423a; } .sx-b-bus--c { fill: #3a5f8c; }
+.sx-b-ion { fill: var(--elec); stroke: #fff; stroke-width: .35; }
+.sx-b-o2 { fill: #fff; stroke: #6c9fc4; stroke-width: .35; }
+.sx-b-rect { fill: #fff; stroke: #ef8c22; stroke-width: .9; }
+.sx-b-sign { font: 700 6px/1 var(--pm-mono); fill: #8a4a1e; }
+.sx-b-wire { fill: none; stroke: #6b4a33; stroke-width: .7; }
+.sx-b-e { fill: #f0b030; }
+.sx-b-in, .sx-b-out { fill: none; stroke-width: 2.2; stroke-linecap: round; }
+.sx-b-in { stroke: var(--elec); } .sx-b-out { stroke: var(--lean); }
+/* ion, tarjeta, etiquetas */
+.sx-tour-ring { fill: #fff8; stroke: var(--pm-orange); stroke-width: 1; }
+.sx-tour-dot { fill: var(--elec); stroke: #fff; stroke-width: .5; }
+.sx-tour-pulse { fill: none; stroke: var(--pm-orange); stroke-width: 1.3; }
+.sx-callout { transition: opacity .3s var(--pm-ease); }
+.sx-card { fill: #fff; stroke: #ef783555; stroke-width: 1; filter: drop-shadow(0 3px 7px #7a3d1426); }
+.sx-cal-title { font-size: 6.6px; font-weight: 700; fill: var(--pm-orange); letter-spacing: .02em; }
+.sx-lead { fill: none; stroke: var(--pm-orange); stroke-width: .8; stroke-dasharray: 2.6 2; opacity: .8; }
+.sx-lead-dot { fill: #fff; stroke: var(--pm-orange); stroke-width: 1; }
+.sx-cal-lead { stroke: #8a4a1e; stroke-width: .5; }
+.sx-cal-dot { fill: var(--pm-orange); }
+.sx-cal-text { font-size: 5.4px; font-weight: 600; fill: #5a3b27; paint-order: stroke; stroke: #fff; stroke-width: 1.6px; stroke-linejoin: round; }
+.sx-tag { opacity: 0; transition: opacity .3s var(--pm-ease); }
+.sx-tag[data-on] { opacity: 1; }
+.sx-tag-line { stroke: var(--pm-orange); stroke-width: .8; }
+.sx-tag-pill { fill: var(--pm-orange); }
+.sx-tag-text { fill: #fff; font-size: 6.2px; font-weight: 600; }
+.sx-plate-cu { fill: #df9358; stroke: #9a4a1d; stroke-width: .3; stroke-linejoin: round; }
+.sx-hbar { stroke: #6b4a33; stroke-width: .55; stroke-linecap: round; }
+.sx-frame { fill: #fff; stroke: #ee8b22; stroke-width: .45; stroke-linejoin: round; }
+.sx-frame--side { fill: #fdf3ea; }
+.sx-hook { stroke: #6b4a33; stroke-width: .4; }
+.sx-a-eq { font: 600 5.6px/1 var(--pm-sans); fill: #7a4a12; paint-order: stroke; stroke: #f2cf86; stroke-width: 1.4px; }
+
+/* ---------------------------------------------------------------- estación 4 · fundición (px de la infografía; dibujo a escala 2) */
+.fu-plate { pointer-events: none; opacity: 0; transition: opacity .6s var(--pm-ease); }
+.fu-plate[data-in], .fu-plate--ar { opacity: 1; }
+.fu-svg { display: block; width: 100%; height: 100%; overflow: visible; outline: none; font-family: var(--pm-sans); --ln: #ee8b22; --air: #2b78bd; --hot: #ff9a2a; }
+.fu-sil { fill: #fff; pointer-events: auto; filter: drop-shadow(0 1px 1.5px #7a3d1420) drop-shadow(0 5px 8px #7a3d1418); }
+.fu-svg [data-eq] { pointer-events: auto; cursor: pointer; transition: opacity .35s var(--pm-ease); }
+.fu-svg [data-eq=""] { cursor: default; }
+.fu-dim { opacity: .22; transition: opacity .35s var(--pm-ease); }
+.fu-top, .fu-fx, .fu-roof { pointer-events: none; }
+.fu-roof, .fu-front, .fu-annex { transition: none; }
+/* nave: interior */
+.fu-floor { fill: #f5ede4; }
+.fu-floor-line { stroke: #e9d6c2; stroke-width: .5; }
+.fu-floor-line--aisle { stroke: #f1c48f; stroke-dasharray: 3 2.4; stroke-width: .7; }
+.fu-wall-in { fill: #fbf5ef; stroke: var(--ln); stroke-width: .6; stroke-linejoin: round; }
+.fu-wall-in--end { fill: #f6ece2; }
+.fu-wall-top { fill: #fff; stroke: var(--ln); stroke-width: .55; stroke-linejoin: round; }
+.fu-glass { fill: #e8f1f7; stroke: var(--ln); stroke-width: .45; }
+.fu-pilaster { stroke: #f0b77d; stroke-width: .6; }
+.fu-door { fill: #efe2d4; stroke: var(--ln); stroke-width: .5; }
+.fu-sill, .fu-ped, .fu-col, .fu-rail, .fu-hood, .fu-truck, .fu-bridge, .fu-trolley, .fu-hookblk { fill: #fff; stroke: var(--ln); stroke-width: .55; stroke-linejoin: round; }
+.fu-sill--side, .fu-ped--side, .fu-col--side, .fu-rail--side, .fu-hood--side, .fu-truck--side, .fu-bridge--side, .fu-trolley--side, .fu-hookblk--side { fill: #fbe8d6; }
+.fu-bridge--top, .fu-trolley--top { fill: #fff6ec; }
+.fu-bridge--side { fill: #f8d9b9; }
+.fu-trolley { fill: #fdd8a8; }
+.fu-trolley--side { fill: #f6be7f; }
+.fu-hookline { fill: none; stroke: #8a4a1e; stroke-width: .6; stroke-linecap: round; }
+.fu-cable { fill: none; stroke: #8a4a1e; stroke-width: .4; }
+/* ductos y cañerías */
+.fu-duct { fill: #fff; stroke: var(--ln); stroke-width: .55; stroke-linejoin: round; }
+.fu-duct--cap { fill: #fbe8d6; }
+.fu-pipe-o { fill: none; stroke: var(--ln); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.fu-pipe-w { fill: none; stroke: #fff; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.fu-pipe--air { stroke: #7fb1dd; }
+.fu-conc { fill: none; stroke: #6f6252; stroke-width: 1; stroke-linecap: round; stroke-dasharray: .9 3.2; }
+/* hornos */
+.fu-solid { stroke: none; }
+.fu-shell { fill: #fff; }
+.fu-shell--shade { fill: #f7d2ad; }
+.fu-ring, .fu-gear { fill: #fcd9b2; }
+.fu-ring--shade, .fu-gear--shade { fill: #f4c08c; }
+.fu-edge { fill: none; stroke: #e57f1c; stroke-width: .8; stroke-linejoin: round; }
+.fu-shell--cap, .fu-ring--cap, .fu-gear--cap { fill: #fdf0e3; stroke: var(--ln); stroke-width: .6; stroke-linejoin: round; }
+.fu-ring--cap, .fu-gear--cap { fill: #f9d2a8; }
+.fu-teeth { stroke: #d9741c; stroke-width: .35; }
+.fu-lip { fill: #fff; stroke: var(--ln); stroke-width: .5; stroke-linejoin: round; }
+.fu-lip--side { fill: #fbe0c6; }
+.fu-mouth { fill: #5b2a14; stroke: var(--ln); stroke-width: .4; }
+.fu-mouth--hot, .fu-tap--hot { fill: #ffb347; filter: drop-shadow(0 0 1.6px var(--hot)); }
+.fu-tap { fill: #6b3418; stroke: var(--ln); stroke-width: .3; }
+.fu-roller { fill: #fff; stroke: var(--ln); stroke-width: .45; }
+.fu-roller--cap { fill: #fbe0c6; }
+/* corte de los hornos */
+.fu-sec { fill: #e7a676; stroke: #b4561e; stroke-width: .5; stroke-linejoin: round; }
+.fu-sec-gas { fill: #4c2414; }
+.fu-melt { stroke: #ffe1a3; stroke-width: .3; }
+.fu-slag { fill: #9c4624; stroke: #5d2512; stroke-width: .25; }
+.fu-slag--top { fill: #a2502a; }
+.fu-surf { stroke: #fff2c8; stroke-width: .5; opacity: .9; }
+.fu-bub { fill: #fff3d0; opacity: .85; }
+.fu-spark { fill: #ffd36a; }
+.fu-flame { fill: #ffcf5a; stroke: #ff8a1f; stroke-width: .4; }
+/* ollas, canaletas, chorros */
+.fu-ladle { fill: #fff; }
+.fu-ladle--bot { fill: #f6d3b2; stroke: var(--ln); stroke-width: .5; }
+.fu-slagpot { stroke: var(--ln); stroke-width: .55; stroke-linejoin: round; }
+.fu-slagpot--cap { fill: #5b2a14; }
+.fu-ladle-rim { fill: #e7a676; stroke: var(--ln); stroke-width: .5; }
+.fu-ladle-in { fill: #4c2414; }
+.fu-melt-top { stroke: #ffe1a3; stroke-width: .35; filter: drop-shadow(0 0 1.4px var(--hot)); }
+.fu-hoop { fill: none; stroke: var(--ln); stroke-width: .5; }
+.fu-bail { fill: none; stroke: #8a4a1e; stroke-width: .75; stroke-linejoin: round; }
+.fu-trunnion { fill: #fff; stroke: #8a4a1e; stroke-width: .5; }
+.fu-laund { fill: #fff; stroke: var(--ln); stroke-width: .45; stroke-linejoin: round; }
+.fu-laund--end { fill: #fbe0c6; }
+.fu-laund-in { fill: #d79a6c; stroke: var(--ln); stroke-width: .45; stroke-linejoin: round; }
+.fu-stream-glow { fill: none; stroke: #ffb347; stroke-linecap: round; stroke-width: 2.6; opacity: .45; filter: blur(.8px); }
+.fu-stream { fill: none; stroke-linecap: round; stroke-width: 1.25; }
+.fu-stream-hi { fill: none; stroke: #fff3c4; stroke-width: .45; stroke-linecap: round; stroke-dasharray: 1.4 3.2; }
+/* rueda de moldeo y estanque */
+.fu-wheel, .fu-wheel-base { fill: #fff; stroke: var(--ln); stroke-width: .55; stroke-linejoin: round; }
+.fu-wheel--cap { fill: #fdf0e3; }
+.fu-wheel-base--cap { fill: #fbe0c6; }
+.fu-mold { fill: #e4c3a3; stroke: #c96f22; stroke-width: .35; stroke-linejoin: round; }
+.fu-anode { stroke: #8f4318; stroke-width: .3; stroke-linejoin: round; fill: #c8733a; }
+.fu-anode--hot { filter: drop-shadow(0 0 1.2px var(--hot)); }
+.fu-anode--plate { fill: #d8874c; }
+.fu-arm { stroke: #8a4a1e; stroke-width: .8; stroke-linecap: round; }
+.fu-arm--post { stroke: var(--ln); stroke-width: .9; }
+.fu-tank, .fu-tank-back { fill: #fff; stroke: var(--ln); stroke-width: .55; stroke-linejoin: round; }
+.fu-tank--side { fill: #fbe8d6; }
+.fu-tank-in { fill: #d9ebf5; stroke: var(--ln); stroke-width: .5; }
+.fu-water { fill: #9ec8e4; opacity: .7; }
+.fu-steam { fill: #fff; stroke: #d7dde2; stroke-width: .3; }
+/* gases */
+.fu-gas { fill: #e9e3d6; stroke: #cfc6b2; stroke-width: .3; }
+.fu-smoke { fill: #eceae4; stroke: #d6d2c6; stroke-width: .3; }
+.fu-small { font-size: 4.8px; font-weight: 600; fill: #a8501a; paint-order: stroke; stroke: #fff; stroke-width: 1.4px; }
+/* recorrido, etiquetas y detalle */
+.fu-tour-ring { fill: #fff8; stroke: var(--pm-orange); stroke-width: 1; }
+.fu-tour-dot { fill: #e2541d; stroke: #fff; stroke-width: .5; }
+.fu-tour-pulse { fill: none; stroke: var(--pm-orange); stroke-width: 1.3; }
+.fu-callout { transition: opacity .3s var(--pm-ease); }
+.fu-card { fill: #fff; stroke: #ef783555; stroke-width: 1; filter: drop-shadow(0 3px 7px #7a3d1426); }
+.fu-cal-title { font-size: 6.6px; font-weight: 700; fill: var(--pm-orange); letter-spacing: .02em; }
+.fu-lead { fill: none; stroke: var(--pm-orange); stroke-width: .8; stroke-dasharray: 2.6 2; opacity: .8; }
+.fu-lead-dot { fill: #fff; stroke: var(--pm-orange); stroke-width: 1; }
+.fu-cal-lead { stroke: #8a4a1e; stroke-width: .5; }
+.fu-cal-dot { fill: var(--pm-orange); }
+.fu-cal-text { font-size: 5.4px; font-weight: 600; fill: #5a3b27; paint-order: stroke; stroke: #fff; stroke-width: 1.6px; stroke-linejoin: round; }
+.fu-tag { opacity: 0; transition: opacity .3s var(--pm-ease); }
+.fu-tag[data-on] { opacity: 1; }
+.fu-tag-line { stroke: var(--pm-orange); stroke-width: .8; }
+.fu-tag-pill { fill: var(--pm-orange); }
+.fu-tag-text { fill: #fff; font-size: 6.2px; font-weight: 600; }
+.fu-a-shell { fill: #e7a676; stroke: #b4561e; stroke-width: .6; }
+.fu-a-gas { fill: #4c2414; }
+.fu-a-slag { fill: #9c4624; }
+.fu-a-bub { fill: #fff3d0; }
+.fu-a-conc { fill: #6f6252; }
+.fu-a-tuyere { stroke: var(--air); stroke-width: 1.4; stroke-linecap: round; }
+.fu-a-mouth { stroke: #b4561e; stroke-width: 1.4; stroke-linecap: round; }
+.fu-a-gasp { fill: #e9e3d6; stroke: #cfc6b2; stroke-width: .3; }
+.fu-a-name { font-size: 5.8px; font-weight: 700; fill: #5a3b27; }
+.fu-a-eq { font-size: 4.9px; font-weight: 600; fill: #a8501a; }
+.fu-a-small { font-size: 4.4px; font-weight: 600; fill: #8a5a3a; }
+.fu-a-small--in { fill: #fff; }
+.fu-a-arrow { stroke: var(--pm-orange); stroke-width: .8; stroke-dasharray: 2 1.6; }
+.fu-a-arrowhead { fill: var(--pm-orange); }
+.fu-a-flame { fill: #ffcf5a; stroke: #ff8a1f; stroke-width: .5; opacity: .95; }
+.fu-a-burner { fill: #fff; stroke: #b4561e; stroke-width: .6; }
+.fu-b-anode { fill: #d8874c; stroke: #8f4318; stroke-width: .7; stroke-linejoin: round; }
+.fu-b-dim { stroke: #8a5a3a; stroke-width: .5; }
+.fu-b-big { font-size: 9px; font-weight: 800; fill: #fff; }
+
+/* ---------------------------------------------------------------- estación 5 · puerto (px de la infografía; dibujos a escala 2) */
+.pu-plate { pointer-events: none; opacity: 0; transition: opacity .6s var(--pm-ease); }
+.pu-plate[data-in], .pu-plate--ar { opacity: 1; }
+.pu-svg { display: block; width: 100%; height: 100%; overflow: visible; outline: none; font-family: var(--pm-sans); --ln: #ee8b22; --conc: #4a483c; --pulp: #6b6650; --water: #8fc3dc; }
+.pu-sil { fill: #fff; pointer-events: auto; filter: drop-shadow(0 1px 1.5px #7a3d1420) drop-shadow(0 5px 8px #7a3d1418); }
+.pu-svg [data-eq] { pointer-events: auto; cursor: pointer; transition: opacity .35s var(--pm-ease); }
+.pu-svg [data-eq=""] { cursor: default; }
+.pu-dim { opacity: .22; transition: opacity .35s var(--pm-ease); }
+.pu-top, .pu-fx, .pu-thw, .pu-holds { pointer-events: none; }
+.pu-roof, .pu-cover, .pu-ship { transition: none; }
+/* espesadores */
+.pu-th-water { fill: #cfe3ea; stroke: #9cc1d0; stroke-width: .4; }
+.pu-th-cloud { fill: #8d8a72; opacity: .55; }
+.pu-th-rake { stroke: #b85f16; stroke-width: 1.1; stroke-linecap: round; opacity: .7; }
+.pu-th-blade { stroke: #b85f16; stroke-width: .6; opacity: .6; }
+.pu-th-ripple { fill: none; stroke: #fff; stroke-width: .5; }
+.pu-th-well { fill: #fff; stroke: var(--ln); stroke-width: .5; }
+.pu-th-well--top { fill: #6b6650; }
+.pu-th-walk { stroke: var(--ln); stroke-width: .7; stroke-linecap: round; }
+.pu-th-drive { fill: #fff; stroke: var(--ln); stroke-width: .6; }
+.pu-th-over { fill: none; stroke: #5fa8cf; stroke-width: 1; stroke-dasharray: 1.2 4; stroke-linecap: round; }
+/* cañerías y flujo */
+.pu-pipe-o { fill: none; stroke: var(--ln); stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
+.pu-pipe-w { fill: none; stroke: #fff; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.pu-pipe--minero { stroke-width: 3.4; }
+.pu-flow { fill: none; stroke-width: 1.1; stroke-linecap: round; stroke-dasharray: 1.4 4.2; }
+.pu-flow--pulp { stroke: var(--pulp); }
+.pu-flow--cake, .pu-flow--belt, .pu-flow--boom { stroke: var(--conc); stroke-width: 1.5; stroke-dasharray: 3 2.2; }
+.pu-pump, .pu-tank, .pu-hopper, .pu-press-head, .pu-press-leg, .pu-ped, .pu-slew, .pu-head, .pu-cw, .pu-boom, .pu-cbelt, .pu-pumpcyl, .pu-fel { fill: #fff; stroke: var(--ln); stroke-width: .55; stroke-linejoin: round; }
+.pu-pump--side, .pu-hopper--side, .pu-press-head--side, .pu-head--side, .pu-cw--side, .pu-fel--side, .pu-cbelt--side { fill: #fbe8d6; }
+.pu-tank--cap, .pu-pumpcyl--cap, .pu-ped--cap { fill: #fbe8d6; }
+.pu-slew { fill: #fdd8a8; } .pu-slew--cap { fill: #f6be7f; }
+.pu-boom { fill: #f9a64a; stroke: #c96a14; } .pu-boom--t { fill: #fcc98a; } .pu-boom--s { fill: #f39a3a; } .pu-boom--b { fill: #e5832a; } .pu-boom--e { fill: #f6b46a; }
+.pu-boom--tele { fill: #fcd6a6; }
+.pu-cw { fill: #fde3c4; }
+.pu-stay { fill: none; stroke: #c96a14; stroke-width: .5; }
+.pu-stay--mast { stroke-width: 1.1; }
+.pu-chute { fill: #fff; stroke: var(--ln); stroke-width: .5; }
+.pu-chute--cap { fill: #fbe8d6; }
+.pu-break { stroke: #a8501a; stroke-width: 1.1; stroke-linecap: round; }
+/* naves por dentro */
+.pu-floor { fill: #f5ede4; }
+.pu-wall-in { fill: #fbf5ef; stroke: var(--ln); stroke-width: .55; stroke-linejoin: round; }
+.pu-wall-in--end { fill: #f6ece2; }
+.pu-pilaster { stroke: #f0b77d; stroke-width: .55; }
+.pu-plate { fill: #c3ccd3; stroke: #6f7b84; stroke-width: .35; stroke-linejoin: round; }
+.pu-plate--edge { fill: #c9d1d7; }
+.pu-plate-fill { opacity: .9; }
+.pu-press-rail { fill: #fbe8d6; stroke: var(--ln); stroke-width: .4; }
+.pu-cake { fill: var(--conc); stroke: #2d2b23; stroke-width: .3; }
+.pu-drip { fill: #5fa8cf; }
+.pu-air { fill: #fff; stroke: #c9d6de; stroke-width: .3; }
+.pu-stir { stroke: #8a4a1e; stroke-width: .7; stroke-linecap: round; }
+.pu-pile { fill: #5d5a4a; stroke: #3b392f; stroke-width: .35; stroke-linejoin: round; }
+.pu-pile--back { fill: #77735f; }
+.pu-pile--end { fill: #4c493c; }
+.pu-grain { fill: #4a483c; }
+.pu-hopper-in { fill: #3b392f; }
+.pu-leg { stroke: var(--ln); stroke-width: .6; }
+.pu-fel { fill: #ffd27a; stroke: #b9771a; }
+.pu-fel--cab { fill: #fff3d6; }
+.pu-wheel { fill: #3b392f; }
+.pu-arm { stroke: #8a4a1e; stroke-width: .8; stroke-linecap: round; }
+.pu-bucket { fill: #c9a24a; stroke: #7a5a12; stroke-width: .4; stroke-linejoin: round; }
+/* correa y barco */
+.pu-beltband { fill: #3f3d34; stroke: #2a2822; stroke-width: .3; }
+.pu-hold { fill: #2f2c25; stroke: #1f1d18; stroke-width: .4; }
+.pu-hold-pile { fill: #5d5a4a; }
+.pu-hold-pile--lit { fill: #77735f; }
+.pu-coaming { fill: none; stroke: var(--ln); stroke-width: .6; }
+.pu-dust { fill: #d9d4c6; }
+.pu-small { font-size: 4.8px; font-weight: 600; fill: #a8501a; paint-order: stroke; stroke: #fff; stroke-width: 1.4px; }
+.pu-warn { font-size: 5.6px; font-weight: 700; fill: #c0392b; paint-order: stroke; stroke: #fff; stroke-width: 1.8px; }
+/* recorrido, etiquetas y detalle */
+.pu-tour-ring { fill: #fff8; stroke: var(--pm-orange); stroke-width: 1; }
+.pu-tour-dot { fill: #3b392f; stroke: #fff; stroke-width: .5; }
+.pu-tour-pulse { fill: none; stroke: var(--pm-orange); stroke-width: 1.3; }
+.pu-callout { transition: opacity .3s var(--pm-ease); }
+.pu-card { fill: #fff; stroke: #ef783555; stroke-width: 1; filter: drop-shadow(0 3px 7px #7a3d1426); }
+.pu-cal-title { font-size: 6.6px; font-weight: 700; fill: var(--pm-orange); letter-spacing: .02em; }
+.pu-lead { fill: none; stroke: var(--pm-orange); stroke-width: .8; stroke-dasharray: 2.6 2; opacity: .8; }
+.pu-lead-dot { fill: #fff; stroke: var(--pm-orange); stroke-width: 1; }
+.pu-cal-lead { stroke: #8a4a1e; stroke-width: .5; }
+.pu-cal-dot { fill: var(--pm-orange); }
+.pu-cal-text { font-size: 5.4px; font-weight: 600; fill: #5a3b27; paint-order: stroke; stroke: #fff; stroke-width: 1.6px; stroke-linejoin: round; }
+.pu-tag { opacity: 0; transition: opacity .3s var(--pm-ease); }
+.pu-tag[data-on] { opacity: 1; }
+.pu-tag-line { stroke: var(--pm-orange); stroke-width: .8; }
+.pu-tag-pill { fill: var(--pm-orange); }
+.pu-tag-text { fill: #fff; font-size: 6.2px; font-weight: 600; }
+.pu-a-frame, .pu-a-head { fill: #fde3c4; stroke: #c96a14; stroke-width: .5; }
+.pu-a-chamber { fill: #f3f5f6; }
+.pu-a-plate { fill: #c9d1d7; stroke: #6f7b84; stroke-width: .4; }
+.pu-a-cloth { stroke: #9aa5ad; stroke-width: .4; stroke-dasharray: .8 .8; }
+.pu-a-cake { fill: var(--conc); }
+.pu-a-air { fill: #fff; stroke: #9cc1d0; stroke-width: .4; }
+.pu-a-drop { fill: #5fa8cf; }
+.pu-a-feed { stroke: var(--pulp); stroke-width: 2.4; stroke-linecap: round; }
+.pu-a-water { stroke: #5fa8cf; stroke-width: 1.6; stroke-linecap: round; }
+.pu-a-belt { fill: #3f3d34; }
+.pu-a-phase { font-size: 5.6px; font-weight: 700; fill: #5a3b27; }
+.pu-b-sea { fill: #d6ebf5; }
+.pu-b-wl { stroke: #5fa8cf; stroke-width: .8; stroke-dasharray: 3 2; }
+.pu-b-hull { fill: #fff; stroke: #c96a14; stroke-width: 1; stroke-linejoin: round; }
+.pu-b-hold { fill: #efe6dc; stroke: #c96a14; stroke-width: .5; }
+.pu-b-pile { fill: #5d5a4a; }
+.pu-b-coam { stroke: #c96a14; stroke-width: 1.2; }
+.pu-b-quay { fill: #f6ece2; stroke: var(--ln); stroke-width: .6; }
+.pu-b-ped { fill: #fff; stroke: var(--ln); stroke-width: .6; }
+.pu-b-boom { stroke: #f39a3a; stroke-width: 4; stroke-linecap: round; }
+.pu-b-belt { stroke: #3f3d34; stroke-width: 1.2; stroke-dasharray: 3 2; }
+.pu-b-chute { fill: #fff; stroke: var(--ln); stroke-width: .6; }
+.pu-b-chute--in { fill: #fbe8d6; }
+.pu-b-grain { fill: #4a483c; }
+.pu-cutline { fill: none; stroke: #e57f1c; stroke-width: .7; }

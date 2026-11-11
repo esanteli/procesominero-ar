@@ -252,6 +252,226 @@
         </div>
       </div>
 
+      <!-- estación 2 · molino SAG y de bolas (js/stations/molienda.js conecta estos controles) -->
+      <div class="panel-view panel-mo" data-panel-view="molienda" hidden>
+        <div class="readout-row">
+          <div class="meter" data-mo-meter title="Llenado del molino SAG"><span></span></div>
+          <output class="readout" data-mo-readout aria-live="polite">—</output>
+        </div>
+        <div class="chips" role="group" aria-label="Equipos: toca uno para ver su descripción y su detalle">
+          <button type="button" class="chip" data-mo-chip="sag"><span>01</span>Molino SAG</button>
+          <button type="button" class="chip" data-mo-chip="harnero"><span>02</span>Harnero</button>
+          <button type="button" class="chip" data-mo-chip="bolas"><span>03</span>Molinos de bolas</button>
+          <button type="button" class="chip" data-mo-chip="bombas"><span>04</span>Bombas</button>
+          <button type="button" class="chip" data-mo-chip="hidrociclones"><span>05</span>Hidrociclones</button>
+        </div>
+        <div class="controls controls--3">
+          <label class="ctl">
+            <span class="ctl-label">Interior SAG</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-mo-sag aria-label="Interior del molino SAG: abre una ventana en el manto y muestra la carga por dentro">
+            <output data-mo-sag-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Interior bolas</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-mo-bm aria-label="Interior de los molinos de bolas: abre una ventana en el manto y muestra la carga por dentro">
+            <output data-mo-bm-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Alimentación</span>
+            <input type="range" min="2500" max="5500" value="4000" step="100" data-mo-feed aria-label="Alimentación fresca al molino SAG, toneladas por hora">
+            <output data-mo-feed-out>4.000 t/h</output>
+          </label>
+        </div>
+        <div class="seq" role="group" aria-label="Sigue una partícula por el circuito de molienda">
+          <button type="button" class="seq-play" data-mo-play aria-label="Pausar" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8 5v14M16 5v14"/><path class="i-play" d="M8 5l11 7-11 7z"/></svg>
+          </button>
+          <div class="seq-body">
+            <div class="seq-steps" data-mo-steps></div>
+            <p class="seq-label"><b data-mo-step-n>1</b><span data-mo-step-label>La correa alimenta el molino SAG</span></p>
+          </div>
+          <div class="seq-nav">
+            <button type="button" class="seq-nav-btn" data-mo-prev aria-label="Paso anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <button type="button" class="seq-nav-btn" data-mo-next aria-label="Paso siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- estación 4 · extracción por solvente y electroobtención (js/stations/sx-ew.js conecta estos controles) -->
+      <div class="panel-view panel-sx" data-panel-view="sxew" hidden>
+        <div class="readout-row">
+          <div class="meter" data-sx-meter title="Ciclo de cosecha: cobre depositado en los cátodos"><span></span></div>
+          <output class="readout" data-sx-readout aria-live="polite">—</output>
+        </div>
+        <div class="chips" role="group" aria-label="Equipos: toca uno para ver su descripción y su detalle">
+          <button type="button" class="chip" data-sx-chip="piscina"><span>01</span>Piscina PLS</button>
+          <button type="button" class="chip" data-sx-chip="sx"><span>02</span>Extracción SX</button>
+          <button type="button" class="chip" data-sx-chip="celdas"><span>03</span>Celdas EW</button>
+          <button type="button" class="chip" data-sx-chip="puente"><span>04</span>Puente grúa</button>
+          <button type="button" class="chip" data-sx-chip="horquilla"><span>05</span>Despacho</button>
+        </div>
+        <div class="controls controls--3">
+          <label class="ctl">
+            <span class="ctl-label">Interior SX</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-sx-in aria-label="Interior de la nave de extracción por solvente: levanta el techo, corta los muros y muestra los mezcladores-decantadores">
+            <output data-sx-in-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Interior celdas</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-sx-cel aria-label="Interior de las celdas de electroobtención: muestra el electrolito, los ánodos y los cátodos">
+            <output data-sx-cel-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Corriente</span>
+            <input type="range" min="200" max="400" value="300" step="10" data-sx-j aria-label="Densidad de corriente en las celdas, amperes por metro cuadrado">
+            <output data-sx-j-out>300 A/m²</output>
+          </label>
+        </div>
+        <div class="seq" role="group" aria-label="Sigue un ion de cobre desde el PLS hasta el cátodo">
+          <button type="button" class="seq-play" data-sx-play aria-label="Pausar" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8 5v14M16 5v14"/><path class="i-play" d="M8 5l11 7-11 7z"/></svg>
+          </button>
+          <div class="seq-body">
+            <div class="seq-steps" data-sx-steps></div>
+            <p class="seq-label"><b data-sx-step-n>1</b><span data-sx-step-label>El PLS llega desde las pilas a la piscina</span></p>
+          </div>
+          <div class="seq-nav">
+            <button type="button" class="seq-nav-btn" data-sx-prev aria-label="Paso anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <button type="button" class="seq-nav-btn" data-sx-next aria-label="Paso siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- estación 3 · celdas de flotación (js/stations/flotacion.js conecta estos controles) -->
+      <div class="panel-view panel-fu" data-panel-view="fundicion" hidden>
+        <div class="readout-row">
+          <div class="meter" data-fu-meter title="Ley de cobre del material que sigues"><span></span></div>
+          <output class="readout" data-fu-readout aria-live="polite">—</output>
+        </div>
+        <div class="chips" role="group" aria-label="Equipos: toca uno para ver su descripción y su detalle">
+          <button type="button" class="chip" data-fu-chip="ct"><span>01</span>Conv. Teniente</button>
+          <button type="button" class="chip" data-fu-chip="cps"><span>02</span>Peirce-Smith</button>
+          <button type="button" class="chip" data-fu-chip="grua"><span>03</span>Puente grúa</button>
+          <button type="button" class="chip" data-fu-chip="refino"><span>04</span>Horno de ánodos</button>
+          <button type="button" class="chip" data-fu-chip="rueda"><span>05</span>Rueda de moldeo</button>
+        </div>
+        <div class="controls controls--3">
+          <label class="ctl">
+            <span class="ctl-label">Abrir nave</span>
+            <input type="range" min="0" max="100" value="100" step="1" data-fu-open aria-label="Abrir la nave: levanta el techo y abate el muro del frente para ver los hornos">
+            <output data-fu-open-out>100 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Corte hornos</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-fu-cut aria-label="Corte de los hornos: muestra el revestimiento, la escoria y el metal fundido por dentro">
+            <output data-fu-cut-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Oxígeno</span>
+            <input type="range" min="25" max="45" value="35" step="1" data-fu-o2 aria-label="Oxígeno en el aire de soplado del convertidor Teniente, en porcentaje">
+            <output data-fu-o2-out>35 % O₂</output>
+          </label>
+        </div>
+        <div class="seq" role="group" aria-label="Sigue el cobre desde el concentrado hasta el ánodo">
+          <button type="button" class="seq-play" data-fu-play aria-label="Pausar" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8 5v14M16 5v14"/><path class="i-play" d="M8 5l11 7-11 7z"/></svg>
+          </button>
+          <div class="seq-body">
+            <div class="seq-steps" data-fu-steps></div>
+            <p class="seq-label"><b data-fu-step-n>1</b><span data-fu-step-label>El concentrado seco entra al convertidor Teniente con aire enriquecido</span></p>
+          </div>
+          <div class="seq-nav">
+            <button type="button" class="seq-nav-btn" data-fu-prev aria-label="Paso anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <button type="button" class="seq-nav-btn" data-fu-next aria-label="Paso siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+      <div class="panel-view panel-pu" data-panel-view="puerto" hidden>
+        <div class="readout-row">
+          <div class="meter" data-pu-meter title="Carga del barco"><span></span></div>
+          <output class="readout" data-pu-readout aria-live="polite">—</output>
+        </div>
+        <div class="chips" role="group" aria-label="Equipos: toca uno para ver su descripción y su detalle">
+          <button type="button" class="chip" data-pu-chip="espesadores"><span>01</span>Espesadores</button>
+          <button type="button" class="chip" data-pu-chip="mineroducto"><span>02</span>Mineroducto</button>
+          <button type="button" class="chip" data-pu-chip="filtros"><span>03</span>Planta de filtros</button>
+          <button type="button" class="chip" data-pu-chip="galpon"><span>04</span>Galpón de acopio</button>
+          <button type="button" class="chip" data-pu-chip="embarque"><span>05</span>Embarque</button>
+        </div>
+        <div class="controls controls--3">
+          <label class="ctl">
+            <span class="ctl-label">Interior planta</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-pu-plant aria-label="Interior de la planta de filtros y del galpón: levanta los techos y muestra el filtro prensa, la pila y el cargador frontal">
+            <output data-pu-plant-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Interior correa</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-pu-belt aria-label="Interior de la galería: levanta la cubierta de la correa transportadora">
+            <output data-pu-belt-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Humedad</span>
+            <input type="range" min="7" max="12" value="8.5" step="0.5" data-pu-h aria-label="Humedad del queque de concentrado, en porcentaje; sobre el límite transportable (TML, 10 %) no se puede embarcar">
+            <output data-pu-h-out>8,5 %</output>
+          </label>
+        </div>
+        <div class="seq" role="group" aria-label="Sigue el concentrado desde los espesadores hasta la bodega del barco">
+          <button type="button" class="seq-play" data-pu-play aria-label="Pausar" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8 5v14M16 5v14"/><path class="i-play" d="M8 5l11 7-11 7z"/></svg>
+          </button>
+          <div class="seq-body">
+            <div class="seq-steps" data-pu-steps></div>
+            <p class="seq-label"><b data-pu-step-n>1</b><span data-pu-step-label>Los espesadores llevan la pulpa a ~65 % de sólidos y las bombas la impulsan</span></p>
+          </div>
+          <div class="seq-nav">
+            <button type="button" class="seq-nav-btn" data-pu-prev aria-label="Paso anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <button type="button" class="seq-nav-btn" data-pu-next aria-label="Paso siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+      <div class="panel-view panel-fl" data-panel-view="flotacion" hidden>
+        <div class="readout-row">
+          <div class="meter" data-fl-meter title="Recuperación de cobre"><span></span></div>
+          <output class="readout" data-fl-readout aria-live="polite">—</output>
+        </div>
+        <div class="chips" role="group" aria-label="Equipos: toca uno para ver su descripción y su detalle">
+          <button type="button" class="chip" data-fl-chip="rougher"><span>01</span>Rougher</button>
+          <button type="button" class="chip" data-fl-chip="limpieza"><span>02</span>Limpieza</button>
+          <button type="button" class="chip" data-fl-chip="concentrado"><span>03</span>Esp. concentrado</button>
+          <button type="button" class="chip" data-fl-chip="relaves"><span>04</span>Esp. relaves</button>
+        </div>
+        <div class="controls controls--3">
+          <label class="ctl">
+            <span class="ctl-label">Interior celda</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-fl-cell aria-label="Interior de la celda: abre una ventana en la primera celda rougher y muestra el detalle en corte">
+            <output data-fl-cell-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Corte espesador</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-fl-th aria-label="Corte del espesador de concentrado: abre una ventana en el estanque y muestra las zonas de decantación">
+            <output data-fl-th-out>0 %</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl-label">Flujo de aire</span>
+            <input type="range" min="0.6" max="1.6" value="1" step="0.1" data-fl-air aria-label="Flujo de aire a las celdas, veces el nominal">
+            <output data-fl-air-out>1,0×</output>
+          </label>
+        </div>
+        <div class="seq" role="group" aria-label="Sigue una partícula de sulfuro por la flotación">
+          <button type="button" class="seq-play" data-fl-play aria-label="Pausar" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8 5v14M16 5v14"/><path class="i-play" d="M8 5l11 7-11 7z"/></svg>
+          </button>
+          <div class="seq-body">
+            <div class="seq-steps" data-fl-steps></div>
+            <p class="seq-label"><b data-fl-step-n>1</b><span data-fl-step-label>La pulpa de molienda entra a la primera celda</span></p>
+          </div>
+          <div class="seq-nav">
+            <button type="button" class="seq-nav-btn" data-fl-prev aria-label="Paso anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <button type="button" class="seq-nav-btn" data-fl-next aria-label="Paso siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+
       <!-- estación 2 · chancado primario (animación lista) -->
       <div class="panel-view panel-chancador" data-panel-view="chancador">
       <div class="readout-row">
