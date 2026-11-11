@@ -307,8 +307,12 @@ export async function createFlotacion() {
   const flow = {};
   for (const [k, g] of Object.entries(pipeG)) { el("path", { d: PL[k].d, class: "fl-pipe-o" }, g); el("path", { d: PL[k].d, class: "fl-pipe-w" }, g); flow[k] = el("path", { d: PL[k].d, class: `fl-flow fl-flow--${k}` }, g); }
   const topG = el("g", { class: "fl-top" }, svg);
-  flow.bridge1 = el("path", { d: PL.bridge1.d, class: "fl-flow fl-flow--conc" }, topG);
-  flow.bridge2 = el("path", { d: PL.bridge2.d, class: "fl-flow fl-flow--tails" }, topG);
+  // alimentación por la canaleta del puente: dentro de cada espesador (en sus unidades), sobre el puente
+  thG.forEach((g, i) => { flow[`bridge${i + 1}`] = el("path", { d: D(TH[i].feed, false, f2), class: `fl-flow fl-flow--local fl-flow--${i ? "tails" : "conc"}` }, g); });
+  // orden de pintado: los espesadores quedan detrás de las celdas; pasan adelante sólo cuando se eligen (o se cortan)
+  celdas.before(esp);
+  let thFront = false;
+  const setFront = (on) => { if (on === thFront) return; thFront = on; if (on) celdas.after(esp); else celdas.before(esp); };
   const lab = el("g", { class: "fl-labels" }, topG);
   const L = (p, t, a = "start") => { el("text", { x: f1(p[0]), y: f1(p[1]), class: "fl-small", "text-anchor": a }, lab).textContent = t; };
   L(add(PIPES.feed[0], [-2, 9]), "desde molienda", "start");
@@ -371,7 +375,8 @@ export async function createFlotacion() {
     // espesadores: rastras, canaleta perimetral, pozo; ventana en el de concentrado
     TH.forEach((t, i) => { rakeL[i].innerHTML = rakesSvg(t, S.rake + i * 0.7); launL[i].innerHTML = launderSvg(t, fl); wellL[i].innerHTML = wellSvg(t, fl);
       winTh[i].innerHTML = i === 0 && shown.th > 0.005 ? thWindowSvg(t, shown.th, sc, true) : ""; });
-    for (const [k, p] of Object.entries(flow)) p.style.strokeDashoffset = f1((-fl * (k.startsWith("bridge") ? 6 : 10)) % 7);
+    for (const [k, p] of Object.entries(flow)) p.style.strokeDashoffset = k.startsWith("bridge") ? f2((-fl * 3) % 3.5) : f1((-fl * 10) % 7);
+    setFront(["concentrado", "relaves"].includes(selected) || (!selected && sliderDetail === "B"));
     // detalles
     const det = detailNow();
     for (const key of ["A", "B"]) { const C = CAL[key], on = det === key; C.g.style.display = on ? "" : "none"; if (!on) continue;
