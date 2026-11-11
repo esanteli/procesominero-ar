@@ -140,7 +140,8 @@ clara rebalsa por la canaleta perimetral. El segundo espesador trata el **relave
 | Sigue una partícula | ▶/❚❚, 6 pasos, ‹ ›, `,` `.` | entra a la celda, se pega a una burbuja, sube a la espuma, pasa por limpieza y decanta en el espesador |
 
 En la lámina siempre: rastras girando en los dos espesadores, rebalse por la canaleta perimetral, alimentación por la
-canaleta del puente. Agregado: tubería "desde molienda". Interpretaciones por validar: fila de adelante = rougher, fila de
+canaleta del puente. Orden de pintado: los espesadores quedan detrás de las celdas; el elegido (chip o toque) pasa
+adelante, y el de concentrado también cuando se abre su corte. Agregado: tubería "desde molienda". Interpretaciones por validar: fila de adelante = rougher, fila de
 atrás = limpieza; espesador de atrás = concentrado, de adelante = relaves; los cilindros delgados = cajones con válvula
 dardo. Valores (recuperación, ley, % sólidos) típicos; el 25 % → 65 % sólidos viene de la referencia de Sierra Gorda.
 
