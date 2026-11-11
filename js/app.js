@@ -164,14 +164,16 @@ new ResizeObserver(sizeHud).observe(panel);
 addEventListener("resize", sizeHud);
 
 // ---------------------------------------------------------------- posición de la lámina en el espacio del target
+// El marcador del chancado (CH_TARGET, px de la infografía) es un recorte ajustado a la estación, sin traslape con
+// las vecinas. La tolva impresa (PRINT_ON_POSTER) y el ancho de la lámina en la infografía se llevan a su espacio.
 function plateOffset() {
   const vb = GEO.view;
   const pw = plate.offsetWidth, ph = plate.offsetHeight;
   const fx = (figure.offsetLeft) + ((STATION.svgPoint[0] - vb[0]) / vb[2]) * figure.offsetWidth;
   const fy = (figure.offsetTop) + ((STATION.svgPoint[1] - vb[1]) / vb[3]) * figure.offsetHeight;
-  const t = STATION.target, s = 1000 / t.w;
-  const px = (t.print[0] - t.w / 2) * s, py = -(t.print[1] - t.h / 2) * s; // y hacia arriba
-  const k = STATION.scale;
+  const T = CH_TARGET, s = 1000 / T.w;
+  const px = (PRINT_ON_POSTER[0] - T.x - T.w / 2) * s, py = -(PRINT_ON_POSTER[1] - T.y - T.h / 2) * s; // y hacia arriba
+  const k = (PLATE_W_ON_POSTER * s) / pw;
   return { x: px - k * (fx - pw / 2), y: py + k * (fy - ph / 2), pw: pw * k, ph: ph * k, k };
 }
 
@@ -179,12 +181,12 @@ function plateOffset() {
 const intro = $("[data-intro]");
 const note = $("[data-ar-note]");
 const canAR = window.isSecureContext && !!navigator.mediaDevices?.getUserMedia;
-if (!canAR) {
-  $("[data-start-ar]").disabled = true;
-  note.textContent = "La cámara necesita HTTPS (o localhost). Abre la demo o publica la carpeta en un servidor seguro.";
-}
-$("[data-start-demo]").addEventListener("click", startDemo);
-$("[data-start-ar]").addEventListener("click", startAR);
+// los botones vienen deshabilitados en el HTML: se activan recién cuando la app está lista para responder
+$("[data-start-demo]").addEventListener("click", startDemo, { once: true });
+$("[data-start-ar]").addEventListener("click", startAR, { once: true });
+$("[data-start-demo]").disabled = false;
+$("[data-start-ar]").disabled = !canAR;
+note.textContent = canAR ? "" : "La cámara necesita HTTPS (o localhost). Abre la demo o publica la carpeta en un servidor seguro.";
 if (new URLSearchParams(location.search).has("demo")) startDemo();
 
 function setMode(mode) {
@@ -263,20 +265,20 @@ async function startDemo() {
 }
 
 // ---------------------------------------------------------------- AR: MindAR + CSS3D (las láminas siguen siendo DOM: se pueden tocar)
-// assets/targets.mind trae tres marcadores: 0 = chancado primario (target-chancado.png), 1 = rajo (target-rajo.png),
-// 2 = mina subterránea (target-mina.png), 3 = chancado secundario y terciario (target-secundario.png),
-// 4 = pilas de lixiviación (target-pilas.png), 5 = molino SAG y de bolas (target-molienda.png), 6 = celdas de flotación (target-flotacion.png),
-// 7 = extracción por solvente y electroobtención (target-sxew.png).
-// MindAR sigue uno a la vez; al encontrar uno se activa su lámina y su panel.
-// Recorte del rajo en la infografía (px de assets/infografia.jpg): así la lámina del rajo, que vive en esas
-// coordenadas, se ubica sobre el marcador sin más cuentas.
-const RAJO_TARGET = { x: 60, y: 440, w: 1400, h: 850, lift: 10 };
-const MINA_TARGET = { x: 980, y: 880, w: 1070, h: 600, lift: 10 };
-const SEC_TARGET = { x: 1880, y: 620, w: 840, h: 380, lift: 10 };
-const LIX_TARGET = { x: 2190, y: 270, w: 740, h: 450, lift: 10 };
-const MOL_TARGET = { x: 1900, y: 930, w: 560, h: 450, lift: 10 };
+// assets/targets.mind trae diez marcadores, recortes de assets/infografia.jpg SIN traslape entre ellos (si dos recortes
+// comparten zona impresa, MindAR confunde las estaciones): 0 chancado, 1 rajo, 2 mina, 3 secundario, 4 pilas,
+// 5 molienda, 6 flotación, 7 SX-EW, 8 fundición, 9 puerto. Los rectángulos de abajo son esos recortes, en px de la
+// infografía: así cada lámina, que vive en esas coordenadas, se ubica sobre su marcador sin más cuentas.
+// Si se recompila targets.mind, sube MIND_VERSION (Vercel guarda /assets en caché un día).
+const MIND_VERSION = "13";
+const CH_TARGET = { x: 1560, y: 280, w: 500, h: 400, lift: 90 };
+const RAJO_TARGET = { x: 60, y: 430, w: 1000, h: 840, lift: 10 };
+const MINA_TARGET = { x: 1070, y: 870, w: 870, h: 600, lift: 10 };
+const SEC_TARGET = { x: 2000, y: 690, w: 700, h: 300, lift: 10 };
+const LIX_TARGET = { x: 2200, y: 260, w: 730, h: 425, lift: 10 };
+const MOL_TARGET = { x: 1950, y: 1000, w: 520, h: 420, lift: 10 };
 const FLO_TARGET = { x: 2780, y: 700, w: 900, h: 500, lift: 10 };
-const SXEW_TARGET = { x: 2950, y: 300, w: 760, h: 420, lift: 10 };
+const SXEW_TARGET = { x: 2950, y: 300, w: 760, h: 395, lift: 10 };
 const FUN_TARGET = { x: 4085, y: 925, w: 640, h: 400, lift: 10 };
 const PUE_TARGET = { x: 4180, y: 420, w: 960, h: 450, lift: 10 };
 // lámina en px de la infografía → objeto CSS3D sobre su marcador (ancho del marcador = 1000 en el espacio del ancla)
@@ -288,158 +290,139 @@ function onTarget(el, T, CSS3DObject) {
   o.scale.setScalar(k);
   return o;
 }
+// estaciones de estaciones/*.js: módulo, fábrica, global de QA, clase AR, recorte
+const AR_DEFS = [
+  { id: "rajo", view: "rajo", st: { n: "1", name: "Rajo" }, mod: "./stations/rajo.js", make: "createRajo", qa: "pmRajo", cls: "rajo-plate--ar", T: RAJO_TARGET },
+  { id: "mina", view: "mina", st: { n: "1", name: "Mina subterránea" }, mod: "./stations/mina-subterranea.js", make: "createMina", qa: "pmMina", T: MINA_TARGET,
+    // al encontrar el marcador, el haz de radiografía barre el terreno
+    active: (m, v) => { m.setActive(v); if (v) { m.setXray(0, true); m.setXray(1); } } },
+  { id: "secundario", view: "secundario", st: { n: "2.2", name: "Chancado secundario y terciario" }, mod: "./stations/chancado-secundario.js", make: "createSecundario", qa: "pmSec", cls: "sec-plate--ar", T: SEC_TARGET },
+  { id: "pilas", view: "pilas", st: { n: "3", name: "Pilas de lixiviación" }, mod: "./stations/pilas-lixiviacion.js", make: "createPilas", qa: "pmPilas", cls: "lx-plate--ar", T: LIX_TARGET },
+  { id: "molienda", view: "molienda", st: { n: "2", name: "Molino SAG y de bolas" }, mod: "./stations/molienda.js", make: "createMolienda", qa: "pmMol", cls: "mo-plate--ar", T: MOL_TARGET },
+  { id: "flotacion", view: "flotacion", st: { n: "3", name: "Celdas de flotación" }, mod: "./stations/flotacion.js", make: "createFlotacion", qa: "pmFlo", cls: "fl-plate--ar", T: FLO_TARGET },
+  { id: "sxew", view: "sxew", st: { n: "4", name: "Extracción por solvente y electroobtención" }, mod: "./stations/sx-ew.js", make: "createSxEw", qa: "pmSx", cls: "sx-plate--ar", T: SXEW_TARGET },
+  { id: "fundicion", view: "fundicion", st: { n: "4", name: "Fundición" }, mod: "./stations/fundicion.js", make: "createFundicion", qa: "pmFu", cls: "fu-plate--ar", T: FUN_TARGET },
+  { id: "puerto", view: "puerto", st: { n: "5", name: "Puerto" }, mod: "./stations/puerto.js", make: "createPuerto", qa: "pmPu", cls: "pu-plate--ar", T: PUE_TARGET },
+];
 let mindar = null, pinned = false;
-const arStations = [];   // { id, view, status, anchor, obj, el, setActive }
+const arStations = [];   // { id, view, st, anchor, build, ready, obj, el, setActive, tracking }
 let arCurrent = null;
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// cada lámina se arma la primera vez que hace falta (marcador encontrado o precarga en segundo plano)
+function ensure(S) {
+  if (!S.ready) {
+    S.ready = S.build().then((r) => { Object.assign(S, r); S.anchor.group.add(S.obj); return true; })
+      .catch((err) => { console.error(`[AR] no se pudo armar ${S.id}`, err); return false; });
+  }
+  return S.ready;
+}
+function camMessage(err) {
+  const n = err?.name || "";
+  if (n === "NotAllowedError" || n === "SecurityError") return "Permiso de cámara denegado · actívalo en el navegador y recarga";
+  if (n === "NotFoundError" || n === "OverconstrainedError") return "No se encontró una cámara trasera";
+  if (n === "NotReadableError") return "La cámara está ocupada por otra app";
+  return "No se pudo abrir la cámara";
+}
 async function startAR() {
   setMode("ar");
   showView("chancador", { n: "2", name: "Chancado Primario" });
   ui.status.textContent = "Iniciando cámara…";
   const scan = $("[data-scan]");
+  let THREE, CSS3DObject;
   try {
-    const THREE = await import("three");
-    const { CSS3DObject } = await import("three/addons/renderers/CSS3DRenderer.js");
+    THREE = await import("three");
+    ({ CSS3DObject } = await import("three/addons/renderers/CSS3DRenderer.js"));
     await import("../vendor/mindar/mindar-image-three.prod.js");
     mindar = new window.MINDAR.IMAGE.MindARThree({
       container: $("#ar"),
-      imageTargetSrc: "assets/targets.mind",
+      imageTargetSrc: `assets/targets.mind?v=${MIND_VERSION}`,
       maxTrack: 1,
       uiLoading: "no", uiScanning: "no", uiError: "no",
-      filterMinCF: 0.0001, filterBeta: 0.001, // menos temblor con la lámina grande
+      filterMinCF: 0.001, filterBeta: 5,   // poco temblor sin que la lámina se arrastre al mover el celular
+      warmupTolerance: 3, missTolerance: 8, // aparece rápido y no parpadea con un desenfoque breve
     });
-    const { renderer, cssRenderer, cssScene, scene, camera } = mindar;
-
-    // 0 · chancado primario: se mide la lámina en el documento antes de pasarla a CSS3D
-    plate.style.visibility = "hidden";
-    document.body.appendChild(plate);
-    const o = plateOffset();
-    plate.style.visibility = "";
-    const chObj = new CSS3DObject(plate);
-    chObj.position.set(o.x, o.y, STATION.lift);
-    chObj.scale.setScalar(o.k);
-    arStations.push({ id: "chancado", view: "chancador", st: { n: "2", name: "Chancado Primario" }, anchor: mindar.addCSSAnchor(0), obj: chObj, el: plate, setActive: (v) => live.setActive(v) });
-
-    // 1 · rajo: la lámina está en px de la infografía; su centro se lleva al espacio del marcador (ancho = 1000)
-    const { createRajo, bindPanel } = await import("./stations/rajo.js");
-    const rajo = await createRajo();
-    window.pmRajo = rajo;
-    rajo.el.classList.add("rajo-plate--ar");
-    const rjObj = onTarget(rajo.el, RAJO_TARGET, CSS3DObject);
-    bindPanel(rajo, { onEscape: () => rajo.select(null) });
-    arStations.push({ id: "rajo", view: "rajo", st: { n: "1", name: "Rajo" }, anchor: mindar.addCSSAnchor(1), obj: rjObj, el: rajo.el, setActive: (v) => rajo.setActive(v) });
-
-    // 2 · mina subterránea: al encontrar el marcador, el haz de radiografía barre el terreno
-    const M = await import("./stations/mina-subterranea.js");
-    const mina = await M.createMina();
-    window.pmMina = mina;
-    const mnObj = onTarget(mina.el, MINA_TARGET, CSS3DObject);
-    M.bindPanel(mina, { onEscape: () => mina.select(null) });
-    arStations.push({ id: "mina", view: "mina", st: { n: "1", name: "Mina subterránea" }, anchor: mindar.addCSSAnchor(2), obj: mnObj, el: mina.el,
-      setActive: (v) => { mina.setActive(v); if (v) { mina.setXray(0, true); mina.setXray(1); } } });
-
-    // 3 · chancado secundario y terciario
-    const SC = await import("./stations/chancado-secundario.js");
-    const sec = await SC.createSecundario();
-    window.pmSec = sec;
-    sec.el.classList.add("sec-plate--ar");
-    const scObj = onTarget(sec.el, SEC_TARGET, CSS3DObject);
-    SC.bindPanel(sec, { onEscape: () => sec.select(null) });
-    arStations.push({ id: "secundario", view: "secundario", st: { n: "2.2", name: "Chancado secundario y terciario" }, anchor: mindar.addCSSAnchor(3), obj: scObj, el: sec.el, setActive: (v) => sec.setActive(v) });
-
-    // 4 · pilas de lixiviación
-    const LX = await import("./stations/pilas-lixiviacion.js");
-    const lix = await LX.createPilas();
-    window.pmPilas = lix;
-    lix.el.classList.add("lx-plate--ar");
-    const lxObj = onTarget(lix.el, LIX_TARGET, CSS3DObject);
-    LX.bindPanel(lix, { onEscape: () => lix.select(null) });
-    arStations.push({ id: "pilas", view: "pilas", st: { n: "3", name: "Pilas de lixiviación" }, anchor: mindar.addCSSAnchor(4), obj: lxObj, el: lix.el, setActive: (v) => lix.setActive(v) });
-
-    // 5 · molino SAG y de bolas
-    const MO = await import("./stations/molienda.js");
-    const mol = await MO.createMolienda();
-    window.pmMol = mol;
-    mol.el.classList.add("mo-plate--ar");
-    const moObj = onTarget(mol.el, MOL_TARGET, CSS3DObject);
-    MO.bindPanel(mol, { onEscape: () => mol.select(null) });
-    arStations.push({ id: "molienda", view: "molienda", st: { n: "2", name: "Molino SAG y de bolas" }, anchor: mindar.addCSSAnchor(5), obj: moObj, el: mol.el, setActive: (v) => mol.setActive(v) });
-
-    // 6 · celdas de flotación
-    const FL = await import("./stations/flotacion.js");
-    const flo = await FL.createFlotacion();
-    window.pmFlo = flo;
-    flo.el.classList.add("fl-plate--ar");
-    const flObj = onTarget(flo.el, FLO_TARGET, CSS3DObject);
-    FL.bindPanel(flo, { onEscape: () => flo.select(null) });
-    arStations.push({ id: "flotacion", view: "flotacion", st: { n: "3", name: "Celdas de flotación" }, anchor: mindar.addCSSAnchor(6), obj: flObj, el: flo.el, setActive: (v) => flo.setActive(v) });
-
-    // 7 · extracción por solvente y electroobtención
-    const SXM = await import("./stations/sx-ew.js");
-    const sxew = await SXM.createSxEw();
-    window.pmSx = sxew;
-    sxew.el.classList.add("sx-plate--ar");
-    const sxObj = onTarget(sxew.el, SXEW_TARGET, CSS3DObject);
-    SXM.bindPanel(sxew, { onEscape: () => sxew.select(null) });
-    arStations.push({ id: "sxew", view: "sxew", st: { n: "4", name: "Extracción por solvente y electroobtención" }, anchor: mindar.addCSSAnchor(7), obj: sxObj, el: sxew.el, setActive: (v) => sxew.setActive(v) });
-
-    // 8 · fundición
-    const FUM = await import("./stations/fundicion.js");
-    const fun = await FUM.createFundicion();
-    window.pmFu = fun;
-    fun.el.classList.add("fu-plate--ar");
-    const fuObj = onTarget(fun.el, FUN_TARGET, CSS3DObject);
-    FUM.bindPanel(fun, { onEscape: () => fun.select(null) });
-    arStations.push({ id: "fundicion", view: "fundicion", st: { n: "4", name: "Fundición" }, anchor: mindar.addCSSAnchor(8), obj: fuObj, el: fun.el, setActive: (v) => fun.setActive(v) });
-
-    // 9 · puerto
-    const PUM = await import("./stations/puerto.js");
-    const pue = await PUM.createPuerto();
-    window.pmPu = pue;
-    pue.el.classList.add("pu-plate--ar");
-    const puObj = onTarget(pue.el, PUE_TARGET, CSS3DObject);
-    PUM.bindPanel(pue, { onEscape: () => pue.select(null) });
-    arStations.push({ id: "puerto", view: "puerto", st: { n: "5", name: "Puerto" }, anchor: mindar.addCSSAnchor(9), obj: puObj, el: pue.el, setActive: (v) => pue.setActive(v) });
-
-    for (const S of arStations) {
-      S.anchor.group.add(S.obj);
-      S.anchor.onTargetFound = () => {
-        if (pinned) return;
-        arCurrent?.setActive(false);
-        arCurrent = S;
-        scan.hidden = true;
-        showView(S.view, S.st);
-        document.body.dataset.tracking = "on";
-        S.setActive(true);
-      };
-      S.anchor.onTargetLost = () => {
-        if (pinned || arCurrent !== S) return;
-        scan.hidden = false;
-        ui.status.textContent = "Buscando la infografía…";
-        delete document.body.dataset.tracking;
-        S.setActive(false);
-      };
-    }
-    await mindar.start();
-    scan.hidden = false;
-    ui.status.textContent = "Buscando la infografía…";
-    $("[data-pin]").hidden = false;
-    renderer.setAnimationLoop(() => {
-      renderer.render(scene, camera);
-      cssRenderer.render(cssScene, camera);
-    });
-    void THREE;
   } catch (err) {
     console.error(err);
-    ui.status.textContent = "No se pudo abrir la cámara · mostrando demo";
-    startDemo();
+    ui.status.textContent = "No se pudo cargar el AR · mostrando demo";
+    return startDemo();
   }
+  const { renderer, cssRenderer, cssScene, scene, camera } = mindar;
+  void THREE;
+
+  // 0 · chancado primario: se mide la lámina en el documento antes de pasarla a CSS3D
+  arStations.push({ id: "chancado", view: "chancador", st: { n: "2", name: "Chancado Primario" }, anchor: mindar.addCSSAnchor(0),
+    build: async () => {
+      plate.style.visibility = "hidden";
+      document.body.appendChild(plate);
+      const o = plateOffset();
+      plate.style.visibility = "";
+      const obj = new CSS3DObject(plate);
+      obj.position.set(o.x, o.y, CH_TARGET.lift);
+      obj.scale.setScalar(o.k);
+      return { obj, el: plate, setActive: (v) => live.setActive(v) };
+    } });
+  AR_DEFS.forEach((D, i) => arStations.push({ id: D.id, view: D.view, st: D.st, anchor: mindar.addCSSAnchor(i + 1),
+    build: async () => {
+      const mod = await import(D.mod);
+      const s = await mod[D.make]();
+      window[D.qa] = s;
+      if (D.cls) s.el.classList.add(D.cls);
+      const obj = onTarget(s.el, D.T, CSS3DObject);
+      mod.bindPanel(s, { onEscape: () => s.select(null) });
+      return { obj, el: s.el, setActive: D.active ? (v) => D.active(s, v) : (v) => s.setActive(v) };
+    } }));
+
+  for (const S of arStations) {
+    S.anchor.onTargetFound = () => {
+      S.tracking = true;
+      if (pinned) return;
+      if (arCurrent && arCurrent !== S) arCurrent.setActive?.(false);
+      arCurrent = S;
+      scan.hidden = true;
+      showView(S.view, S.st);
+      document.body.dataset.tracking = "on";
+      if (!S.obj) ui.status.textContent = `Estación ${S.st.n} · ${S.st.name} · cargando…`;
+      ensure(S).then((ok) => {
+        if (!ok || !S.tracking || arCurrent !== S || pinned) return;
+        showView(S.view, S.st);
+        S.setActive(true);
+      });
+    };
+    S.anchor.onTargetLost = () => {
+      S.tracking = false;
+      if (pinned || arCurrent !== S) return;
+      scan.hidden = false;
+      ui.status.textContent = "Buscando la infografía…";
+      delete document.body.dataset.tracking;
+      S.setActive?.(false);
+    };
+  }
+
+  try {
+    await mindar.start();
+  } catch (err) {
+    console.error(err);
+    ui.status.textContent = `${camMessage(err)} · mostrando demo`;
+    return startDemo();
+  }
+  scan.hidden = false;
+  ui.status.textContent = "Buscando la infografía…";
+  $("[data-pin]").hidden = false;
+  renderer.setAnimationLoop(() => {
+    renderer.render(scene, camera);
+    cssRenderer.render(cssScene, camera);
+  });
+  // precarga en segundo plano, de a una y con pausas para no trabar el seguimiento
+  (async () => {
+    for (const S of arStations) { await wait(400); await ensure(S); }
+  })();
 }
 
 // ---------------------------------------------------------------- fijar la lámina en pantalla (la que se está viendo)
 const pinLayer = $("[data-pin-layer]");
 $("[data-pin]").addEventListener("click", (e) => {
   const S = arCurrent || arStations[0];
-  if (!S) return;
+  if (!S?.obj) return;
   pinned = !pinned;
   e.currentTarget.setAttribute("aria-pressed", String(pinned));
   if (pinned) {
