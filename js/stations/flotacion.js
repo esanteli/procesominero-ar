@@ -310,9 +310,11 @@ export async function createFlotacion() {
   // alimentación por la canaleta del puente: dentro de cada espesador (en sus unidades), sobre el puente
   thG.forEach((g, i) => { flow[`bridge${i + 1}`] = el("path", { d: D(TH[i].feed, false, f2), class: `fl-flow fl-flow--local fl-flow--${i ? "tails" : "conc"}` }, g); });
   // orden de pintado: los espesadores quedan detrás de las celdas; pasan adelante sólo cuando se eligen (o se cortan)
-  celdas.before(esp);
-  let thFront = false;
-  const setFront = (on) => { if (on === thFront) return; thFront = on; if (on) celdas.after(esp); else celdas.before(esp); };
+  // cada espesador va en su propio grupo (misma transformación) para poder adelantar sólo el elegido
+  const espW = thG.map((g, i) => { const w = i ? el("g", { class: "fl-esp", transform: esp.getAttribute("transform") }) : esp; if (i) { esp.after(w); w.appendChild(g); } return w; });
+  espW.forEach((w) => celdas.before(w));
+  let thFront = -1;
+  const setFront = (i) => { if (i === thFront) return; thFront = i; espW.forEach((w, j) => (j === i ? celdas.after(w) : celdas.before(w))); };
   const lab = el("g", { class: "fl-labels" }, topG);
   const L = (p, t, a = "start") => { el("text", { x: f1(p[0]), y: f1(p[1]), class: "fl-small", "text-anchor": a }, lab).textContent = t; };
   L(add(PIPES.feed[0], [-2, 9]), "desde molienda", "start");
@@ -355,7 +357,7 @@ export async function createFlotacion() {
   const units = new Map();
   const classify = (n, inh) => { if (["defs", "style", "clipPath"].includes(n.tagName) || n.classList?.contains("fl-win")) return; const eq = n.dataset?.eq || inh;
     if (n.querySelector?.("[data-eq]")) [...n.children].forEach((c) => classify(c, eq)); else units.set(n, eq || ""); };
-  [zona, pipeBack, celdas, esp, topG].forEach((n) => classify(n, ""));
+  [zona, pipeBack, celdas, ...espW, topG].forEach((n) => classify(n, ""));
 
   // ------------------------------------------------------------ estado
   const still = matchMedia("(prefers-reduced-motion: reduce)");
@@ -376,7 +378,7 @@ export async function createFlotacion() {
     TH.forEach((t, i) => { rakeL[i].innerHTML = rakesSvg(t, S.rake + i * 0.7); launL[i].innerHTML = launderSvg(t, fl); wellL[i].innerHTML = wellSvg(t, fl);
       winTh[i].innerHTML = i === 0 && shown.th > 0.005 ? thWindowSvg(t, shown.th, sc, true) : ""; });
     for (const [k, p] of Object.entries(flow)) p.style.strokeDashoffset = k.startsWith("bridge") ? f2((-fl * 3) % 3.5) : f1((-fl * 10) % 7);
-    setFront(["concentrado", "relaves"].includes(selected) || (!selected && sliderDetail === "B"));
+    setFront(selected === "concentrado" || (!selected && sliderDetail === "B") ? 0 : selected === "relaves" ? 1 : -1);
     // detalles
     const det = detailNow();
     for (const key of ["A", "B"]) { const C = CAL[key], on = det === key; C.g.style.display = on ? "" : "none"; if (!on) continue;
