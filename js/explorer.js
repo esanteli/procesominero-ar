@@ -177,7 +177,7 @@ export function createExplorer({ stage, builtins = {}, onView = () => {} }) {
       try {
         const mod = await import(st.module.replace(/^\.\//, "./"));
         const m = await mod.mount({ station: st, layer, poster: POSTER, focus: focusTo });
-        for (const el of layer.children) if (!el.dataset.baked && el.querySelector("svg")) { bake(el); el.dataset.baked = "1"; }
+        for (const el of layer.children) if (!el.dataset.baked && el.querySelector("svg")) { bake(el, { paper: true }); el.dataset.baked = "1"; }
         focus = m?.focus || focus;
         mounted = { leave: () => m?.destroy?.() };
         view = m?.view || "station";

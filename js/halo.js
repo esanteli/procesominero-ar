@@ -57,6 +57,28 @@ function fillHoles(c, w, h) {
   for (let i = 0; i < w * h; i++) if (!seen[i]) { a[i * 4] = a[i * 4 + 1] = a[i * 4 + 2] = a[i * 4 + 3] = 255; }
   c.putImageData(img, 0, 0);
 }
+// rellena la envolvente convexa de la máscara: para láminas que no calzan 1:1 con lo impreso (el chancado primario es
+// una ampliación), así el dibujo impreso más chico no asoma entre las líneas abiertas de la lámina
+function fillHull(c, w, h, grow) {
+  const a = c.getImageData(0, 0, w, h).data, pts = [];
+  for (let y = 0; y < h; y++) {
+    let l = -1, r = -1;
+    for (let x = 0; x < w; x++) if (a[(y * w + x) * 4 + 3] >= 128) { if (l < 0) l = x; r = x; }
+    if (l >= 0) pts.push([l, y], [r, y]);
+  }
+  if (pts.length < 3) return;
+  pts.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+  const cross = (o, p, q) => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
+  const lo = [], hi = [];
+  for (const p of pts) { while (lo.length > 1 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (hi.length > 1 && cross(hi[hi.length - 2], hi[hi.length - 1], p) <= 0) hi.pop(); hi.push(p); }
+  const hull = lo.slice(0, -1).concat(hi.slice(0, -1));
+  c.fillStyle = c.strokeStyle = "#fff"; c.lineJoin = "round"; c.lineWidth = grow * 2;
+  c.beginPath();
+  hull.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
+  c.closePath();
+  c.fill(); c.stroke();
+}
 const scaleOf = (m) => Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
 
 // drop-shadow(...) del estilo calculado → capas { c, x, y, b } en unidades del elemento
@@ -77,6 +99,8 @@ function shadowsOf(el) {
  *   halo  → { skip, r }: dibuja también el contorno blanco dilatando el dibujo estático (skip = selector de lo animado)
  *   ground → la sombra se devuelve suelta (para ponerla en el papel, bajo la lámina que flota) en vez de insertarla,
  *            sobre un parche blanco difuminado con la forma del dibujo que tapa lo impreso debajo
+ *   paper  → el mismo parche, pero dentro de la lámina bajo el dibujo (demo: tapa la infografía de fondo)
+ *   hull   → el parche cubre la envolvente convexa del dibujo, no sólo su silueta
  * Devuelve { shadow, w, h }: el canvas de la sombra, centrado sobre el contenedor del SVG, y su tamaño en px.
  */
 export function bake(root, opts = {}) {
@@ -93,7 +117,7 @@ export function bake(root, opts = {}) {
   if (!layers.length) { layers = FALLBACK; unit = 1; }
   if (opts.ground) layers = [...layers, { ...GROUND, x: GROUND.x / unit, y: GROUND.y / unit, b: GROUND.b / unit }];
   // parche de papel (AR): la silueta dilatada R px y difuminada F px, en blanco, tapa el dibujo impreso bajo la lámina
-  const S = Math.max(w, h), R = opts.ground ? Math.round(S * 0.012 + 6) : 0, F = opts.ground ? Math.round(S * 0.02 + 8) : 0;
+  const P0 = opts.ground || opts.paper, S = Math.max(w, h), R = P0 ? Math.round(S * 0.012 + 6) : 0, F = P0 ? Math.round(S * 0.02 + 8) : 0;
   const pad = Math.ceil(Math.max(R + F * 1.6, ...layers.map((L) => (Math.abs(L.x) + Math.abs(L.y) + L.b * 1.6) * unit))) + 4;
   const W = Math.ceil(w + pad * 2), H = Math.ceil(h + pad * 2);
 
@@ -116,6 +140,8 @@ export function bake(root, opts = {}) {
       if (cs.display === "none" || cs.visibility === "hidden") continue;
       const P = shapeOf(n);
       if (!P) continue;
+      const bb = n.getBBox?.();
+      if (bb && bb.width < 2 && bb.height < 2) continue; // trazos sueltos de 1 px: dejaban puntos blancos y estiraban el parche
       const s = at(chain(svg, n));
       if (cs.fill !== "none" && n.tagName !== "line" && n.tagName !== "polyline") ctx.fill(P);
       ctx.lineWidth = (2 * r) / s + (parseFloat(cs.strokeWidth) || 1);
@@ -134,7 +160,8 @@ export function bake(root, opts = {}) {
     d.width = shadow.width; d.height = shadow.height;
     const dx = d.getContext("2d");
     for (const rr of [R / 2, R]) for (let a = 0; a < 16; a++) dx.drawImage(mask, rr * q * Math.cos((a * Math.PI) / 8), rr * q * Math.sin((a * Math.PI) / 8), d.width, d.height);
-    fillHoles(dx, d.width, d.height);
+    if (opts.hull) fillHull(dx, d.width, d.height, R * q);
+    else fillHoles(dx, d.width, d.height);
     sx.shadowColor = PAPER; sx.shadowBlur = F * q; sx.shadowOffsetX = far; sx.shadowOffsetY = 0;
     sx.drawImage(d, -far, 0); sx.drawImage(d, -far, 0); // dos veces: núcleo opaco, borde suave
   }

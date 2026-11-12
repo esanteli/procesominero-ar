@@ -117,8 +117,8 @@ const rig = await mountRig(figure, "assets/chancador_primario.svg");
 const live = createLive(rig, ui);
 window.pmLive = live; // acceso para QA desde la consola
 // contorno blanco + sombra del chancado primario (se hornea una vez, con la lámina ya en el documento)
-const PLATE_ANIMATED = ".pm-caex, .pm-picarrocas, .pm-rocks, .pm-dust";
-const bakePlate = (ground) => bake(plate, { svg: rig.svg, halo: { skip: PLATE_ANIMATED }, ground });
+const PLATE_ANIMATED = ".pm-caex, .pm-picarrocas, .pm-rocks, .pm-dust, .pm-road-dust";
+const bakePlate = (ground) => bake(plate, { svg: rig.svg, halo: { skip: PLATE_ANIMATED }, ground, paper: true, hull: true });
 
 // ---------------------------------------------------------------- HUD
 ui.inside.addEventListener("input", () => live.setInside(Number(ui.inside.value) / 100));
