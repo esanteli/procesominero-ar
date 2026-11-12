@@ -280,9 +280,10 @@ async function startDemo() {
 // corto para seguirlo, y en los recortes altos las líneas finas desaparecían (el rajo quedaba con 9/4 puntos de
 // seguimiento y se perdía a cada rato; ahora 16/16). Los demás se compilan ampliados ×2 (ver tools/compilar-marcador.html).
 const MIND_VERSION = "14";
-// LIFT: cuánto flota cada lámina sobre el papel (el ancho del marcador mide 1000); su sombra queda en el papel (z = 0),
-// así al mover el celular la lámina se despega de la infografía con paralaje real.
-const LIFT = 80;
+// LIFT: cuánto flota cada lámina sobre el papel (el ancho del marcador mide 1000); su sombra y un parche blanco que
+// tapa lo impreso quedan en el papel (z = 0). Poco: con 80 la lámina se veía ~6 % más grande y corrida al inclinar
+// el celular, y no calzaba con el dibujo impreso.
+const LIFT = 12;
 const CH_TARGET = { x: 1560, y: 280, w: 500, h: 400 };
 const RAJO_TARGET = { x: 200, y: 440, w: 1150, h: 420 };
 const MINA_TARGET = { x: 1230, y: 1060, w: 600, h: 300 };
@@ -395,16 +396,22 @@ async function startAR() {
   // 0 · chancado primario: se mide la lámina en el documento antes de pasarla a CSS3D
   const chS = { id: "chancado", view: "chancador", st: { n: "2", name: "Chancado Primario" }, anchor: mindar.addCSSAnchor(0) };
   chS.build = async () => {
-    plate.style.visibility = "hidden";
+    // oculta con opacity, no con visibility: el horneado salta los trazos con visibility hidden y quedaba vacío
+    plate.style.opacity = "0";
     document.body.appendChild(plate);
     const { shadow } = bakePlate(true);
     plate.dataset.baked = "1";
     const o = plateOffset();
-    plate.style.visibility = "";
+    // la sombra cubre el dibujo (el contenedor del SVG), que no está centrado en la lámina
+    const pr = plate.getBoundingClientRect(), hr = rig.svg.parentNode.getBoundingClientRect(), u = plate.offsetWidth / pr.width || 1;
+    const dx = (hr.left + hr.width / 2 - pr.left - pr.width / 2) * u, dy = (hr.top + hr.height / 2 - pr.top - pr.height / 2) * u;
+    plate.style.opacity = "";
     const obj = flat(new CSS3DObject(plate));
     obj.position.set(o.x, o.y, LIFT);
     obj.scale.setScalar(o.k);
-    return { obj, objs: shadow ? [groundOf(shadow, obj, CSS3DObject), obj] : [obj], el: plate, setActive: (v) => live.setActive(v) };
+    const objs = [obj];
+    if (shadow) { const g = groundOf(shadow, obj, CSS3DObject); g.position.x += dx * o.k; g.position.y -= dy * o.k; objs.unshift(g); }
+    return { obj, objs, el: plate, setActive: (v) => live.setActive(v) };
   };
   arStations.push(chS);
   AR_DEFS.forEach((D, i) => {
@@ -415,11 +422,11 @@ async function startAR() {
       window[D.qa] = s;
       if (D.cls) s.el.classList.add(D.cls);
       // en el documento un instante (oculta) para leer sus estilos y hornear la sombra
-      s.el.style.visibility = "hidden";
+      s.el.style.opacity = "0";
       document.body.appendChild(s.el);
       const { shadow } = bake(s.el, { ground: true });
       s.el.remove();
-      s.el.style.visibility = "";
+      s.el.style.opacity = "";
       const obj = onTarget(s.el, D.T, CSS3DObject);
       const objs = shadow ? [groundOf(shadow, obj, CSS3DObject), obj] : [obj];
       const unbind = mod.bindPanel(s, { onEscape: () => s.select(null) });
