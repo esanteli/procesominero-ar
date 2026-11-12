@@ -157,6 +157,8 @@ const ORDER = ["cargador", "dumper"];
 
 // ---------------------------------------------------------------- dibujo
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent?.appendChild(e); return e; };
+// reescribe una capa del dibujo sólo si su marcado cambió (muchas salen idénticas cuadro a cuadro: fondo, rieles…)
+const setHTML = (n, s) => { if (n.__html !== s) { n.__html = s; n.innerHTML = s; } };
 async function loadSvg(url, prefix, defs) {
   const text = await (await fetch(url)).text();
   const root = new DOMParser().parseFromString(text, "image/svg+xml").documentElement;
@@ -290,7 +292,7 @@ export async function createMina() {
     R.brackets.forEach((g) => g.setAttribute("transform", `translate(${f1(d0[0])} ${f1(d0[1])})`));
     const bLoad = L.loaded ? (L.pour ? 1 - smooth(L.pour * 1.4) : 1) : 0;
     const bk = `${Math.round(L.tilt)}|${Math.round(bLoad * 6)}`;
-    if (bk !== bucketKey) { bucketG.innerHTML = bucketSvg(L.tilt, bLoad); bucketKey = bk; }
+    if (bk !== bucketKey) { setHTML(bucketG, bucketSvg(L.tilt, bLoad)); bucketKey = bk; }
     bucketG.setAttribute("transform", `translate(${f1(d0[0])} ${f1(d0[1])})`);
 
     // vaciado: colpas que caen del labio a la tolva
@@ -357,10 +359,11 @@ export async function createMina() {
       root.querySelectorAll(".mn-eq").forEach((g) => g.toggleAttribute("data-on", g.dataset.equip === selected));
       draw(emit());
     },
-    destroy() { api.setActive(false); listeners.clear(); root.remove(); },
+    destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest(".mn-eq"); api.select(g ? (selected === g.dataset.equip ? null : g.dataset.equip) : null); });
-  document.addEventListener("visibilitychange", () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); });
+  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  document.addEventListener("visibilitychange", onVis);
   draw(emit());
   return api;
 }

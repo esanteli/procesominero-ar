@@ -166,6 +166,8 @@ const ORDER = ["ct", "cps", "grua", "refino", "rueda"];
 
 // ---------------------------------------------------------------- utilidades SVG
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k2, v] of Object.entries(attrs)) e.setAttribute(k2, v); parent?.appendChild(e); return e; };
+// reescribe una capa del dibujo sólo si su marcado cambió (muchas salen idénticas cuadro a cuadro: fondo, rieles…)
+const setHTML = (n, s) => { if (n.__html !== s) { n.__html = s; n.innerHTML = s; } };
 const circ = (p, r, cls, o) => `<circle class="${cls}" cx="${f2(p[0])}" cy="${f2(p[1])}" r="${f2(r)}"${o != null ? ` style="opacity:${f2(clamp(o))}"` : ""}/>`;
 const poly = (pts, cls, extra = "") => `<path class="${cls}" d="${D(pts, true, f2)}"${extra}/>`;
 const line = (pts, cls, extra = "") => `<path class="${cls}" d="${D(pts, false, f2)}"${extra}/>`;
@@ -486,7 +488,7 @@ export async function createFundicion() {
     g += poly([W(-1.6, B.N + 1.6, B.H), W(B.E, B.N + 1.6, B.H), W(B.E, B.N, B.H), W(0, B.N, B.H)], "fu-wall-top");
     // zócalo del muro abatido
     g += boxSvg(B.E - 1.6, B.E, 0, B.N, 0, 1.4, "fu-sill");
-    back.innerHTML = g;
+    setHTML(back, g);
   }
   const ducts = el("g", { class: "fu-gasline", "data-eq": "" }, L.ducts);
   {
@@ -497,21 +499,21 @@ export async function createFundicion() {
     g += cylA([MANI.e, MANI.n0, MANI.z], [0, 1, 0], MANI.n1 - MANI.n0, 2.2, 2.2, "fu-duct");
     // aire enriquecido: cañerías a las toberas (detrás de los convertidores)
     g += pipeSvg([[0, 46, 24], [16, 46, 24], [16, 108, 24]], "fu-pipe--air") + pipeSvg([[0, 118, 20], [17, 118, 20], [17, 138, 20]], "fu-pipe--air");
-    ducts.innerHTML = g;
+    setHTML(ducts, g);
   }
   const railB = el("g", { class: "fu-rails", "data-eq": "grua" }, L.railB);
   {
     let g = "";
     for (const n of [40, 113.5, 146, 188]) g += boxSvg(RAIL.e0 - 0.8, RAIL.e0 + 0.8, n - 0.8, n + 0.8, 0, RAIL.z, "fu-col");
     g += boxSvg(RAIL.e0 - 1, RAIL.e0 + 1, 38, B.N - 1, RAIL.z, RAIL.z + 2, "fu-rail");
-    railB.innerHTML = g;
+    setHTML(railB, g);
   }
   const railF = el("g", { class: "fu-rails", "data-eq": "grua" }, L.railF);
   {
     let g = "";
     for (const n of [2, 64, 128, 190]) g += boxSvg(RAIL.e1 - 0.8, RAIL.e1 + 0.8, n - 0.8, n + 0.8, 0, RAIL.z, "fu-col");
     g += boxSvg(RAIL.e1 - 1, RAIL.e1 + 1, 1, B.N - 1, RAIL.z, RAIL.z + 2, "fu-rail");
-    railF.innerHTML = g;
+    setHTML(railF, g);
   }
   // ---- equipos (dinámicos)
   const gAF = el("g", { "data-eq": "refino" }, L.vesselsB), gCPS = el("g", { "data-eq": "cps" }, L.vesselsB);
@@ -585,17 +587,17 @@ export async function createFundicion() {
     // ---- hornos
     const cut = shown.cut, ecOf = (V) => V.e + (1 - cut) * V.r;
     const hotCT = true;
-    gAF.innerHTML = pedAF + vesselSvg(AF, { psi: p.afPsi, level: p.afLevel, kind: "an", blow: p.afRefine, hot: true, flame: true }, ecOf(AF), fl) + burner;
-    gCPS.innerHTML = pedCPS + vesselSvg(CPS, { psi: p.cpsPsi, level: p.cpsLevel, kind: "cps", mix: p.cpsMix, blow: p.cpsBlow, hot: p.cpsBlow > 0.1 || p.cpsFill || p.cpsPour }, ecOf(CPS), fl);
-    gWheel.innerHTML = wheelSvg(p, fl) + tankSvg(fl) + (p.fly >= 0 ? flyingAnode(p.fly).svg : "");
+    setHTML(gAF, pedAF + vesselSvg(AF, { psi: p.afPsi, level: p.afLevel, kind: "an", blow: p.afRefine, hot: true, flame: true }, ecOf(AF), fl) + burner);
+    setHTML(gCPS, pedCPS + vesselSvg(CPS, { psi: p.cpsPsi, level: p.cpsLevel, kind: "cps", mix: p.cpsMix, blow: p.cpsBlow, hot: p.cpsBlow > 0.1 || p.cpsFill || p.cpsPour }, ecOf(CPS), fl));
+    setHTML(gWheel, wheelSvg(p, fl) + tankSvg(fl) + (p.fly >= 0 ? flyingAnode(p.fly).svg : ""));
     // canaleta del horno de ánodos a la rueda (y chorro al molde)
     {
       const sp = [AF.e + (AF.r + 1.6) * Math.cos(0.35 - p.afPsi), 170, AF.z + (AF.r + 1.6) * Math.sin(0.35 - p.afPsi)];
       let g = boxSvg(54, 56, 169, 171, 0, 9.4, "fu-ped") + launderSvg(L_AF[0], L_AF[1], 1.6, p.afPour, MELT.an, fl);
       if (p.afPour) { g += streamSvg(sp, L_AF[0], MELT.an, fl, 0.9); if (p.pouring) g += streamSvg(L_AF[1], [WH.e - WH.rm, WH.n, WH.z + 0.3], MELT.an, fl, 0.8); }
-      gLaundAF.innerHTML = g;
+      setHTML(gLaundAF, g);
     }
-    gCT.innerHTML = pedCT + vesselSvg(CT, { psi: 0, level: 0.5, slag: 2.6, kind: "wm", blow: 0.45 + 0.4 * (m.o2 - O2_MIN) / (O2_MAX - O2_MIN), hot: hotCT, taps: [{ ...TAP.matte, hot: p.matteTap > 0 }, { ...TAP.slag, hot: p.slagTap > 0 }] }, ecOf(CT), fl);
+    setHTML(gCT, pedCT + vesselSvg(CT, { psi: 0, level: 0.5, slag: 2.6, kind: "wm", blow: 0.45 + 0.4 * (m.o2 - O2_MIN) / (O2_MAX - O2_MIN), hot: hotCT, taps: [{ ...TAP.matte, hot: p.matteTap > 0 }, { ...TAP.slag, hot: p.slagTap > 0 }] }, ecOf(CT), fl));
     {
       const mt = [CT.e + (CT.r + 0.3) * Math.cos(TAP.matte.t), TAP.matte.n, CT.z + (CT.r + 0.3) * Math.sin(TAP.matte.t)];
       const sl = [CT.e + (CT.r + 0.3) * Math.cos(TAP.slag.t), TAP.slag.n, CT.z + (CT.r + 0.3) * Math.sin(TAP.slag.t)];
@@ -606,7 +608,7 @@ export async function createFundicion() {
       // concentrado que avanza por la cañería de alimentación
       g += `<path class="fu-conc" d="${D(FEED.map(P3), false, f2)}" style="stroke-dashoffset:${f2(-fl * 9)}"/>`;
       g += potSvg(SLAGPOT, p.slagPot);
-      gCTx.innerHTML = g;
+      setHTML(gCTx, g);
     }
     // ---- olla, chorros de carga y vaciado, puente grúa
     {
@@ -621,8 +623,8 @@ export async function createFundicion() {
       if (p.cpsBlow > 0.1) { const mp = mouthAt(CPS, p.cpsPsi); for (let j = 0; j < 10; j++) { const ph = (fl * 1.3 + hash(j * 7.7)) % 1, ang = (hash(j * 3.1) - 0.5) * 1.4; fx += circ(W(mp[0] + Math.sin(ang) * ph * 9, mp[1] + (hash(j * 5.5) - 0.5) * 5, mp[2] + ph * 10 - ph * ph * 7), 0.45, "fu-spark", (1 - ph) * p.cpsBlow); } }
       // humo tenue en las chimeneas (gases ya limpios)
       CHIM_TOP.forEach((c, i) => { for (let j = 0; j < 3; j++) { const ph = (fl * 0.18 + j / 3 + i * 0.27) % 1; fx += circ([c[0] + ph * 9, c[1] - 3 - ph * 16], 2 + ph * 4, "fu-smoke", (1 - ph) * (0.25 + 0.4 * (m.so2 - 9) / 15)); } });
-      gFx.innerHTML = fx;
-      gHang.innerHTML = lad.svg + craneSvg(p.crane.n, p.crane.e, p.hook[2]);
+      setHTML(gFx, fx);
+      setHTML(gHang, lad.svg + craneSvg(p.crane.n, p.crane.e, p.hook[2]));
     }
     // ---- detalles
     const det = detailNow();
@@ -633,13 +635,13 @@ export async function createFundicion() {
       const e0 = [bx, by + bh * 0.62];
       CAL.lead.setAttribute("d", `M${f1(e0[0])} ${f1(e0[1])}C${f1(e0[0] - 50)} ${f1(e0[1])} ${f1(at[0] + 40)} ${f1(at[1] - 40)} ${f1(at[0])} ${f1(at[1])}`);
       const T1 = by + 22, B1 = by + bh - 5;
-      if (det === "A") { const r = detailA(CAL.box, s, m, fl); CAL.title.textContent = "Detalle · Convertidores en corte"; CAL.body.innerHTML = r.svg;
-        CAL.labels.innerHTML = lbl(r.ct.mouth, [bx + 8, T1], `Gases ${fdec(m.so2)} % SO₂`, "start") + lbl(r.cps.mouth, [bx + bw - 7, T1], "Boca: carga y vaciado", "end") +
+      if (det === "A") { const r = detailA(CAL.box, s, m, fl); CAL.title.textContent = "Detalle · Convertidores en corte"; setHTML(CAL.body, r.svg);
+        setHTML(CAL.labels, lbl(r.ct.mouth, [bx + 8, T1], `Gases ${fdec(m.so2)} % SO₂`, "start") + lbl(r.cps.mouth, [bx + bw - 7, T1], "Boca: carga y vaciado", "end") +
           lbl(r.ct.tuy, [bx + 8, B1], `Toberas: concentrado + aire ${m.o2} % O₂`, "start") + lbl(r.cps.melt, [bx + bw - 7, B1], p.cpsMix > 0.6 ? "Blíster 99,3 % Cu" : `Metal blanco ${fdec(m.wm, 0)} % Cu`, "end") +
-          lbl(r.ct.slag, [bx + 104, by + 40], "Escoria 8–10 % Cu", "start") + lbl(r.ct.melt, [bx + 104, by + 50], `Metal blanco ${fdec(m.wm, 0)} % Cu`, "start"); }
-      else { const r = detailB(CAL.box, s, m, fl); CAL.title.textContent = "Detalle · Refinación y moldeo"; CAL.body.innerHTML = r.svg;
-        CAL.labels.innerHTML = lbl(r.pts.burner, [bx + 8, T1], "Quemador ~1.200 °C", "start") + lbl(r.pts.lug, [bx + bw - 7, T1], "Orejas: cuelga en la celda", "end") +
-          lbl(r.pts.tuy, [bx + 8, B1], "Toberas: aire, luego gas reductor", "start") + lbl(r.pts.anode, [bx + bw - 7, B1], "Ánodo ~400 kg → refinería", "end"); }
+          lbl(r.ct.slag, [bx + 104, by + 40], "Escoria 8–10 % Cu", "start") + lbl(r.ct.melt, [bx + 104, by + 50], `Metal blanco ${fdec(m.wm, 0)} % Cu`, "start")); }
+      else { const r = detailB(CAL.box, s, m, fl); CAL.title.textContent = "Detalle · Refinación y moldeo"; setHTML(CAL.body, r.svg);
+        setHTML(CAL.labels, lbl(r.pts.burner, [bx + 8, T1], "Quemador ~1.200 °C", "start") + lbl(r.pts.lug, [bx + bw - 7, T1], "Orejas: cuelga en la celda", "end") +
+          lbl(r.pts.tuy, [bx + 8, B1], "Toberas: aire, luego gas reductor", "start") + lbl(r.pts.anode, [bx + bw - 7, B1], "Ánodo ~400 kg → refinería", "end")); }
     }
     drawTour(s);
     for (const id of ORDER) {
@@ -708,10 +710,11 @@ export async function createFundicion() {
     setCut(v, instant) { ST.cut = clamp(v); if (instant || still.matches) shown.cut = ST.cut; sliderDetail = ST.cut > 0 ? "A" : null; if (ST.cut > 0 && ST.open < 1) api.setOpen(1); draw(); },
     setO2(v) { ST.o2 = clamp(Math.round(v), O2_MIN, O2_MAX); draw(); },
     select(id) { selected = id && EQUIP[id] ? id : null; root.toggleAttribute("data-sel", !!selected); units.forEach(([u, eq]) => u.classList.toggle("fu-dim", !!selected && eq !== selected)); draw(); },
-    destroy() { api.setActive(false); listeners.clear(); root.remove(); },
+    destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); const id = g?.dataset.eq; api.select(id ? (selected === id ? null : id) : null); });
-  document.addEventListener("visibilitychange", () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); });
+  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  document.addEventListener("visibilitychange", onVis);
   draw();
   return api;
 }

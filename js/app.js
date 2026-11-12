@@ -4,6 +4,7 @@ import { mountRig, GEO } from "./rig.js";
 import { createLive } from "./live.js";
 import { STEPS } from "./caex.js";
 import * as M from "./model.js";
+import { bake } from "./halo.js";
 
 // ---------------------------------------------------------------- registro lámina ↔ infografía
 // El target (assets/target-chancado.png, 1140×780) es un recorte de la infografía alrededor de la estación 2.
@@ -109,11 +110,15 @@ ui.onSelect = (id) => {
 };
 
 const plate = $("#plate-tpl").content.firstElementChild.cloneNode(true);
+plate.classList.add("plate--bare"); // sin tarjeta blanca: el dibujo va directo sobre la infografía, con contorno blanco
 const figure = $("[data-figure]", plate);
 ui.stage = figure;
 const rig = await mountRig(figure, "assets/chancador_primario.svg");
 const live = createLive(rig, ui);
 window.pmLive = live; // acceso para QA desde la consola
+// contorno blanco + sombra del chancado primario (se hornea una vez, con la lámina ya en el documento)
+const PLATE_ANIMATED = ".pm-caex, .pm-picarrocas, .pm-rocks, .pm-dust";
+const bakePlate = (ground) => bake(plate, { svg: rig.svg, halo: { skip: PLATE_ANIMATED }, ground });
 
 // ---------------------------------------------------------------- HUD
 ui.inside.addEventListener("input", () => live.setInside(Number(ui.inside.value) / 100));
@@ -208,6 +213,7 @@ const chancadorStation = {
     layer.appendChild(plate);
     plate.classList.add("plate--demo");
     plate.style.transform = "none";
+    if (!plate.dataset.baked) { bakePlate(false); plate.dataset.baked = "1"; }
     const vb = GEO.view;
     const fx = figure.offsetLeft + ((STATION.svgPoint[0] - vb[0]) / vb[2]) * figure.offsetWidth;
     const fy = figure.offsetTop + ((STATION.svgPoint[1] - vb[1]) / vb[3]) * figure.offsetHeight;
@@ -270,25 +276,42 @@ async function startDemo() {
 // 5 molienda, 6 flotación, 7 SX-EW, 8 fundición, 9 puerto. Los rectángulos de abajo son esos recortes, en px de la
 // infografía: así cada lámina, que vive en esas coordenadas, se ubica sobre su marcador sin más cuentas.
 // Si se recompila targets.mind, sube MIND_VERSION (Vercel guarda /assets en caché un día).
-const MIND_VERSION = "13";
-const CH_TARGET = { x: 1560, y: 280, w: 500, h: 400, lift: 90 };
-const RAJO_TARGET = { x: 60, y: 430, w: 1000, h: 840, lift: 10 };
-const MINA_TARGET = { x: 1070, y: 870, w: 870, h: 600, lift: 10 };
-const SEC_TARGET = { x: 2000, y: 690, w: 700, h: 300, lift: 10 };
-const LIX_TARGET = { x: 2200, y: 260, w: 730, h: 425, lift: 10 };
-const MOL_TARGET = { x: 1950, y: 1000, w: 520, h: 420, lift: 10 };
-const FLO_TARGET = { x: 2780, y: 700, w: 900, h: 500, lift: 10 };
-const SXEW_TARGET = { x: 2950, y: 300, w: 760, h: 395, lift: 10 };
-const FUN_TARGET = { x: 4085, y: 925, w: 640, h: 400, lift: 10 };
-const PUE_TARGET = { x: 4180, y: 420, w: 960, h: 450, lift: 10 };
+// Rajo y mina usan recortes bajos y anchos que incluyen su etiqueta: MindAR achica cada marcador hasta ~256 px de lado
+// corto para seguirlo, y en los recortes altos las líneas finas desaparecían (el rajo quedaba con 9/4 puntos de
+// seguimiento y se perdía a cada rato; ahora 16/16). Los demás se compilan ampliados ×2 (ver tools/compilar-marcador.html).
+const MIND_VERSION = "14";
+// LIFT: cuánto flota cada lámina sobre el papel (el ancho del marcador mide 1000); su sombra queda en el papel (z = 0),
+// así al mover el celular la lámina se despega de la infografía con paralaje real.
+const LIFT = 80;
+const CH_TARGET = { x: 1560, y: 280, w: 500, h: 400 };
+const RAJO_TARGET = { x: 200, y: 440, w: 1150, h: 420 };
+const MINA_TARGET = { x: 1230, y: 1060, w: 600, h: 300 };
+const SEC_TARGET = { x: 2000, y: 690, w: 700, h: 300 };
+const LIX_TARGET = { x: 2200, y: 260, w: 730, h: 425 };
+const MOL_TARGET = { x: 1950, y: 1000, w: 520, h: 420 };
+const FLO_TARGET = { x: 2780, y: 700, w: 900, h: 500 };
+const SXEW_TARGET = { x: 2950, y: 300, w: 760, h: 395 };
+const FUN_TARGET = { x: 4085, y: 925, w: 640, h: 400 };
+const PUE_TARGET = { x: 4180, y: 420, w: 960, h: 450 };
 // lámina en px de la infografía → objeto CSS3D sobre su marcador (ancho del marcador = 1000 en el espacio del ancla)
 function onTarget(el, T, CSS3DObject) {
   const L = parseFloat(el.style.left), Tp = parseFloat(el.style.top), W = parseFloat(el.style.width), H = parseFloat(el.style.height);
   el.style.left = "0px"; el.style.top = "0px";
-  const k = 1000 / T.w, o = new CSS3DObject(el);
-  o.position.set((L + W / 2 - T.x - T.w / 2) * k, -(Tp + H / 2 - T.y - T.h / 2) * k, T.lift);
+  const k = 1000 / T.w, o = flat(new CSS3DObject(el));
+  o.position.set((L + W / 2 - T.x - T.w / 2) * k, -(Tp + H / 2 - T.y - T.h / 2) * k, LIFT);
   o.scale.setScalar(k);
   return o;
+}
+// will-change: la lámina se rasteriza una vez y la GPU sólo la mueve; sin esto el navegador la volvía a dibujar
+// entera cada vez que el seguimiento cambiaba su escala (cada cuadro).
+function flat(o) { o.element.style.willChange = "transform"; return o; }
+// sombra horneada de la lámina, en el papel bajo ella (mismo centro y escala, z = 0)
+function groundOf(shadow, o, CSS3DObject) {
+  const g = flat(new CSS3DObject(shadow));
+  shadow.style.pointerEvents = "none";
+  g.position.set(o.position.x, o.position.y, 0);
+  g.scale.copy(o.scale);
+  return g;
 }
 // estaciones de estaciones/*.js: módulo, fábrica, global de QA, clase AR, recorte
 const AR_DEFS = [
@@ -304,17 +327,31 @@ const AR_DEFS = [
   { id: "fundicion", view: "fundicion", st: { n: "4", name: "Fundición" }, mod: "./stations/fundicion.js", make: "createFundicion", qa: "pmFu", cls: "fu-plate--ar", T: FUN_TARGET },
   { id: "puerto", view: "puerto", st: { n: "5", name: "Puerto" }, mod: "./stations/puerto.js", make: "createPuerto", qa: "pmPu", cls: "pu-plate--ar", T: PUE_TARGET },
 ];
-let mindar = null, pinned = false;
-const arStations = [];   // { id, view, st, anchor, build, ready, obj, el, setActive, tracking }
-let arCurrent = null;
+let mindar = null, pinned = false, pinnedS = null;
+const arStations = [];   // { id, view, st, anchor, build, ready, obj, objs, el, setActive, dispose, tracking, used }
+window.pmAR = arStations; // QA desde la consola: qué láminas están armadas (obj) y cuál se está siguiendo
+let arCurrent = null, useClock = 0, cssDirty = true;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-// cada lámina se arma la primera vez que hace falta (marcador encontrado o precarga en segundo plano)
+// Memoria: en el celular (sobre todo iPhone) armar todas las láminas a la vez, junto con la cámara y el seguimiento,
+// agotaba la memoria de la pestaña y el navegador la cerraba. Se arman al encontrar su marcador y quedan vivas a lo
+// más KEEP (además del chancado primario, que es parte de la página); la menos usada se libera y se rearma si vuelve.
+const KEEP = 2;
 function ensure(S) {
   if (!S.ready) {
-    S.ready = S.build().then((r) => { Object.assign(S, r); S.anchor.group.add(S.obj); return true; })
-      .catch((err) => { console.error(`[AR] no se pudo armar ${S.id}`, err); return false; });
+    S.ready = S.build().then((r) => { Object.assign(S, r); r.objs.forEach((o) => S.anchor.group.add(o)); cssDirty = true; evict(); return true; })
+      .catch((err) => { console.error(`[AR] no se pudo armar ${S.id}`, err); S.ready = null; return false; });
   }
   return S.ready;
+}
+function evict() {
+  const built = () => arStations.filter((S) => S.dispose && S.obj);
+  for (const S of built().sort((a, b) => (a.used || 0) - (b.used || 0))) {
+    if (built().length <= KEEP) break;
+    if (S === arCurrent || S === pinnedS || S.tracking) continue;
+    S.setActive?.(false);
+    S.dispose();
+    Object.assign(S, { ready: null, obj: null, objs: null, el: null, setActive: null, dispose: null });
+  }
 }
 function camMessage(err) {
   const n = err?.name || "";
@@ -346,35 +383,65 @@ async function startAR() {
     ui.status.textContent = "No se pudo cargar el AR · mostrando demo";
     return startDemo();
   }
-  const { renderer, cssRenderer, cssScene, scene, camera } = mindar;
+  const { renderer, cssRenderer, cssScene, camera } = mindar;
   void THREE;
+  // MindAR crea un WebGL a pantalla completa (antialias, ×densidad del equipo: ×3 en iPhone) que aquí no dibuja nada:
+  // todo va en CSS3D. Se libera su memoria de GPU y se deja de redibujar.
+  renderer.setPixelRatio(1); renderer.setSize(1, 1);
+  renderer.setSize = renderer.setPixelRatio = () => {};
+  renderer.domElement.style.display = "none";
+  try { renderer.dispose(); renderer.forceContextLoss(); } catch {}
 
   // 0 · chancado primario: se mide la lámina en el documento antes de pasarla a CSS3D
-  arStations.push({ id: "chancado", view: "chancador", st: { n: "2", name: "Chancado Primario" }, anchor: mindar.addCSSAnchor(0),
-    build: async () => {
-      plate.style.visibility = "hidden";
-      document.body.appendChild(plate);
-      const o = plateOffset();
-      plate.style.visibility = "";
-      const obj = new CSS3DObject(plate);
-      obj.position.set(o.x, o.y, CH_TARGET.lift);
-      obj.scale.setScalar(o.k);
-      return { obj, el: plate, setActive: (v) => live.setActive(v) };
-    } });
-  AR_DEFS.forEach((D, i) => arStations.push({ id: D.id, view: D.view, st: D.st, anchor: mindar.addCSSAnchor(i + 1),
-    build: async () => {
+  const chS = { id: "chancado", view: "chancador", st: { n: "2", name: "Chancado Primario" }, anchor: mindar.addCSSAnchor(0) };
+  chS.build = async () => {
+    plate.style.visibility = "hidden";
+    document.body.appendChild(plate);
+    const { shadow } = bakePlate(true);
+    plate.dataset.baked = "1";
+    const o = plateOffset();
+    plate.style.visibility = "";
+    const obj = flat(new CSS3DObject(plate));
+    obj.position.set(o.x, o.y, LIFT);
+    obj.scale.setScalar(o.k);
+    return { obj, objs: shadow ? [groundOf(shadow, obj, CSS3DObject), obj] : [obj], el: plate, setActive: (v) => live.setActive(v) };
+  };
+  arStations.push(chS);
+  AR_DEFS.forEach((D, i) => {
+    const S = { id: D.id, view: D.view, st: D.st, anchor: mindar.addCSSAnchor(i + 1) };
+    S.build = async () => {
       const mod = await import(D.mod);
       const s = await mod[D.make]();
       window[D.qa] = s;
       if (D.cls) s.el.classList.add(D.cls);
+      // en el documento un instante (oculta) para leer sus estilos y hornear la sombra
+      s.el.style.visibility = "hidden";
+      document.body.appendChild(s.el);
+      const { shadow } = bake(s.el, { ground: true });
+      s.el.remove();
+      s.el.style.visibility = "";
       const obj = onTarget(s.el, D.T, CSS3DObject);
-      mod.bindPanel(s, { onEscape: () => s.select(null) });
-      return { obj, el: s.el, setActive: D.active ? (v) => D.active(s, v) : (v) => s.setActive(v) };
-    } }));
+      const objs = shadow ? [groundOf(shadow, obj, CSS3DObject), obj] : [obj];
+      const unbind = mod.bindPanel(s, { onEscape: () => s.select(null) });
+      return {
+        obj, objs, el: s.el,
+        setActive: D.active ? (v) => D.active(s, v) : (v) => s.setActive(v),
+        dispose: () => {
+          objs.forEach((o) => S.anchor.group.remove(o));
+          unbind?.();
+          s.destroy();
+          if (window[D.qa] === s) delete window[D.qa];
+        },
+      };
+    };
+    arStations.push(S);
+  });
 
   for (const S of arStations) {
+    S.anchor.onTargetUpdate = () => { cssDirty = true; };
     S.anchor.onTargetFound = () => {
       S.tracking = true;
+      S.used = ++useClock;
       if (pinned) return;
       if (arCurrent && arCurrent !== S) arCurrent.setActive?.(false);
       arCurrent = S;
@@ -385,7 +452,7 @@ async function startAR() {
       ensure(S).then((ok) => {
         if (!ok || !S.tracking || arCurrent !== S || pinned) return;
         showView(S.view, S.st);
-        S.setActive(true);
+        S.setActive?.(true);
       });
     };
     S.anchor.onTargetLost = () => {
@@ -398,6 +465,11 @@ async function startAR() {
     };
   }
 
+  // MindAR pide la cámara sin resolución y los navegadores entregan 640×480: a esa resolución el arte de líneas finas
+  // (sobre todo el rajo) casi no deja puntos y el seguimiento no se engancha. A 1280×720 el rajo aparece al instante.
+  const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia = (c) =>
+    gum(c?.video && typeof c.video === "object" ? { ...c, video: { width: { ideal: 1280 }, height: { ideal: 720 }, ...c.video } } : c);
   try {
     await mindar.start();
   } catch (err) {
@@ -408,14 +480,39 @@ async function startAR() {
   scan.hidden = false;
   ui.status.textContent = "Buscando la infografía…";
   $("[data-pin]").hidden = false;
-  renderer.setAnimationLoop(() => {
-    renderer.render(scene, camera);
-    cssRenderer.render(cssScene, camera);
-  });
-  // precarga en segundo plano, de a una y con pausas para no trabar el seguimiento
+  // CSS3D se redibuja sólo cuando el seguimiento movió algo (MindAR entrega ~30 poses/s; la pantalla va a 60–120 Hz)
+  addEventListener("resize", () => { cssDirty = true; });
+  const loop = () => {
+    if (cssDirty) { cssDirty = false; cssRenderer.render(cssScene, camera); }
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+  // al volver a la app la cámara puede quedar pausada o cortada (iOS la corta en segundo plano)
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) resumeCamera(); });
+  addEventListener("pagehide", () => { try { mindar.stop(); } catch {} });
+  // los módulos de las estaciones se descargan de a uno en segundo plano (sólo el código: las láminas se arman al
+  // encontrar su marcador), para que la primera aparición no espere la red
   (async () => {
-    for (const S of arStations) { await wait(400); await ensure(S); }
+    for (const D of AR_DEFS) { await wait(700); await import(D.mod).catch(() => {}); }
   })();
+}
+let resuming = false;
+async function resumeCamera() {
+  const v = mindar?.video;
+  if (!v || resuming) return;
+  const track = v.srcObject?.getVideoTracks?.()[0];
+  if (track?.readyState === "live") { if (v.paused) v.play().catch(() => {}); return; }
+  resuming = true;
+  ui.status.textContent = "Reanudando cámara…";
+  try {
+    try { mindar.stop(); } catch {}
+    await mindar.start();
+    ui.status.textContent = "Buscando la infografía…";
+  } catch (err) {
+    console.error(err);
+    ui.status.textContent = `${camMessage(err)} · recarga la página`;
+  }
+  resuming = false;
 }
 
 // ---------------------------------------------------------------- fijar la lámina en pantalla (la que se está viendo)
@@ -424,9 +521,10 @@ $("[data-pin]").addEventListener("click", (e) => {
   const S = arCurrent || arStations[0];
   if (!S?.obj) return;
   pinned = !pinned;
+  pinnedS = pinned ? S : null;
   e.currentTarget.setAttribute("aria-pressed", String(pinned));
   if (pinned) {
-    S.anchor.group.remove(S.obj);              // CSS3D suelta el elemento…
+    S.objs.forEach((o) => S.anchor.group.remove(o)); // CSS3D suelta el elemento (y su sombra)…
     pinLayer.hidden = false;
     pinLayer.appendChild(S.el);                // …y lo ponemos plano en pantalla
     S.el.style.transform = "";
@@ -440,7 +538,8 @@ $("[data-pin]").addEventListener("click", (e) => {
   } else {
     S.el.classList.remove("plate--pinned");
     pinLayer.hidden = true;
-    S.anchor.group.add(S.obj);
+    S.objs.forEach((o) => S.anchor.group.add(o));
+    cssDirty = true;
     ui.status.textContent = document.body.dataset.tracking ? `Estación ${S.st.n} · ${S.st.name}` : "Buscando la infografía…";
     if (!document.body.dataset.tracking) { $("[data-scan]").hidden = false; S.setActive(false); }
   }

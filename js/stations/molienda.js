@@ -125,6 +125,8 @@ const ORDER = ["sag", "harnero", "bolas", "bombas", "hidrociclones"];
 
 // ---------------------------------------------------------------- utilidades SVG
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent?.appendChild(e); return e; };
+// reescribe una capa del dibujo sólo si su marcado cambió (muchas salen idénticas cuadro a cuadro: fondo, rieles…)
+const setHTML = (n, s) => { if (n.__html !== s) { n.__html = s; n.innerHTML = s; } };
 const ROCK = ["M-1.6 -.6L-.3 -1.7L1.4 -1.1L1.7 .6L.1 1.6L-1.4 1Z", "M-1.3 -1.2L1 -1.4L1.6 .4L.2 1.4L-1.6 .6Z", "M-1.7 0L-.7 -1.5L1.2 -1.4L1.4 1L-.6 1.4Z"];
 const pool = (parent, n, cls) => Array.from({ length: n }, (_, i) => el("path", { d: ROCK[i % 3], class: cls }, parent));
 const put = (r, p, sc, rot = 0, o = 1) => { if (!p || o <= 0.01) { r.style.opacity = 0; return; } r.setAttribute("transform", `translate(${f1(p[0])} ${f1(p[1])}) rotate(${Math.round(rot)}) scale(${f1(sc)})`); r.style.opacity = o.toFixed(2); };
@@ -419,14 +421,14 @@ export async function createMolienda() {
       for (; i < rockFeed.length; i++) put(rockFeed[i], null); }
     // SAG: pernos que corren y ventana
     dashed.forEach((n) => n && (n.style.strokeDashoffset = f1((-S.rotS * 26) % 15.5)));
-    sagWin.innerHTML = shown.sag > 0.005 ? drumWindowSvg(SAG, "mo-sw", shown.sag, { rot: S.rotS, flow: fl }, { a0: 5, a1: 33, J: m.J / 100, lift: 16, nb: 34, roll: 0.25, nc: 18, cat: 0.7, br: 1.15, rk: 1.05, rocks: true }) : "";
+    setHTML(sagWin, shown.sag > 0.005 ? drumWindowSvg(SAG, "mo-sw", shown.sag, { rot: S.rotS, flow: fl }, { a0: 5, a1: 33, J: m.J / 100, lift: 16, nb: 34, roll: 0.25, nc: 18, cat: 0.7, br: 1.15, rk: 1.05, rocks: true }) : "");
     // molinos de bolas: costuras que corren y ventanas
     BM.forEach((M, i) => {
-      bmSeams[i].innerHTML = seamsSvg(M, S.rotB, 1.5, M.L * 0.5 - 1.5) + seamsSvg(M, S.rotB, M.L * 0.5 + 1.5, M.L - 1);
-      bmWin[i].innerHTML = shown.bm > 0.005 ? drumWindowSvg(M, `mo-bw${i}`, shown.bm, { rot: S.rotB, flow: fl }, { a0: 3, a1: M.L * 0.5 - 2.5, J: 0.35, lift: 14, nb: 40, roll: 0.35, nc: 16, cat: 0.9, br: 0.55, rk: 0.5, rocks: false }) : "";
+      setHTML(bmSeams[i], seamsSvg(M, S.rotB, 1.5, M.L * 0.5 - 1.5) + seamsSvg(M, S.rotB, M.L * 0.5 + 1.5, M.L - 1));
+      setHTML(bmWin[i], shown.bm > 0.005 ? drumWindowSvg(M, `mo-bw${i}`, shown.bm, { rot: S.rotB, flow: fl }, { a0: 3, a1: M.L * 0.5 - 2.5, J: 0.35, lift: 14, nb: 40, roll: 0.35, nc: 16, cat: 0.9, br: 0.55, rk: 0.5, rocks: false }) : "");
     });
     // bombas: rotación del impulsor (marca que gira)
-    pumpSpin.forEach((g, i) => { const c = PUMP[i]; let o = ""; for (let k = 0; k < 3; k++) { const th = fl * 9 + (k / 3) * Math.PI * 2; o += `<path class="mo-spinl" d="M${f1(c[0])} ${f1(c[1])}l${f1(Math.cos(th) * 3.4)} ${f1(Math.sin(th) * 3.4 * 0.85)}"/>`; } g.innerHTML = o; });
+    pumpSpin.forEach((g, i) => { const c = PUMP[i]; let o = ""; for (let k = 0; k < 3; k++) { const th = fl * 9 + (k / 3) * Math.PI * 2; o += `<path class="mo-spinl" d="M${f1(c[0])} ${f1(c[1])}l${f1(Math.cos(th) * 3.4)} ${f1(Math.sin(th) * 3.4 * 0.85)}"/>`; } setHTML(g, o); });
     // flujos por los tubos (velocidad según la alimentación)
     const v = 9 + 6 * load;
     for (const [k, p] of Object.entries(flow)) p.style.strokeDashoffset = f1((-fl * v * (k.startsWith("u") ? 0.6 : k.startsWith("of") ? 0.8 : 1)) % 7);
@@ -474,7 +476,7 @@ export async function createMolienda() {
         r = cycloneSvg(CARD.box, { flow: fl }, m);
         L = label(r.pts.over, [bx + 7, by + 24], `Rebalse: finos P80 ${Math.round(m.P80)} µm → flotación`, "start") + label(r.pts.inlet, [bx + bw - 7, by + 40], "Alimentación a presión", "end") +
           label(r.pts.wall, [bx + bw - 7, by + 70], "Gruesos por la pared", "end") + label(r.pts.core, [bx + 7, by + 62], "Finos al centro", "start") + label(r.pts.under, [bx + 7, by + bh - 8], "Descarga: gruesos → molino de bolas", "start"); }
-      CARD.title.textContent = title; CARD.body.innerHTML = r ? r.svg : ""; CARD.labels.innerHTML = L;
+      CARD.title.textContent = title; setHTML(CARD.body, r ? r.svg : ""); setHTML(CARD.labels, L);
       CARD.dot.setAttribute("cx", f1(at[0])); CARD.dot.setAttribute("cy", f1(at[1]));
       const e = [bx, by + bh * 0.6];
       CARD.lead.setAttribute("d", `M${f1(e[0])} ${f1(e[1])}C${f1(e[0] - 40)} ${f1(e[1])} ${f1(at[0] + 10)} ${f1(at[1] - 40)} ${f1(at[0])} ${f1(at[1])}`);
@@ -543,10 +545,11 @@ export async function createMolienda() {
       units.forEach((eq, u) => u.classList.toggle("mo-dim", !!selected && eq !== selected));
       draw();
     },
-    destroy() { api.setActive(false); listeners.clear(); root.remove(); },
+    destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); api.select(g ? (selected === g.dataset.eq ? null : g.dataset.eq) : null); });
-  document.addEventListener("visibilitychange", () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); });
+  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  document.addEventListener("visibilitychange", onVis);
   draw();
   return api;
 }

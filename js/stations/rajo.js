@@ -221,6 +221,11 @@ const ORDER = ["perforadora", "pala", "caex"];
 
 // ---------------------------------------------------------------- dibujo
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent?.appendChild(e); return e; };
+// se escribe sólo lo que cambió: cada atributo tocado invalida el SVG y obliga a repintar esa zona
+const memo = (e) => e.__pm || (e.__pm = {});
+const put = (e, k, v) => { const c = memo(e); if (c[k] !== v) { c[k] = v; e.setAttribute(k, v); } };
+const sty = (e, k, v) => { const c = memo(e), kk = `s:${k}`; if (c[kk] !== v) { c[kk] = v; e.style[k] = v; } };
+const flag = (e, k, on) => { const c = memo(e), kk = `f:${k}`; if (c[kk] !== on) { c[kk] = on; e.toggleAttribute(k, on); } };
 async function loadSprite(url, prefix, defs, recolor = false) {
   const text = await (await fetch(url)).text();
   const root = new DOMParser().parseFromString(text, "image/svg+xml").documentElement;
@@ -269,7 +274,7 @@ export async function createRajo() {
 
   // perforadora + malla de pozos
   const holes = el("g", { class: "rj-holes" }, svg);
-  const holeEls = Array.from({ length: DRILL.holes }, () => el("ellipse", { rx: 1.9, ry: 1.05, class: "rj-hole" }, holes));
+  const holeEls = Array.from({ length: DRILL.holes }, (_, k) => { const p = DRILL.grid(k); return el("ellipse", { cx: f1(p[0]), cy: f1(p[1]), rx: 1.9, ry: 1.05, class: "rj-hole" }, holes); });
   const drillG = el("g", { class: "rj-eq", "data-equip": "perforadora", role: "button", tabindex: "-1", "aria-label": "Perforadora: ver descripción" }, svg);
   el("ellipse", { cx: DRILL.at[0] + 10, cy: DRILL.at[1] + 34, rx: 26, ry: 30, class: "rj-hit" }, drillG);
   const drillBody = el("g", {}, drillG);
@@ -316,93 +321,102 @@ export async function createRajo() {
   }
 
   // ------------------------------------------------------------ render
+  // camión: un <g> por rumbo (cada 2°) y carga, armado una vez y reutilizado (antes se reparseaba con innerHTML)
   const truckCache = new Map();
   let truckKey = "";
   const still = matchMedia("(prefers-reduced-motion: reduce)");
   let selected = null, showRoutes = false;
+  const hide = (e) => sty(e, "opacity", "0");
 
   function draw(s) {
+    const moving = !still.matches;
     // perforadora: el cabezal baja por el mástil mientras perfora; al terminar aparece el pozo en la malla
-    const D = s.drill, jit = D.drilling && !still.matches ? Math.sin(s.t * 70) * 0.18 : 0;
-    drillBody.setAttribute("transform", `translate(${f1(DRILL.at[0] + jit)} ${f1(DRILL.at[1])})`);
-    drillHead.setAttribute("y", f1(3 + D.head * 27));
+    const D = s.drill, jit = D.drilling && moving ? Math.sin(s.t * 70) * 0.18 : 0;
+    put(drillBody, "transform", `translate(${f1(DRILL.at[0] + jit)} ${f1(DRILL.at[1])})`);
+    put(drillHead, "y", f1(3 + D.head * 27));
     holeEls.forEach((e, k) => {
       const p = DRILL.grid(k), last = k === D.done - 1;
-      e.setAttribute("cx", f1(p[0])); e.setAttribute("cy", f1(p[1]));
-      e.setAttribute("transform", last && D.pop ? `translate(${f1(p[0])} ${f1(p[1])}) scale(${f1(1 + D.pop * 0.8)}) translate(${f1(-p[0])} ${f1(-p[1])})` : "");
-      e.style.opacity = k < D.done ? D.fade.toFixed(3) : 0;
+      put(e, "transform", last && D.pop ? `translate(${f1(p[0])} ${f1(p[1])}) scale(${f1(1 + D.pop * 0.8)}) translate(${f1(-p[0])} ${f1(-p[1])})` : "");
+      sty(e, "opacity", k < D.done ? D.fade.toFixed(2) : "0");
     });
     drillPuffs.forEach((c, k) => {
+      if (!D.drilling || !moving) return hide(c);
       const ph = (s.t * 1.6 + k / drillPuffs.length) % 1;
-      c.setAttribute("cx", f1(DRILL.at[0] + 6 + k * 4 + ph * (k % 2 ? 3 : -3)));
-      c.setAttribute("cy", f1(DRILL.at[1] + 57 - ph * 5));
-      c.setAttribute("r", f1(0.8 + ph * 2.2));
-      c.style.opacity = D.drilling && !still.matches ? ((1 - ph) * 0.85).toFixed(3) : 0;
+      put(c, "cx", f1(DRILL.at[0] + 6 + k * 4 + ph * (k % 2 ? 3 : -3)));
+      put(c, "cy", f1(DRILL.at[1] + 57 - ph * 5));
+      put(c, "r", f1(0.8 + ph * 2.2));
+      sty(c, "opacity", ((1 - ph) * 0.85).toFixed(2));
     });
 
     // CAEX
     const T = s.truck;
-    const lv = Math.round((T.load / CAPACITY) * 12);
-    const key = `${Math.round(T.phi)}|${lv}`;
+    const lv = Math.round((T.load / CAPACITY) * 12), phi = (Math.round(T.phi / 2) * 2) % 360;
+    const key = `${phi}|${lv}`;
     if (key !== truckKey) {
-      if (!truckCache.has(key)) {
-        const r = renderTruck(Math.round(T.phi), lv / 12);
-        truckCache.set(key, r.paths.map((p) => `<path class="${p.c === "l" ? "pl" : p.c === "c" ? "pc" : "pf"}" d="${p.d}"/>`).join(""));
+      let g = truckCache.get(key);
+      if (!g) {
+        g = document.createElementNS(NS, "g");
+        g.innerHTML = renderTruck(phi, lv / 12).paths.map((p) => `<path class="${p.c === "l" ? "pl" : p.c === "c" ? "pc" : "pf"}" d="${p.d}"/>`).join("");
+        if (truckCache.size > 200) truckCache.delete(truckCache.keys().next().value);
+        truckCache.set(key, g);
       }
-      truckBody.innerHTML = truckCache.get(key);
+      truckBody.replaceChildren(g);
       truckKey = key;
     }
-    truckBody.setAttribute("transform", `translate(${f1(T.p[0])} ${f1(T.p[1])}) scale(${TRUCK_K})`);
-    truckHit.setAttribute("cx", f1(T.p[0])); truckHit.setAttribute("cy", f1(T.p[1] - 18));
-    truckBody.style.opacity = T.opacity.toFixed(3);
-    truckG.style.pointerEvents = T.opacity > 0.3 ? "" : "none";
+    put(truckBody, "transform", `translate(${f1(T.p[0])} ${f1(T.p[1])}) scale(${TRUCK_K})`);
+    put(truckHit, "cx", f1(T.p[0])); put(truckHit, "cy", f1(T.p[1] - 18));
+    sty(truckBody, "opacity", T.opacity.toFixed(2));
+    sty(truckG, "pointerEvents", T.opacity > 0.3 ? "" : "none");
     // polvo del camino: estelas en posiciones anteriores del mismo recorrido (sale del modelo, no de un sistema aparte)
     truckPuffs.forEach((c, k) => {
+      if (!T.v || !moving) return hide(c);
       const age = (k + 1) * 0.11, past = truckAt(Math.max(0, s.t - age));
+      if (!past.v) return hide(c);
       const wheel = projector(past.phi).p([0, -6, 3]);
-      const moving = T.v && past.v && !still.matches;
-      c.setAttribute("cx", f1(past.p[0] + wheel[0] * TRUCK_K + (k % 2 ? 1.5 : -1.5)));
-      c.setAttribute("cy", f1(past.p[1] + wheel[1] * TRUCK_K - k * 0.5));
-      c.setAttribute("r", f1(1.4 + k * 0.75));
-      c.style.opacity = moving ? ((1 - k / truckPuffs.length) * 0.75 * T.opacity).toFixed(3) : 0;
+      put(c, "cx", f1(past.p[0] + wheel[0] * TRUCK_K + (k % 2 ? 1.5 : -1.5)));
+      put(c, "cy", f1(past.p[1] + wheel[1] * TRUCK_K - k * 0.5));
+      put(c, "r", f1(1.4 + k * 0.75));
+      sty(c, "opacity", ((1 - k / truckPuffs.length) * 0.75 * T.opacity).toFixed(2));
     });
 
     // pala: cruce entre las dos vistas vecinas (se afina para que no se vea doble)
     const P = s.pala, k = clamp(P.angle / 15, 0, 4), i = Math.min(3, Math.floor(k)), u = k - i;
     const w = smooth((u - 0.3) / 0.4);
-    viewEls.forEach((g, n) => { const o = n === i ? 1 - w : n === i + 1 ? w : 0; g.style.opacity = o.toFixed(3); g.style.display = o > 0.01 ? "" : "none"; });
+    viewEls.forEach((g, n) => { const o = n === i ? 1 - w : n === i + 1 ? w : 0; sty(g, "opacity", o.toFixed(2)); sty(g, "display", o > 0.01 ? "" : "none"); });
     const crowd = P.dig ? Math.sin(Math.PI * P.dig) * 1.4 : 0; // el balde empuja contra el frente
-    house.setAttribute("transform", `translate(${f1(crowd * 0.8)} ${f1(crowd * 0.5)})`);
+    put(house, "transform", `translate(${f1(crowd * 0.8)} ${f1(crowd * 0.5)})`);
     const tip = add(tipAt(P.angle), [crowd * 0.8, crowd * 0.5]);
-    bucketLoad.setAttribute("transform", `translate(${f1(tip[0])} ${f1(tip[1] - 0.5)})`);
-    bucketLoad.style.opacity = P.loaded ? 1 : 0;
+    put(bucketLoad, "transform", `translate(${f1(tip[0])} ${f1(tip[1] - 0.5)})`);
+    sty(bucketLoad, "opacity", P.loaded ? "1" : "0");
     digPuffs.forEach((c, n) => {
+      if (!P.dig || !moving) return hide(c);
       const ph = clamp(P.dig * 1.3 - n * 0.08);
-      c.setAttribute("cx", f1(tip[0] + 2 + (n - 2) * 2.4 + ph * 3));
-      c.setAttribute("cy", f1(tip[1] + 4 - ph * 6));
-      c.setAttribute("r", f1(1 + ph * 3));
-      c.style.opacity = P.dig && !still.matches ? (Math.sin(Math.PI * ph) * 0.8).toFixed(3) : 0;
+      put(c, "cx", f1(tip[0] + 2 + (n - 2) * 2.4 + ph * 3));
+      put(c, "cy", f1(tip[1] + 4 - ph * 6));
+      put(c, "r", f1(1 + ph * 3));
+      sty(c, "opacity", (Math.sin(Math.PI * ph) * 0.8).toFixed(2));
     });
     // vaciado: las colpas caen del balde a la tolva
-    const bo = projector(T.phi).p(BED_TOP), bedPt = [T.p[0] + bo[0] * TRUCK_K, T.p[1] + bo[1] * TRUCK_K];
+    const bo = P.dump ? projector(T.phi).p(BED_TOP) : null;
     rocks.forEach((r, n) => {
       const d0 = (n / rocks.length) * 0.45, uu = clamp((P.dump - d0) / 0.42);
-      if (!P.dump || uu <= 0 || uu >= 1) { r.style.opacity = 0; return; }
+      if (!P.dump || uu <= 0 || uu >= 1) return hide(r);
+      const bedPt = [T.p[0] + bo[0] * TRUCK_K, T.p[1] + bo[1] * TRUCK_K];
       const x = lerp(tip[0] + (n % 3 - 1) * 1.6, bedPt[0] + (n % 4 - 1.5) * 2.2, uu);
       const y = lerp(tip[1] + 1, bedPt[1] + 2, uu * uu);
-      r.setAttribute("transform", `translate(${f1(x)} ${f1(y)}) rotate(${Math.round(uu * 200 + n * 40)}) scale(1.35)`);
-      r.style.opacity = 1;
+      put(r, "transform", `translate(${f1(x)} ${f1(y)}) rotate(${Math.round(uu * 200 + n * 40)}) scale(1.35)`);
+      sty(r, "opacity", "1");
     });
 
-    // etiquetas siguen a su equipo
-    const anchor = {
-      perforadora: [DRILL.at[0] + 14.7, DRILL.at[1] - 2],
-      pala: [PALA.pivot[0] + 2, PALA.pivot[1] - 22],
-      caex: [T.p[0] + projector(T.phi).p([0, 20, 58])[0] * TRUCK_K, T.p[1] + projector(T.phi).p([0, 20, 58])[1] * TRUCK_K - 2],
-    };
+    // etiqueta del equipo elegido: sigue a su equipo (las demás están ocultas y no se tocan)
     for (const id of ORDER) {
-      tagEls[id].setAttribute("transform", `translate(${f1(anchor[id][0])} ${f1(anchor[id][1])})`);
-      tagEls[id].toggleAttribute("data-on", selected === id && (id !== "caex" || T.opacity > 0.5));
+      const on = selected === id && (id !== "caex" || T.opacity > 0.5);
+      flag(tagEls[id], "data-on", on);
+      if (selected !== id) continue;
+      const a = id === "perforadora" ? [DRILL.at[0] + 14.7, DRILL.at[1] - 2]
+        : id === "pala" ? [PALA.pivot[0] + 2, PALA.pivot[1] - 22]
+        : (() => { const o = projector(T.phi).p([0, 20, 58]); return [T.p[0] + o[0] * TRUCK_K, T.p[1] + o[1] * TRUCK_K - 2]; })();
+      put(tagEls[id], "transform", `translate(${f1(a[0])} ${f1(a[1])})`);
     }
   }
 
@@ -411,11 +425,14 @@ export async function createRajo() {
   if (still.matches) t = STEPS[3].t0 + PASS.swing + PASS.dump * 0.5; // movimiento reducido: queda en el carguío, pausado
   const listeners = new Set();
   const emit = () => { const s = state(t, clock); listeners.forEach((fn) => fn(s, api)); return s; };
+  // en AR se dibuja a ~30 cuadros/s (la cámara y el seguimiento van a 30): la mitad del trabajo, o un cuarto a 120 Hz
   function frame(now) {
-    const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
+    raf = active && playing ? requestAnimationFrame(frame) : 0;
+    const dt = Math.min(0.1, (now - last) / 1000 || 0);
+    if (document.body.dataset.mode === "ar" && dt < 0.029) return;
+    last = now;
     if (playing) { t = (t + dt) % PERIOD; clock += dt; }
     draw(emit());
-    raf = active && playing ? requestAnimationFrame(frame) : 0;
   }
   const kick = () => { if (active && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); } else if (active && !playing) draw(emit()); };
   const api = {
@@ -440,7 +457,7 @@ export async function createRajo() {
     },
     setRoutes(v) { showRoutes = v; root.toggleAttribute("data-routes", v); },
     get routes() { return showRoutes; },
-    destroy() { api.setActive(false); listeners.clear(); root.remove(); },
+    destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   // tocar un equipo lo selecciona (otra vez = soltar); tocar el pozo vacío suelta la selección
   svg.addEventListener("click", (e) => {
@@ -448,7 +465,8 @@ export async function createRajo() {
     api.select(g ? (selected === g.dataset.equip ? null : g.dataset.equip) : null);
   });
   // pausa fuera de pantalla / pestaña oculta (como anatomy)
-  document.addEventListener("visibilitychange", () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); });
+  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  document.addEventListener("visibilitychange", onVis);
   draw(emit());
   return api;
 }

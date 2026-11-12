@@ -4,6 +4,7 @@
 button{background:#ef7835;color:#fff;border:0;border-radius:12px;padding:10px 16px;font:inherit;cursor:pointer}progress{width:100%}</style></head>
 <body><h1>Compilar marcador (targets.mind)</h1>
 <p>Elige uno o más recortes de la infografía (PNG/JPG, ~1500–2500 px de ancho). El orden define el índice de cada estación (<code>addCSSAnchor(0)</code>, <code>(1)</code>…).</p>
+<p>Lo que funcionó (nov. 2026): recortes bajos y anchos que incluyan la etiqueta naranja de la estación, ampliados ×2 antes de compilar, salvo el rajo, que va a tamaño real (ampliado, sus líneas finas se pierden y deja de reconocerse). MindAR achica cada marcador hasta ~256 px de lado corto para seguirlo: en recortes altos las líneas finas desaparecen y el marcador se pierde a cada rato.</p>
 <p><input type="file" accept="image/*" multiple data-files></p>
 <p><button type="button" data-go>Compilar</button></p><progress max="100" value="0" data-prog></progress>
 <p data-msg></p>

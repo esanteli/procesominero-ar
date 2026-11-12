@@ -4,6 +4,7 @@
 // visualización sobre la misma infografía (en coordenadas de la imagen); si no, se muestra su ficha.
 // La URL lleva la estación (#rajo, #chancado-primario…): sirve para enlazar directo y el botón atrás funciona.
 import { POSTER, STATIONS, byId } from "./stations.js";
+import { bake } from "./halo.js";
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -176,6 +177,7 @@ export function createExplorer({ stage, builtins = {}, onView = () => {} }) {
       try {
         const mod = await import(st.module.replace(/^\.\//, "./"));
         const m = await mod.mount({ station: st, layer, poster: POSTER, focus: focusTo });
+        for (const el of layer.children) if (!el.dataset.baked && el.querySelector("svg")) { bake(el); el.dataset.baked = "1"; }
         focus = m?.focus || focus;
         mounted = { leave: () => m?.destroy?.() };
         view = m?.view || "station";

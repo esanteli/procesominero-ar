@@ -118,6 +118,8 @@ const ORDER = ["rougher", "limpieza", "concentrado", "relaves"];
 
 // ---------------------------------------------------------------- utilidades SVG
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent?.appendChild(e); return e; };
+// reescribe una capa del dibujo sólo si su marcado cambió (muchas salen idénticas cuadro a cuadro: fondo, rieles…)
+const setHTML = (n, s) => { if (n.__html !== s) { n.__html = s; n.innerHTML = s; } };
 const circ = (p, r, cls, o) => `<circle class="${cls}" cx="${f2(p[0])}" cy="${f2(p[1])}" r="${f2(r)}"${o != null ? ` style="opacity:${f2(o)}"` : ""}/>`;
 
 // ---------------------------------------------------------------- ventana en una celda (unidades de celdas.svg)
@@ -373,24 +375,24 @@ export async function createFlotacion() {
   function draw() {
     const s = live(), m = s.m, fl = S.flow, sc = { rot: S.rot, rake: S.rake, flow: fl };
     // celdas: ventana en la primera rougher
-    cellWin.innerHTML = shown.cell > 0.005 ? cellWindowSvg(CELLS.r[0], shown.cell, sc, m) : "";
+    setHTML(cellWin, shown.cell > 0.005 ? cellWindowSvg(CELLS.r[0], shown.cell, sc, m) : "");
     // espesadores: rastras, canaleta perimetral, pozo; ventana en el de concentrado
-    TH.forEach((t, i) => { rakeL[i].innerHTML = rakesSvg(t, S.rake + i * 0.7); launL[i].innerHTML = launderSvg(t, fl); wellL[i].innerHTML = wellSvg(t, fl);
-      winTh[i].innerHTML = i === 0 && shown.th > 0.005 ? thWindowSvg(t, shown.th, sc, true) : ""; });
+    TH.forEach((t, i) => { setHTML(rakeL[i], rakesSvg(t, S.rake + i * 0.7)); setHTML(launL[i], launderSvg(t, fl)); setHTML(wellL[i], wellSvg(t, fl));
+      setHTML(winTh[i], i === 0 && shown.th > 0.005 ? thWindowSvg(t, shown.th, sc, true) : ""); });
     for (const [k, p] of Object.entries(flow)) p.style.strokeDashoffset = k.startsWith("bridge") ? f2((-fl * 3) % 3.5) : f1((-fl * 10) % 7);
     setFront(selected === "concentrado" || (!selected && sliderDetail === "B") ? 0 : selected === "relaves" ? 1 : -1);
     // detalles
     const det = detailNow();
     for (const key of ["A", "B"]) { const C = CAL[key], on = det === key; C.g.style.display = on ? "" : "none"; if (!on) continue;
       const [bx, by, bw, bh] = C.box;
-      if (key === "A") { const r = cellSectionSvg(C.box, sc, m); C.title.textContent = selected === "limpieza" ? "Detalle · Celda de limpieza en corte" : "Detalle · Celda de flotación en corte"; C.body.innerHTML = r.svg;
-        C.labels.innerHTML = lbl(r.pts.motor, [bx + bw - 7, by + 22], "Motor y reductor", "end") + lbl(r.pts.air, [bx + 7, by + 22], "Aire → eje hueco", "start") + lbl(r.pts.cone, [bx + bw - 7, by + 34], "Cono de espuma", "end") +
+      if (key === "A") { const r = cellSectionSvg(C.box, sc, m); C.title.textContent = selected === "limpieza" ? "Detalle · Celda de limpieza en corte" : "Detalle · Celda de flotación en corte"; setHTML(C.body, r.svg);
+        setHTML(C.labels, lbl(r.pts.motor, [bx + bw - 7, by + 22], "Motor y reductor", "end") + lbl(r.pts.air, [bx + 7, by + 22], "Aire → eje hueco", "start") + lbl(r.pts.cone, [bx + bw - 7, by + 34], "Cono de espuma", "end") +
           lbl(r.pts.froth, [bx + 7, by + 40], `Espuma → canaleta · ${Math.round(m.G)} % Cu`, "start") + lbl(r.pts.bub, [bx + 7, by + bh - 34], "Burbuja + sulfuro", "start") + lbl(r.pts.feed, [bx + 7, by + bh - 24], "Alimentación", "start") +
-          lbl(r.pts.rotor, [bx + bw - 7, by + bh - 22], "Rotor y estator", "end") + lbl(r.pts.dart, [bx + bw - 7, by + bh - 8], "Ganga → válvula dardo → relave", "end"); }
-      else { const conc = selected !== "relaves", r = thickSectionSvg(C.box, sc, m, conc); C.title.textContent = conc ? "Detalle · Espesador de concentrado en corte" : "Detalle · Espesador de relaves en corte"; C.body.innerHTML = r.svg;
-        C.labels.innerHTML = lbl(r.pts.floc, [bx + bw * 0.62, by + 22], "Floculante", "start") + lbl(r.pts.well, [bx + bw - 7, by + 34], "Pozo de alimentación", "end") + lbl(r.pts.launder, [bx + bw - 7, by + 50], "Rebalse: agua clara", "end") +
+          lbl(r.pts.rotor, [bx + bw - 7, by + bh - 22], "Rotor y estator", "end") + lbl(r.pts.dart, [bx + bw - 7, by + bh - 8], "Ganga → válvula dardo → relave", "end")); }
+      else { const conc = selected !== "relaves", r = thickSectionSvg(C.box, sc, m, conc); C.title.textContent = conc ? "Detalle · Espesador de concentrado en corte" : "Detalle · Espesador de relaves en corte"; setHTML(C.body, r.svg);
+        setHTML(C.labels, lbl(r.pts.floc, [bx + bw * 0.62, by + 22], "Floculante", "start") + lbl(r.pts.well, [bx + bw - 7, by + 34], "Pozo de alimentación", "end") + lbl(r.pts.launder, [bx + bw - 7, by + 50], "Rebalse: agua clara", "end") +
           lbl(r.pts.clear, [bx + 7, by + 62], "Agua clara", "start") + lbl(r.pts.settle, [bx + 7, by + 84], "Sedimentación", "start") + lbl(r.pts.bed, [bx + 7, by + bh - 34], "Compresión", "start") +
-          lbl(r.pts.rake, [bx + bw * 0.3, by + bh - 6], "Rastras", "middle") + lbl(r.pts.under, [bx + bw - 7, by + bh - 6], conc ? `~${m.uf} % sólidos → filtros` : "→ tranque", "end"); } }
+          lbl(r.pts.rake, [bx + bw * 0.3, by + bh - 6], "Rastras", "middle") + lbl(r.pts.under, [bx + bw - 7, by + bh - 6], conc ? `~${m.uf} % sólidos → filtros` : "→ tranque", "end")); } }
     drawTour(s);
     for (const id of ORDER) tagEls[id].toggleAttribute("data-on", selected === id);
     listeners.forEach((fn) => fn(s, api));
@@ -436,10 +438,11 @@ export async function createFlotacion() {
     setTh(v, instant) { S.th = clamp(v); if (instant || still.matches) shown.th = S.th; sliderDetail = S.th > 0 ? "B" : S.cell > 0 ? "A" : null; draw(); },
     setAir(v) { S.air = clamp(v, AIR_MIN, AIR_MAX); draw(); },
     select(id) { selected = id && EQUIP[id] ? id : null; root.toggleAttribute("data-sel", !!selected); units.forEach((eq, u) => u.classList.toggle("fl-dim", !!selected && eq !== selected)); draw(); },
-    destroy() { api.setActive(false); listeners.clear(); root.remove(); },
+    destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); api.select(g ? (selected === g.dataset.eq ? null : g.dataset.eq) : null); });
-  document.addEventListener("visibilitychange", () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); });
+  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  document.addEventListener("visibilitychange", onVis);
   draw();
   return api;
 }

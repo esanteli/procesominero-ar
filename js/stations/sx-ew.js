@@ -162,6 +162,8 @@ const ORDER = ["piscina", "sx", "celdas", "puente", "horquilla"];
 
 // ---------------------------------------------------------------- utilidades SVG
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent?.appendChild(e); return e; };
+// reescribe una capa del dibujo sólo si su marcado cambió (muchas salen idénticas cuadro a cuadro: fondo, rieles…)
+const setHTML = (n, s) => { if (n.__html !== s) { n.__html = s; n.innerHTML = s; } };
 const circ = (p, r, cls, o) => `<circle class="${cls}" cx="${f2(p[0])}" cy="${f2(p[1])}" r="${f2(r)}"${o != null ? ` style="opacity:${f2(o)}"` : ""}/>`;
 const poly = (pts, cls, extra = "") => `<path class="${cls}" d="${D(pts, true, f2)}"${extra}/>`;
 // caja isométrica (mundo): caras visibles (tapa, frente +e, costado −n)
@@ -461,13 +463,13 @@ export async function createSxEw() {
     const col = (e, n) => boxSvg(W, e - 0.8, e + 0.8, n - 0.8, n + 0.8, 0, RAIL.z - 1.4, "sx-beam");
     r += col(0, RAIL.n0 + 1) + beam(0, RAIL.n0, 1);
     r += col(EW.E, RAIL.n0 + 1) + col(EW.E, EW.N - 1) + beam(EW.E, RAIL.n0, EW.N);
-    railG.innerHTML = r;
+    setHTML(railG, r);
     const M = MACHINE;
     let mg = boxSvg(W, M.e0, M.e1, M.n0, M.n1, 0, M.h, "sx-mbox");
     mg += poly([W(M.e0 + 3, M.n0 + 2, M.h), W(M.e1 - 3, M.n0 + 2, M.h), W(M.e1 - 3, M.n1 - 2, M.h), W(M.e0 + 3, M.n1 - 2, M.h)], "sx-mslot");
     mg += boxSvg(W, M.e1 - 2, M.e1 + 6, M.n0 + 1, M.n0 + 6, 0, 3.2, "sx-mbox");     // mesa de apilado
-    machG.innerHTML = mg;
-    pumpG.innerHTML = boxSvg(W, 161, 165.5, 37.6, 42.4, 0, 3.2, "sx-mbox") + boxSvg(W, 162.2, 164.3, 38.9, 41.1, 3.2, 5.6, "sx-mbox");
+    setHTML(machG, mg);
+    setHTML(pumpG, boxSvg(W, 161, 165.5, 37.6, 42.4, 0, 3.2, "sx-mbox") + boxSvg(W, 162.2, 164.3, 38.9, 41.1, 3.2, 5.6, "sx-mbox"));
   }
   const machStack = el("g", { class: "sx-mstack" }, machG);
 
@@ -495,7 +497,7 @@ export async function createSxEw() {
     for (const [k, p] of Object.entries(flow)) { const back = k === "canB" || k === "ref" || k === "lean"; p.style.strokeDashoffset = f1(((back ? -1 : -1) * fl * (k.startsWith("can") ? 8 : 10)) % 7); }
     // interior SX (corte) y muros recortados
     const o = shown.sx;
-    interior.innerHTML = o > 0.004 ? sxInteriorSvg(o, sc, m) : "";
+    setHTML(interior, o > 0.004 ? sxInteriorSvg(o, sc, m) : "");
     interior.style.display = o > 0.004 ? "" : "none";
     const zc = lerp(SXB.H + 30, 2.2, smooth(o));
     const cutPoly = [SXW(-1, -1, zc), SXW(SXB.E + 1, -1, zc), SXW(SXB.E + 1, SXB.N + 1, zc), SXW(SXB.E + 1, SXB.N + 1, -3), SXW(SXB.E + 1, -1, -3), SXW(-1, -1, -3)].map((p) => toL(REG.sx, p));
@@ -505,7 +507,7 @@ export async function createSxEw() {
     roofG.setAttribute("transform", `translate(${REG.sx[0]} ${f2(REG.sx[1] - 34 * smooth(o))}) scale(${S})`); roofG.style.opacity = f2(1 - 0.85 * smooth(o));
     unitLab.style.opacity = f2(smooth((o - 0.55) / 0.3));
     // celdas abiertas
-    cellLayer.innerHTML = shown.cel > 0.004 ? cellsSvg(shown.cel, sc, m, s.grow) : "";
+    setHTML(cellLayer, shown.cel > 0.004 ? cellsSvg(shown.cel, sc, m, s.grow) : "");
     // electrodos de la celda cosechada
     const ht = harvestedTicks(s.t); harvestTicks.forEach((n) => (n.style.opacity = f2(ht)));
     // puente grúa
@@ -515,7 +517,7 @@ export async function createSxEw() {
     trolley.setAttribute("transform", `translate(${f2(dex / S)} ${f2(dey / S)})`);
     hooks.setAttribute("transform", `translate(${f2(dex / S)} ${f2((dey + c.hz) / S)})`);
     const hook = [REG.puente[0] + dnx + dex + S * 13.9, REG.puente[1] + dny + dey + S * 13.6 + c.hz]; hookPx = hook;
-    carga.innerHTML = cargaSvg(hook, c.loaded);
+    setHTML(carga, cargaSvg(hook, c.loaded));
     // recorte del bastidor: sólo se ve sobre el borde de la celda (o sobre la boca de la despegadora)
     if (c.clip) { const big = 400; let p0, p1;
       if (c.clip === "cell") { p0 = toP(REG.base, [7.01, 40.82]); p1 = toP(REG.base, [44.81, 18.57]); }
@@ -527,16 +529,16 @@ export async function createSxEw() {
     // cables del carro al bastidor
     const tr = [REG.puente[0] + dnx + dex + S * 12.9, REG.puente[1] + dny + dey + S * 8.2];
     const ca = [hook[0] - 0.866 * 4.5, hook[1] + 0.5 * 4.5 - 1.7], cb = [hook[0] + 0.866 * 4.5, hook[1] - 0.5 * 4.5 - 1.7];
-    cableG.innerHTML = `<path class="sx-cable" d="M${f2(tr[0] - 1.6)} ${f2(tr[1])}L${f2(ca[0])} ${f2(ca[1])}M${f2(tr[0] + 1.6)} ${f2(tr[1] + 0.4)}L${f2(cb[0])} ${f2(cb[1])}"/>`;
+    setHTML(cableG, `<path class="sx-cable" d="M${f2(tr[0] - 1.6)} ${f2(tr[1])}L${f2(ca[0])} ${f2(ca[1])}M${f2(tr[0] + 1.6)} ${f2(tr[1] + 0.4)}L${f2(cb[0])} ${f2(cb[1])}"/>`);
     // gotas que escurren de los cátodos recién levantados
     let dr = ""; if (c.drip > 0) for (let j = 0; j < 6; j++) { const ph = (fl * 1.6 + j / 6) % 1, x = hook[0] + lerp(-6, 7, hash(j * 3.1)), y0 = hook[1] + 9; dr += circ([x - 0.4 * j, y0 + ph * 9], 0.55, "sx-drip", c.drip * (1 - ph)); }
-    dripG.innerHTML = dr;
+    setHTML(dripG, dr);
     // despegadora: pila de láminas que crece al despegar
     const u6 = s.t - T_HARV, stackN = u6 >= 11.5 ? Math.min(6, Math.floor((u6 - 11.5) * 4) + 1) : 0;
     let ms = ""; for (let i = 0; i < stackN; i++) ms += boxSvg(W, MACHINE.e1 - 1.4, MACHINE.e1 + 5.4, MACHINE.n0 + 1.7, MACHINE.n0 + 5.3, 3.2 + i * 0.55, 3.75 + i * 0.55, "sx-cubox");
-    machStack.innerHTML = ms;
+    setHTML(machStack, ms);
     // piscina: superficie con ondas
-    pondG.innerHTML = pondSvg(fl, s);
+    setHTML(pondG, pondSvg(fl, s));
     // grúa horquilla
     const f = s.fork;
     fkW.setAttribute("transform", `translate(${f2(f.dx)} 0)`); fkW.style.opacity = f2(f.op);
@@ -554,17 +556,17 @@ export async function createSxEw() {
       CAL.leadDot.setAttribute("cx", f1(at[0])); CAL.leadDot.setAttribute("cy", f1(at[1]));
       const e0 = [bx, by + bh * 0.62];
       CAL.lead.setAttribute("d", `M${f1(e0[0])} ${f1(e0[1])}C${f1(e0[0] - 40)} ${f1(e0[1])} ${f1(at[0] + 30)} ${f1(at[1] - 30)} ${f1(at[0])} ${f1(at[1])}`);
-      if (det === "A") { const strip = false, r = sxSectionSvg(CAL.box, sc, m, strip); CAL.title.textContent = "Detalle · Mezclador-decantador de extracción en corte"; CAL.body.innerHTML = r.svg;
+      if (det === "A") { const strip = false, r = sxSectionSvg(CAL.box, sc, m, strip); CAL.title.textContent = "Detalle · Mezclador-decantador de extracción en corte"; setHTML(CAL.body, r.svg);
         const T1 = by + 23, B1 = by + bh - 15, B2 = by + bh - 5;
-        CAL.labels.innerHTML = lbl(r.pts.motor, [bx + 8, T1], "Motor del agitador", "start") + lbl(r.pts.picket, [bx + bw * 0.38, T1], "Cerca de pickets", "start") + lbl(r.pts.outO, [bx + bw - 7, T1], "Orgánico cargado → re-extracción", "end") +
+        setHTML(CAL.labels, lbl(r.pts.motor, [bx + 8, T1], "Motor del agitador", "start") + lbl(r.pts.picket, [bx + bw * 0.38, T1], "Cerca de pickets", "start") + lbl(r.pts.outO, [bx + bw - 7, T1], "Orgánico cargado → re-extracción", "end") +
           lbl(r.pts.mix, [bx + 8, B1], "Mezclador: el Cu pasa al orgánico", "start") + lbl(r.pts.aqi, [bx + bw - 7, B1], "Las fases se separan (el orgánico flota)", "end") +
-          lbl(r.pts.in, [bx + 8, B2], `PLS ${m.pls} g/L + orgánico descargado`, "start") + lbl(r.pts.outA, [bx + bw - 7, B2], `Refino ${fdec(m.raf, 1)} g/L → pilas`, "end"); }
-      else { const r = ewSectionSvg(CAL.box, sc, m, s.grow); CAL.title.textContent = "Detalle · Celda de electroobtención en corte"; CAL.body.innerHTML = r.svg;
+          lbl(r.pts.in, [bx + 8, B2], `PLS ${m.pls} g/L + orgánico descargado`, "start") + lbl(r.pts.outA, [bx + bw - 7, B2], `Refino ${fdec(m.raf, 1)} g/L → pilas`, "end")); }
+      else { const r = ewSectionSvg(CAL.box, sc, m, s.grow); CAL.title.textContent = "Detalle · Celda de electroobtención en corte"; setHTML(CAL.body, r.svg);
         const T1 = by + 23, B1 = by + bh - 15, B2 = by + bh - 5;
-        CAL.labels.innerHTML = lbl(r.pts.rect, [bx + 8, T1], `Rectificador · ${m.J} A/m² · ${fdec(m.V, 1)} V`, "start") + lbl(r.pts.cathode, [bx + bw * 0.47, T1], "Cátodo de acero 316L (−)", "start") +
+        setHTML(CAL.labels, lbl(r.pts.rect, [bx + 8, T1], `Rectificador · ${m.J} A/m² · ${fdec(m.V, 1)} V`, "start") + lbl(r.pts.cathode, [bx + bw * 0.47, T1], "Cátodo de acero 316L (−)", "start") +
           lbl(r.pts.out, [bx + bw - 7, T1], `Pobre ${m.lean} g/L → SX`, "end") +
           lbl(r.pts.anode, [bx + 8, B1], "Ánodo Pb-Ca-Sn (+): O₂ y ácido", "start") + lbl(r.pts.ion, [bx + bw - 7, B1], "Cu²⁺ + 2e⁻ → Cu", "end") +
-          lbl(r.pts.in, [bx + 8, B2], `Electrolito rico ${m.rich} g/L`, "start") + lbl(r.pts.cu, [bx + bw - 7, B2], `Cobre depositado ${fdec(m.mm7 * smooth(s.grow), 1)} mm`, "end"); }
+          lbl(r.pts.in, [bx + 8, B2], `Electrolito rico ${m.rich} g/L`, "start") + lbl(r.pts.cu, [bx + bw - 7, B2], `Cobre depositado ${fdec(m.mm7 * smooth(s.grow), 1)} mm`, "end")); }
     }
     drawTour(s);
     for (const id of ORDER) tagEls[id].toggleAttribute("data-on", selected === id);
@@ -632,10 +634,11 @@ export async function createSxEw() {
     setCel(v, instant) { ST.cel = clamp(v); if (instant || still.matches) shown.cel = ST.cel; sliderDetail = ST.cel > 0 ? "B" : ST.sx > 0 ? "A" : null; draw(); },
     setJ(v) { ST.J = clamp(Math.round(v), J_MIN, J_MAX); draw(); },
     select(id) { selected = id && EQUIP[id] ? id : null; root.toggleAttribute("data-sel", !!selected); units.forEach((eq, u) => u.classList.toggle("sx-dim", !!selected && eq !== selected)); draw(); },
-    destroy() { api.setActive(false); listeners.clear(); root.remove(); },
+    destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); api.select(g ? (selected === g.dataset.eq ? null : g.dataset.eq) : null); });
-  document.addEventListener("visibilitychange", () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); });
+  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  document.addEventListener("visibilitychange", onVis);
   draw();
   return api;
 }

@@ -134,6 +134,8 @@ const ORDER = ["aglomerador", "correas", "apiladora", "pilas", "solucion"];
 
 // ---------------------------------------------------------------- utilidades SVG
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent?.appendChild(e); return e; };
+// reescribe una capa del dibujo sólo si su marcado cambió (muchas salen idénticas cuadro a cuadro: fondo, rieles…)
+const setHTML = (n, s) => { if (n.__html !== s) { n.__html = s; n.innerHTML = s; } };
 const ROCK = ["M-1.6 -.6L-.3 -1.7L1.4 -1.1L1.7 .6L.1 1.6L-1.4 1Z", "M-1.3 -1.2L1 -1.4L1.6 .4L.2 1.4L-1.6 .6Z", "M-1.7 0L-.7 -1.5L1.2 -1.4L1.4 1L-.6 1.4Z"];
 const pool = (parent, n, cls, glom) => Array.from({ length: n }, (_, i) => glom ? el("circle", { r: 1, class: cls }, parent) : el("path", { d: ROCK[i % 3], class: cls }, parent));
 const put = (r, p, sc, rot = 0, o = 1) => { if (!p || o <= 0.01) { r.style.opacity = 0; return; } r.setAttribute("transform", `translate(${f1(p[0])} ${f1(p[1])}) rotate(${Math.round(rot)}) scale(${f1(sc)})`); r.style.opacity = o.toFixed(2); };
@@ -484,21 +486,21 @@ export async function createPilas() {
     let back = "";
     for (const id of ["t", "r"]) back += padSvg(id);
     for (const id of ["t", "r"]) { const b = heapBase(id); back += heapSvg(heapGeom(b, b.xa, b.xb, HEAP.h), { wet: 0.55, perc: 1, pls: 1 }); }
-    backHeaps.innerHTML = back;
+    setHTML(backHeaps, back);
     let dB = ""; for (const id of ["t", "r"]) { const b = heapBase(id); dB += heapSvg(heapGeom(b, b.xa, b.xb, HEAP.h), { drip: true, active: 0.55 + (S.rate - RATE_MIN) / 20, t: flowT }).replace(/<path class="lx-heap-[fst]"[^>]*>/g, ""); }
-    dripBack.innerHTML = dB;
+    setHTML(dripBack, dB);
     // pila izquierda (dinámica)
     const bT = heapBase("tl");
     const gT = m.h > 0 ? heapGeom(bT, m.xa, m.xb, m.h) : null;
-    tlG.innerHTML = padSvg("tl") + heapSvg(gT, { wet: m.wet, perc: m.perc, pls: m.pls });
+    setHTML(tlG, padSvg("tl") + heapSvg(gT, { wet: m.wet, perc: m.perc, pls: m.pls }));
     const riegoOn = t >= T.riego[0] && t < T.riego[1];
-    tlDrip.innerHTML = gT && m.fill > 0.98 && t >= T.stack[1] ? heapSvg(gT, { drip: true, active: riegoOn ? smooth(phase(t, [T.riego[0], T.riego[0] + 1.2])) : 0, t: flowT }).replace(/<path class="lx-heap-[fst]"[^>]*>/g, "").replace(/<path class="lx-(wet|pls-toe)"[^>]*>/g, "") : "";
+    setHTML(tlDrip, gT && m.fill > 0.98 && t >= T.stack[1] ? heapSvg(gT, { drip: true, active: riegoOn ? smooth(phase(t, [T.riego[0], T.riego[0] + 1.2])) : 0, t: flowT }).replace(/<path class="lx-heap-[fst]"[^>]*>/g, "").replace(/<path class="lx-(wet|pls-toe)"[^>]*>/g, "") : "");
     // pila derecha (en riego) con corte
     const Xc = cutX(shown.cut), gB = heapGeom(bB, bB.xa, bB.xb, HEAP.h, Xc);
     let bs = padSvg("b", Xc < Infinity ? Xc + 8.5 : Infinity) + heapSvg(gB, { wet: 0.55, perc: 1, pls: 1 });
     if (gB.sec) bs += secFaceSvg(gB, sv);
-    bG.innerHTML = bs;
-    bDrip.innerHTML = heapSvg(gB, { drip: true, active: 0.55 + (S.rate - RATE_MIN) / 20, t: flowT }).replace(/<path class="lx-heap-[fst]"[^>]*>/g, "").replace(/<path class="lx-(wet|pls-toe)"[^>]*>/g, "");
+    setHTML(bG, bs);
+    setHTML(bDrip, heapSvg(gB, { drip: true, active: 0.55 + (S.rate - RATE_MIN) / 20, t: flowT }).replace(/<path class="lx-heap-[fst]"[^>]*>/g, "").replace(/<path class="lx-(wet|pls-toe)"[^>]*>/g, ""));
     // canaletas: PLS (izquierda sólo cuando el módulo produce)
     const dash = -(flowT * (6 + S.rate * 0.6)) % 6.4;
     flows.right.forEach((p) => { p.style.strokeDashoffset = dash; p.style.opacity = 0.9; });
@@ -506,7 +508,7 @@ export async function createPilas() {
     flows.left.forEach((p) => { p.style.strokeDashoffset = dash; p.style.opacity = (0.9 * smooth((m.pls - 0.05) / 0.4)).toFixed(2); });
 
     // rotopala
-    rotoG.innerHTML = rotoSvg(s.ro, t);
+    setHTML(rotoG, rotoSvg(s.ro, t));
 
     // apiladora izquierda: se desplaza por la correa
     const st = s.st, sh = mul(EX, st.dx), shA = [sh[0] / AP.s, sh[1] / AP.s];
@@ -551,10 +553,10 @@ export async function createPilas() {
     for (; i5 < rock5.length; i5++) put(rock5[i5], null); for (; ib < rockB.length; ib++) put(rockB[ib], null); for (; iff < rockF.length; iff++) put(rockF[iff], null);
 
     // tambor: giro (costuras del manto y levantadores de la boca) y ventana
-    seamF.innerHTML = seamsSvg(S.rot, 2.5, DR.ring - 2.5); seamR.innerHTML = seamsSvg(S.rot, DR.ring + 2.5, DR.L - 2.5);
-    liftG.innerHTML = mouthLiftersSvg(S.rot);
+    setHTML(seamF, seamsSvg(S.rot, 2.5, DR.ring - 2.5)); setHTML(seamR, seamsSvg(S.rot, DR.ring + 2.5, DR.L - 2.5));
+    setHTML(liftG, mouthLiftersSvg(S.rot));
     const dv = shown.drum;
-    winG.innerHTML = dv > 0.005 ? drumWindowSvg(dv, { rot: S.rot, flow: flowT }) : "";
+    setHTML(winG, dv > 0.005 ? drumWindowSvg(dv, { rot: S.rot, flow: flowT }) : "");
     // alimentación del tambor
     drawFeed(flowT);
 
@@ -564,18 +566,18 @@ export async function createPilas() {
     CAL.B.g.style.opacity = showB.toFixed(3); CAL.B.g.style.display = showB > 0.01 ? "" : "none";
     if (showA > 0.01) {
       const r = drumInsideSvg(CAL.A, { rot: S.rot, flow: flowT });
-      CAL.A.body.innerHTML = r.svg;
+      setHTML(CAL.A.body, r.svg);
       const [bx, by, bw, bh] = CAL.A.box;
-      CAL.A.labels.innerHTML = label(r.pts.lift, [bx + 7, by + 24], "Levantadores", "start") + label(r.pts.casc, [bx + 7, by + 92], "Cascada de mineral", "start") +
-        label(r.pts.bar, [bx + bw - 7, by + 24], "Barra de riego: agua + H₂SO₄", "end") + label(r.pts.bed, [bx + bw - 7, by + bh - 9], "Lecho que rueda → glómeros", "end") + label(r.pts.chute, [bx + 7, by + 58], "Chute de alimentación", "start");
+      setHTML(CAL.A.labels, label(r.pts.lift, [bx + 7, by + 24], "Levantadores", "start") + label(r.pts.casc, [bx + 7, by + 92], "Cascada de mineral", "start") +
+        label(r.pts.bar, [bx + bw - 7, by + 24], "Barra de riego: agua + H₂SO₄", "end") + label(r.pts.bed, [bx + bw - 7, by + bh - 9], "Lecho que rueda → glómeros", "end") + label(r.pts.chute, [bx + 7, by + 58], "Chute de alimentación", "start"));
       leader(CAL.A, "left");
     }
     if (showB > 0.01) {
       const r = heapSectionSvg(CAL.B, { ...sv, mod: m });
-      CAL.B.body.innerHTML = r.svg;
+      setHTML(CAL.B.body, r.svg);
       const [bx, by, bw, bh] = CAL.B.box;
-      CAL.B.labels.innerHTML = label(r.pts.emit, [bx + 7, r.pts.emit[1] - 9], `Goteros · refino ácido ${fdec(S.rate, 0)} L/h·m²`, "start") + label(r.pts.perc, [bx + bw - 7, r.pts.perc[1] - 34], "Percola y disuelve el cobre", "end") +
-        label(r.pts.liner, [bx + bw - 7, by + bh - 7], "Carpeta HDPE + drenes", "end") + label(r.pts.canal, [bx + 7, by + bh - 7], `PLS ~${fdec(s.cu)} g/L → canaleta`, "start");
+      setHTML(CAL.B.labels, label(r.pts.emit, [bx + 7, r.pts.emit[1] - 9], `Goteros · refino ácido ${fdec(S.rate, 0)} L/h·m²`, "start") + label(r.pts.perc, [bx + bw - 7, r.pts.perc[1] - 34], "Percola y disuelve el cobre", "end") +
+        label(r.pts.liner, [bx + bw - 7, by + bh - 7], "Carpeta HDPE + drenes", "end") + label(r.pts.canal, [bx + 7, by + bh - 7], `PLS ~${fdec(s.cu)} g/L → canaleta`, "start"));
       leader(CAL.B, "right");
     }
 
@@ -715,10 +717,11 @@ export async function createPilas() {
       units.forEach((eq, u) => u.classList.toggle("lx-dim", !!selected && eq !== selected));
       draw();
     },
-    destroy() { api.setActive(false); listeners.clear(); root.remove(); },
+    destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); api.select(g ? (selected === g.dataset.eq ? null : g.dataset.eq) : null); });
-  document.addEventListener("visibilitychange", () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); });
+  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  document.addEventListener("visibilitychange", onVis);
   draw();
   return api;
 }

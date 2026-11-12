@@ -1031,3 +1031,63 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
 .pu-b-chute--in { fill: #fbe8d6; }
 .pu-b-grain { fill: #4a483c; }
 .pu-cutline { fill: none; stroke: #e57f1c; stroke-width: .7; }
+
+/* ================================================================ láminas sin tarjeta (estilo del rajo) */
+/* el chancado primario va directo sobre la infografía: contorno blanco y sombra horneados en canvas (js/halo.js) */
+.plate--bare { background: none; border-radius: 0; box-shadow: none; }
+.plate--bare .plate-head, .plate--bare .plate-foot { display: none; }
+.plate--bare .plate-figure { border: 0; }
+.pm-baked { display: block; }
+
+/* ================================================================ AR */
+/* sin filtros dentro de las láminas: drop-shadow y blur se recalculaban en cada cuadro (las sombras van horneadas) */
+body[data-mode="ar"] .ar-stage svg, body[data-mode="ar"] .ar-stage svg * { filter: none !important; }
+
+/* panel translúcido con desenfoque: el AR se sigue viendo detrás */
+body[data-mode="ar"] { --pm-glass: rgba(255, 255, 255, .5); }
+body[data-mode="ar"] .panel { padding: 10px 14px calc(10px + var(--safe-b)); gap: 8px;
+  backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  box-shadow: inset 0 1px 0 #ffffffb3, 0 12px 32px -14px #0000004d; }
+body[data-mode="ar"] .panel-view { gap: 8px; }
+body[data-mode="ar"] .chip:not([data-on]):not([aria-pressed="true"]),
+body[data-mode="ar"] .seq-nav-btn { background: rgba(255, 255, 255, .6); }
+body[data-mode="ar"] .seq { background: rgba(255, 255, 255, .55); box-shadow: inset 0 0 0 1px #ef78352e; padding: 6px 10px; }
+body[data-mode="ar"] .seq-play { width: 42px; height: 42px; }
+body[data-mode="ar"] .seq { grid-template-columns: 42px 1fr auto; }
+body[data-mode="ar"] .ctl { grid-template-columns: 104px 1fr 76px; font-size: 13px; }
+body[data-mode="ar"] .ctl output { white-space: nowrap; }
+@media (max-width: 520px) { body[data-mode="ar"] .ctl { grid-template-columns: 92px 1fr 84px; gap: 8px; } }
+body[data-mode="ar"] input[type="range"] { height: 24px; }
+body[data-mode="ar"] .info { background: rgba(255, 255, 255, .74); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); }
+body[data-mode="ar"] .scan-hint p { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+
+/* horizontal: el panel se estira a lo ancho y baja de alto (lectura y equipos | controles | secuencia) */
+@media (orientation: landscape) and (min-width: 700px) {
+  body[data-mode="ar"] .panel { width: min(100% - 24px, 1240px); margin-bottom: 10px; border-radius: 20px; }
+  body[data-mode="ar"] .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "read ctl" "chips ctl" "seq ctl";
+    column-gap: 16px; row-gap: 6px; align-items: center; }
+  body[data-mode="ar"] .panel-view:not(:has(> .controls)) { grid-template-areas: "read seq" "chips seq"; }
+  body[data-mode="ar"] .panel-view > .readout-row { grid-area: read; }
+  body[data-mode="ar"] .panel-view > .chips { grid-area: chips; flex-wrap: wrap; overflow: visible; }
+  body[data-mode="ar"] .panel-view > .controls { grid-area: ctl; gap: 2px; }
+  body[data-mode="ar"] .panel-view > .seq { grid-area: seq; }
+  body[data-mode="ar"] .readout-row { min-height: 0; }
+  body[data-mode="ar"] .meter { height: 22px; }
+  /* la ficha del equipo pasa al costado, arriba a la derecha, para no tapar la lámina */
+  body[data-mode="ar"] .info { left: auto; right: 12px; bottom: auto; top: calc(64px + env(safe-area-inset-top, 0px)); margin: 0;
+    width: min(360px, 36vw); max-height: calc(100vh - var(--hud-h, 300px) - 80px); overflow: auto; }
+}
+@media (orientation: landscape) and (min-width: 1100px) {
+  body[data-mode="ar"] .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.05fr); grid-template-areas: "read ctl seq" "chips ctl seq"; }
+  body[data-mode="ar"] .panel-view:not(:has(> .controls)) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "read seq" "chips seq"; }
+}
+/* horizontal en celular (poca altura): barra superior y panel más bajos */
+@media (orientation: landscape) and (max-height: 500px) {
+  body[data-mode="ar"] .topbar { padding-top: 8px; padding-bottom: 4px; }
+  body[data-mode="ar"] .panel { padding-top: 8px; padding-bottom: calc(8px + var(--safe-b)); }
+  body[data-mode="ar"] .seq-step { height: 16px; padding: 5px 0; }
+  body[data-mode="ar"] .ctl { font-size: 12px; }
+  body[data-mode="ar"] .scan-frame { width: min(40vh, 220px); }
+}

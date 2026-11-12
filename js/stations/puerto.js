@@ -140,6 +140,8 @@ const ORDER = ["espesadores", "mineroducto", "filtros", "galpon", "embarque"];
 
 // ---------------------------------------------------------------- utilidades SVG
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k2, v] of Object.entries(attrs)) e.setAttribute(k2, v); parent?.appendChild(e); return e; };
+// reescribe una capa del dibujo sólo si su marcado cambió (muchas salen idénticas cuadro a cuadro: fondo, rieles…)
+const setHTML = (n, s) => { if (n.__html !== s) { n.__html = s; n.innerHTML = s; } };
 const circ = (p, r, cls, o) => `<circle class="${cls}" cx="${f2(p[0])}" cy="${f2(p[1])}" r="${f2(r)}"${o != null ? ` style="opacity:${f2(clamp(o))}"` : ""}/>`;
 const poly = (pts, cls, extra = "") => `<path class="${cls}" d="${D(pts, true, f2)}"${extra}/>`;
 const line = (pts, cls, extra = "") => `<path class="${cls}" d="${D(pts, false, f2)}"${extra}/>`;
@@ -469,7 +471,7 @@ export async function createPuerto() {
   // clips de muros (en coordenadas del dibujo)
   const mkClip = (id, g) => { const c = el("clipPath", { id, clipPathUnits: "userSpaceOnUse" }, defs); const p = el("path", {}, c); g.setAttribute("clip-path", `url(#${id})`); return p; };
   B46g.cp = mkClip("pu-clip46", B46g.clip); B54g.cp = mkClip("pu-clip54", B54g.clip);
-  B46g.int.innerHTML = hallSvg(B46); B54g.int.innerHTML = hallSvg(B54);
+  setHTML(B46g.int, hallSvg(B46)); setHTML(B54g.int, hallSvg(B54));
   const in46 = el("g", {}, B46g.int), in54 = el("g", {}, B54g.int);
   // ---- cargador de barcos (sobre todo lo del muelle)
   const gLoader = el("g", { "data-eq": "embarque" }, svg);
@@ -519,8 +521,8 @@ export async function createPuerto() {
   function draw() {
     const s = live(), m = s.m, fl = ST.flow, sh = s.ship;
     // ---- espesadores
-    wBig.innerHTML = thickSvg(TH.big, fl * 0.25, fl, true) + launderFlow(TH.big, fl);
-    wSmall.innerHTML = thickSvg(TH.small, -fl * 0.35, fl, false);
+    setHTML(wBig, thickSvg(TH.big, fl * 0.25, fl, true) + launderFlow(TH.big, fl));
+    setHTML(wSmall, thickSvg(TH.small, -fl * 0.35, fl, false));
     // ---- cañerías: descarga de los espesadores, bombas, mineroducto con corte, estación terminal
     {
       let g = pipeSvg(PIPE_S, "pu-pipe--pulp") + pipeSvg(PIPE_B, "pu-pipe--pulp") + pipeSvg(MINERO, "pu-pipe--minero");
@@ -530,7 +532,7 @@ export async function createPuerto() {
       g += boxSvg(-156, -144, -521, -509, 0, 6, "pu-pump pu-pump--term");
       const a = W(BREAK_E - 5, -515, 1.5), b = W(BREAK_E + 5, -515, 1.5);
       g += line([v3.add(a, [-2, 5]), v3.add(a, [2, -5])], "pu-break") + line([v3.add(b, [-2, 5]), v3.add(b, [2, -5])], "pu-break");
-      gPipe.innerHTML = g;
+      setHTML(gPipe, g);
     }
     // ---- naves: muros recortados a la altura del corte, techos que suben y se desvanecen
     for (const [b, gg, sv] of [[B46, B46g, shown.plant], [B54, B54g, shown.plant]]) {
@@ -540,13 +542,13 @@ export async function createPuerto() {
       gg.roof.style.opacity = f2(1 - smooth(sv * 1.6));
       gg.int.style.display = sv > 0.01 ? "" : "none";
     }
-    if (shown.plant > 0.01) { in46.innerHTML = pressSvg(s.press, fl, m.h) + pipeSvg(MINERO_IN, "pu-pipe--minero") + flowSvg(MINERO_IN, "pu-flow--pulp", -fl * 9); in54.innerHTML = pileSvg(B54, s.fel, fl); }
+    if (shown.plant > 0.01) { setHTML(in46, pressSvg(s.press, fl, m.h) + pipeSvg(MINERO_IN, "pu-pipe--minero") + flowSvg(MINERO_IN, "pu-flow--pulp", -fl * 9)); setHTML(in54, pileSvg(B54, s.fel, fl)); }
     // ---- correa: galería (cubierta que se levanta), caballete abierto
     {
       const bz = 0.4, ok = m.ok ? 1 : 0.25, off = -fl * 12 * (m.rate / 1575);
       const strip = (n0, n1) => poly([W(-BELT.w, n0, bz), W(BELT.w, n0, bz), W(BELT.w, n1, bz), W(-BELT.w, n1, bz)], "pu-beltband");
-      L.belt.innerHTML = shown.belt > 0.01 ? strip(BELT.g0, BELT.g1) + `<g style="opacity:${f2(ok)}">${flowSvg([[0, BELT.g0, bz + 0.3], [0, BELT.g1, bz + 0.3]], "pu-flow--belt", off)}</g>` : "";
-      L.trestle.innerHTML = strip(BELT.g1, BELT.n1 - 3) + `<g style="opacity:${f2(ok)}">${flowSvg([[0, BELT.g1, bz + 0.3], [0, BELT.n1 - 3, bz + 0.3]], "pu-flow--belt", off)}</g>`;
+      setHTML(L.belt, shown.belt > 0.01 ? strip(BELT.g0, BELT.g1) + `<g style="opacity:${f2(ok)}">${flowSvg([[0, BELT.g0, bz + 0.3], [0, BELT.g1, bz + 0.3]], "pu-flow--belt", off)}</g>` : "");
+      setHTML(L.trestle, strip(BELT.g1, BELT.n1 - 3) + `<g style="opacity:${f2(ok)}">${flowSvg([[0, BELT.g1, bz + 0.3], [0, BELT.n1 - 3, bz + 0.3]], "pu-flow--belt", off)}</g>`);
       covers.forEach((c) => (c.style.opacity = f2(1 - 0.92 * smooth(shown.belt))));
     }
     // ---- barco: se hunde un poco al cargarse; escotillas y bodegas
@@ -554,7 +556,7 @@ export async function createPuerto() {
     shipArt.setAttribute("transform", `translate(${REG.ship[0]} ${f2(REG.ship[1] + dy)}) scale(${S})`);
     const hatches = hatchGeo(dy);
     let hg = ""; hatches.forEach((c, i) => { const r = holdSvg(c, sh.lv[i], sh.oc, `pu-hold-${i}`); holdClips[i].setAttribute("d", D(r.open, true, f2)); hg += r.svg; });
-    gHolds.innerHTML = hg;
+    setHTML(gHolds, hg);
     // ---- cargador: apunta a la escotilla de la pasada (o se estaciona), chute dentro de la bodega
     {
       const park = [LOADER.e + 6, LOADER.n + 44, 0];
@@ -565,14 +567,14 @@ export async function createPuerto() {
       const down = (1 - sh.park) * (sh.pour ? 1 : smooth(sh.move));
       const chuteZ = lerp(LOADER.head - 8, ZH - 3, down);
       let g = loaderSvg(Lg, chuteZ, sh.pour, fl, m.ok ? m.rate / 1575 : 0);
-      gLoader.innerHTML = g;
+      setHTML(gLoader, g);
       // chorro desde el chute hasta la pila (recortado a la escotilla)
       let fx = "";
       if (sh.pour && m.ok && sh.oc > 0.5) { const c = hatches[sh.to], lv = sh.lv[sh.to], zp = ZH - HOLD + 3 + lv * (HOLD + 2);
         let st = ""; for (let j = 0; j < 9; j++) { const p = mod(fl * 2 + j / 9, 1); st += circ(W(tgt[0] + (hash(j) - 0.5) * 2, c[1] + (hash(j * 3) - 0.5) * 2, lerp(ZH - 3, zp, p)), 0.85, "pu-grain", 1 - p * 0.4); }
         fx += `<g clip-path="url(#pu-hold-${sh.to})">${st}</g>`;
         for (let j = 0; j < 3; j++) { const p = mod(fl * 0.5 + j / 3, 1); fx += circ(W(tgt[0] + 2, c[1] - 6, ZH + 1 + p * 5), 1.2 + p * 2, "pu-dust", (1 - p) * 0.35); } }
-      gFx.innerHTML = fx;
+      setHTML(gFx, fx);
       tmlTag.textContent = m.ok ? "" : `Humedad ${fdec(m.h, 1)} % > TML ${TML} %: embarque detenido`;
       const tp = W(LOADER.e + 6, LOADER.n + 30, LOADER.head + 18); tmlTag.setAttribute("x", f1(tp[0])); tmlTag.setAttribute("y", f1(tp[1]));
     }
@@ -590,12 +592,12 @@ export async function createPuerto() {
       const e0 = [bx + bw * 0.5, by + bh];
       CAL.lead.setAttribute("d", `M${f1(e0[0])} ${f1(e0[1])}C${f1(e0[0])} ${f1(e0[1] + 40)} ${f1(at[0])} ${f1(at[1] - 50)} ${f1(at[0])} ${f1(at[1])}`);
       const T1 = by + 22, B1 = by + bh - 5;
-      if (det === "A") { const r = detailA(box, s, m, fl); CAL.title.textContent = "Detalle · Filtro prensa en corte"; CAL.body.innerHTML = r.svg;
-        CAL.labels.innerHTML = lbl(r.pts.feed, [bx + 8, T1], `Pulpa ~${m.solids} % sólidos`, "start") + lbl(r.pts.plate, [bx + bw - 7, T1], "Placas con telas filtrantes", "end") +
-          lbl(r.pts.belt, [bx + 8, B1], `Queque ~${fdec(m.h, 1)} % humedad → galpón`, "start") + lbl(r.pts.water, [bx + bw - 7, B1], "Agua filtrada → tratamiento", "end"); }
-      else { const r = detailB(box, s, m, fl); CAL.title.textContent = "Detalle · Cargador y bodega en corte"; CAL.body.innerHTML = r.svg;
-        CAL.labels.innerHTML = lbl(r.pts.boom, [bx + 8, T1], `Correa del brazo · ${fdec(m.rate)} t/h`, "start") + lbl(r.pts.chute, [bx + bw - 7, T1], "Chute telescópico: carga sin polvo", "end") +
-          lbl(r.pts.ped, [bx + 8, B1], m.ok ? `Humedad ${fdec(m.h, 1)} % ≤ TML ${TML} %` : `Humedad sobre el TML: no se embarca`, "start") + lbl(r.pts.pile, [bx + bw - 7, B1], `Bodega ${sh.to + 1}: ${Math.round(sh.lv[sh.to] * 100)} %`, "end"); }
+      if (det === "A") { const r = detailA(box, s, m, fl); CAL.title.textContent = "Detalle · Filtro prensa en corte"; setHTML(CAL.body, r.svg);
+        setHTML(CAL.labels, lbl(r.pts.feed, [bx + 8, T1], `Pulpa ~${m.solids} % sólidos`, "start") + lbl(r.pts.plate, [bx + bw - 7, T1], "Placas con telas filtrantes", "end") +
+          lbl(r.pts.belt, [bx + 8, B1], `Queque ~${fdec(m.h, 1)} % humedad → galpón`, "start") + lbl(r.pts.water, [bx + bw - 7, B1], "Agua filtrada → tratamiento", "end")); }
+      else { const r = detailB(box, s, m, fl); CAL.title.textContent = "Detalle · Cargador y bodega en corte"; setHTML(CAL.body, r.svg);
+        setHTML(CAL.labels, lbl(r.pts.boom, [bx + 8, T1], `Correa del brazo · ${fdec(m.rate)} t/h`, "start") + lbl(r.pts.chute, [bx + bw - 7, T1], "Chute telescópico: carga sin polvo", "end") +
+          lbl(r.pts.ped, [bx + 8, B1], m.ok ? `Humedad ${fdec(m.h, 1)} % ≤ TML ${TML} %` : `Humedad sobre el TML: no se embarca`, "start") + lbl(r.pts.pile, [bx + bw - 7, B1], `Bodega ${sh.to + 1}: ${Math.round(sh.lv[sh.to] * 100)} %`, "end")); }
     }
     drawTour(s);
     for (const id of ORDER) {
@@ -655,10 +657,11 @@ export async function createPuerto() {
     setH(v) { ST.h = clamp(Math.round(v * 2) / 2, H_MIN, H_MAX); draw(); },
     setShip(v) { ST.ship = mod(v, 1); draw(); },
     select(id) { selected = id && EQUIP[id] ? id : null; root.toggleAttribute("data-sel", !!selected); units.forEach(([u, eq]) => u.classList.toggle("pu-dim", !!selected && eq !== selected)); draw(); },
-    destroy() { api.setActive(false); listeners.clear(); root.remove(); },
+    destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); const id = g?.dataset.eq; api.select(id ? (selected === id ? null : id) : null); });
-  document.addEventListener("visibilitychange", () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); });
+  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  document.addEventListener("visibilitychange", onVis);
   draw();
   return api;
 }

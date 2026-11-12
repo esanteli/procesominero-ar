@@ -110,6 +110,8 @@ const ORDER = ["alim", "tolva", "alimentador", "hpgr", "producto"];
 
 // ---------------------------------------------------------------- utilidades SVG
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent?.appendChild(e); return e; };
+// reescribe una capa del dibujo sólo si su marcado cambió (muchas salen idénticas cuadro a cuadro: fondo, rieles…)
+const setHTML = (n, s) => { if (n.__html !== s) { n.__html = s; n.innerHTML = s; } };
 const ROCK = ["M-1.6 -.6L-.3 -1.7L1.4 -1.1L1.7 .6L.1 1.6L-1.4 1Z", "M-1.3 -1.2L1 -1.4L1.6 .4L.2 1.4L-1.6 .6Z", "M-1.7 0L-.7 -1.5L1.2 -1.4L1.4 1L-.6 1.4Z"];
 function pool(parent, n, cls, k = 1) { return Array.from({ length: n }, (_, i) => el("path", { d: ROCK[i % 3], class: cls, "data-k": k }, parent)); }
 const put = (r, p, sc, rot = 0, o = 1) => { if (!p || o <= 0.01) { r.style.opacity = 0; return; } r.setAttribute("transform", `translate(${f1(p[0])} ${f1(p[1])}) rotate(${Math.round(rot)}) scale(${f1(sc)})`); r.style.opacity = o.toFixed(2); };
@@ -465,28 +467,28 @@ export async function createSecundario() {
     // tolva m3: pared frontal transparente + interior
     const hv = shown.hop;
     hopFront.forEach((n) => (n.style.opacity = (1 - hv).toFixed(3)));
-    hopIn.innerHTML = hv > 0.005 ? hopperSvg(iso(H3), s, tour) : "";
+    setHTML(hopIn, hv > 0.005 ? hopperSvg(iso(H3), s, tour) : "");
     hopIn.style.opacity = Math.min(1, hv * 1.6).toFixed(3);
     // HPGR m3: cuerpo, losa y corte
     const Xc = cutX(shown.cut), Xh = Math.min(Xc, HP.x);
     doorRect.setAttribute("width", f1(O3[0] + 0.866 * Xh));
     const key = Xc < HP.x - 0.01 ? "" : "closed";
-    if (key === "" || hpKey !== key) { hpG.innerHTML = hpgrSvg(iso(O3), Xc, s, tour); hpKey = key; }
+    if (key === "" || hpKey !== key) { setHTML(hpG, hpgrSvg(iso(O3), Xc, s, tour)); hpKey = key; }
 
     // detalles ampliados
     const showA = clamp(hv * 3) * (selected && selected !== "tolva" ? 0.0 : 1), showB = clamp((shown.cut - 0.25) * 4) * (selected && selected !== "hpgr" ? 0 : 1);
     CAL.A.g.style.opacity = showA.toFixed(3); CAL.A.g.style.display = showA > 0.01 ? "" : "none";
     CAL.B.g.style.opacity = showB.toFixed(3); CAL.B.g.style.display = showB > 0.01 ? "" : "none";
     if (showA > 0.01) {
-      CAL.A.body.innerHTML = `<g class="sc-cal-k">${hopperShellSvg(CAL.A.P)}${hopperSvg(CAL.A.P, s, tour, CAL.A.k, "hopwk")}<path class="hb-outline" d="${D(hopWindow(CAL.A.P))}"/></g>`;
+      setHTML(CAL.A.body, `<g class="sc-cal-k">${hopperShellSvg(CAL.A.P)}${hopperSvg(CAL.A.P, s, tour, CAL.A.k, "hopwk")}<path class="hb-outline" d="${D(hopWindow(CAL.A.P))}"/></g>`);
       const zl = Math.max(2, s.level * LEVEL_MAX), lv = CAL.A.P([hopL(zl) - 2, 0, zl]), out = CAL.A.P([-14, -11.5, -22.8]), inl = CAL.A.P([-10, -8, HOP_TOP + 6]);
-      CAL.A.labels.innerHTML = label(lv, [CAL.A.box[0] + 12, lv[1] - 18], `Nivel ${Math.round(s.level * 100)} %`, "start") + label(out, [CAL.A.box[0] + 12, CAL.A.box[1] + CAL.A.box[3] - 14], "Descarga al alimentador", "start") + label(inl, [CAL.A.box[0] + 12, CAL.A.box[1] + 44], "Entra desde la distribuidora", "start");
+      setHTML(CAL.A.labels, label(lv, [CAL.A.box[0] + 12, lv[1] - 18], `Nivel ${Math.round(s.level * 100)} %`, "start") + label(out, [CAL.A.box[0] + 12, CAL.A.box[1] + CAL.A.box[3] - 14], "Descarga al alimentador", "start") + label(inl, [CAL.A.box[0] + 12, CAL.A.box[1] + 44], "Entra desde la distribuidora", "start"));
       leader(CAL.A);
     }
     if (showB > 0.01) {
       CAL.B.body.innerHTML = "";
       CAL.B.body.appendChild(calBArt);
-      calBDyn.innerHTML = `<g class="sc-cal-k">${hpgrSvg(CAL.B.P, Xc, s, tour, CAL.B.k, calBArt.getAttribute("transform"))}</g>`;
+      setHTML(calBDyn, `<g class="sc-cal-k">${hpgrSvg(CAL.B.P, Xc, s, tour, CAL.B.k, calBArt.getAttribute("transform"))}</g>`);
       CAL.B.body.appendChild(calBDyn); CAL.B.body.appendChild(calBTop);
       const P = CAL.B.P, yb = HP.yb - s.gap * 0.8, xr = Math.min(Xc, HP.rx[1]);
       const bx = CAL.B.box[0], by = CAL.B.box[1], bw = CAL.B.box[2], bh = CAL.B.box[3];
@@ -498,7 +500,7 @@ export async function createSecundario() {
         if (Xc > HP.bx[0] + 3) L += label(P([HP.bx[0] + 4, -HP.y + 3, HP.zc + 4]), [bx + 12, by + 46], "Cilindros hidráulicos", "start");
         else L += label(P([xr, -22.9, HP.zc + 6]), [bx + 12, by + 46], "Lecho comprimido", "start");
       }
-      CAL.B.labels.innerHTML = L;
+      setHTML(CAL.B.labels, L);
       leader(CAL.B);
     }
 
@@ -566,10 +568,11 @@ export async function createSecundario() {
       units.forEach((eq, u) => u.classList.toggle("sc-dim", !!selected && eq !== selected));
       draw();
     },
-    destroy() { api.setActive(false); listeners.clear(); root.remove(); },
+    destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); api.select(g ? (selected === g.dataset.eq ? null : g.dataset.eq) : null); });
-  document.addEventListener("visibilitychange", () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); });
+  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  document.addEventListener("visibilitychange", onVis);
   draw();
   return api;
 }
