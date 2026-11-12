@@ -535,6 +535,15 @@
     <p>Acerca el celular hasta que <b>una estación</b> llene el recuadro, con su etiqueta naranja a la vista</p>
   </div>
 
+  <script>
+    // Consola flotante para depurar en el celular: agrega ?debug=1 a la URL para activarla.
+    if (new URLSearchParams(location.search).has("debug")) {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/eruda";
+      s.onload = () => { window.eruda && window.eruda.init(); };
+      document.head.appendChild(s);
+    }
+  </script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
