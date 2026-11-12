@@ -361,8 +361,19 @@ function camMessage(err) {
   if (n === "NotReadableError") return "La cámara está ocupada por otra app";
   return "No se pudo abrir la cámara";
 }
+// salir del escaneo: se apaga la cámara y se recarga la página de inicio (libera la cámara, el seguimiento y las láminas)
+const exitBtn = $("[data-exit-ar]");
+exitBtn.addEventListener("click", () => {
+  try { mindar?.stop(); } catch {}
+  document.querySelectorAll("video").forEach((v) => v.srcObject?.getTracks?.().forEach((t) => t.stop()));
+  const q = new URLSearchParams(location.search);
+  q.delete("demo");
+  location.replace(location.pathname + (q.size ? `?${q}` : ""));
+});
+
 async function startAR() {
   setMode("ar");
+  exitBtn.hidden = false;
   showView("chancador", { n: "2", name: "Chancado Primario" });
   ui.status.textContent = "Iniciando cámara…";
   const scan = $("[data-scan]");
@@ -382,6 +393,7 @@ async function startAR() {
   } catch (err) {
     console.error(err);
     ui.status.textContent = "No se pudo cargar el AR · mostrando demo";
+    exitBtn.hidden = true;
     return startDemo();
   }
   const { renderer, cssRenderer, cssScene, camera } = mindar;

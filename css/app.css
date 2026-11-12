@@ -1091,3 +1091,6 @@ body[data-mode="ar"] .scan-hint p { backdrop-filter: blur(8px); -webkit-backdrop
   body[data-mode="ar"] .ctl { font-size: 12px; }
   body[data-mode="ar"] .scan-frame { width: min(40vh, 220px); }
 }
+
+/* escaneo: botón "Inicio" para salir; en pantallas angostas reemplaza al logo para que el estado se lea entero */
+@media (max-width: 520px) { body[data-mode="ar"] .brand { display: none; } }
