@@ -525,7 +525,7 @@
     <div class="intro-card">
       <p class="intro-kicker">Experiencia interactiva · Proceso Minero</p>
       <h1>Proceso Minero en AR</h1>
-      <p>Apunta la cámara al <b>Rajo</b>, la <b>Mina subterránea</b>, el <b>Chancado Primario</b> o el <b>Chancado secundario y terciario</b> de la infografía. Sobre cada estación se abre una lámina viva: mira el terreno por dentro, sigue el carguío y el transporte del mineral y conoce los equipos.</p>
+      <p>Apunta la cámara a la infografía: de lejos verás <b>todas las estaciones en movimiento</b>. Acércate a una y se abre su lámina viva: mira el terreno por dentro, sigue el viaje del mineral y conoce los equipos.</p>
       <div class="intro-actions">
         <button type="button" class="btn btn--primary" data-start-ar disabled>Escanear infografía</button>
         <button type="button" class="btn" data-start-demo disabled>Ver demo sin cámara</button>
@@ -534,9 +534,20 @@
     </div>
   </div>
 
+  <!-- precarga: las diez láminas se arman antes de abrir la cámara, para que aparezcan al instante -->
+  <div class="intro preload" data-preload hidden>
+    <div class="intro-card" role="status" aria-live="polite">
+      <p class="intro-kicker">Preparando la experiencia</p>
+      <h1>Cargando las animaciones</h1>
+      <div class="preload-bar"><i data-preload-bar></i></div>
+      <p class="preload-text" data-preload-text>…</p>
+      <p class="intro-note">Con la cámara abierta, apunta a la <b>infografía completa</b> para verla en movimiento, o acércate a <b>una estación</b> para interactuar con ella.</p>
+    </div>
+  </div>
+
   <div class="scan-hint" data-scan hidden>
     <div class="scan-frame"><i></i><i></i><i></i><i></i></div>
-    <p>Acerca el celular hasta que <b>una estación</b> llene el recuadro, con su etiqueta naranja a la vista</p>
+    <p>Apunta a la <b>infografía completa</b> o acércate a <b>una estación</b>, con su etiqueta naranja a la vista</p>
   </div>
 
   <script>

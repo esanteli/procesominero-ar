@@ -5,6 +5,7 @@ button{background:#ef7835;color:#fff;border:0;border-radius:12px;padding:10px 16
 <body><h1>Compilar marcador (targets.mind)</h1>
 <p>Elige uno o más recortes de la infografía (PNG/JPG, ~1500–2500 px de ancho). El orden define el índice de cada estación (<code>addCSSAnchor(0)</code>, <code>(1)</code>…).</p>
 <p>Lo que funcionó (nov. 2026): recortes bajos y anchos que incluyan la etiqueta naranja de la estación, ampliados ×2 antes de compilar, salvo el rajo, que va a tamaño real (ampliado, sus líneas finas se pierden y deja de reconocerse). MindAR achica cada marcador hasta ~256 px de lado corto para seguirlo: en recortes altos las líneas finas desaparecen y el marcador se pierde a cada rato.</p>
+<p>Orden actual (11 marcadores): <b>0 = la infografía completa</b> reducida a ×0,4 (va primero: MindAR se queda con el primer marcador que coincide, y desde ella todas las estaciones quedan bien ubicadas en el plano general), luego 1 chancado, 2 rajo, 3 mina, 4 secundario, 5 pilas, 6 molienda, 7 flotación, 8 SX-EW, 9 fundición, 10 puerto.</p>
 <p><input type="file" accept="image/*" multiple data-files></p>
 <p><button type="button" data-go>Compilar</button></p><progress max="100" value="0" data-prog></progress>
 <p data-msg></p>
