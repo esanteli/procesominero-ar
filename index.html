@@ -58,9 +58,6 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Inicio</span>
       </button>
       <div class="status" data-status role="status">Proceso Minero AR</div>
-      <button class="icon-btn" type="button" data-pin hidden aria-pressed="false" title="Fijar lámina en pantalla">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3v2h-4v5l-1 1-1-1v-5H7v-2l3-3z"/></svg>
-      </button>
     </header>
 
     <aside class="info" data-info hidden aria-live="polite">
@@ -543,6 +540,32 @@
       <p class="preload-text" data-preload-text>…</p>
       <p class="intro-note">Con la cámara abierta, apunta a la <b>infografía completa</b> para verla en movimiento, o acércate a <b>una estación</b> para interactuar con ella.</p>
     </div>
+  </div>
+
+  <!-- AR: hotspots sobre las etiquetas impresas (vista general) y coachmark de la primera vez -->
+  <div class="ar-hotspots" data-ar-hotspots hidden></div>
+  <div class="coach" data-coach hidden role="dialog" aria-label="Sugerencia">
+    <p>Toca una estación para enfocarla</p>
+    <button type="button">Entendido</button>
+  </div>
+  <!-- AR: aviso cuando el seguimiento está inestable -->
+  <button type="button" class="ar-toast" data-toast hidden>¿Se mueve mucho? Toca <b>Fijar</b></button>
+  <!-- AR: zoom de la lámina fijada -->
+  <div class="zoom-hud" data-zoom-hud hidden role="group" aria-label="Zoom de la lámina">
+    <button type="button" data-zoom-out aria-label="Alejar">−</button>
+    <output data-zoom-val aria-live="polite">1,0×</output>
+    <button type="button" data-zoom-in aria-label="Acercar">+</button>
+    <button type="button" class="zoom-reset" data-zoom-reset>Restablecer</button>
+  </div>
+  <!-- AR: acciones de la estación enfocada; se mueven junto al reproductor de su panel -->
+  <div class="ar-actions" data-ar-actions hidden>
+    <button type="button" class="ar-act" data-pin aria-pressed="false" title="Fija la escena en pantalla si pierdes la infografía" aria-describedby="pin-tip">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3v2h-4v5l-1 1-1-1v-5H7v-2l3-3z"/></svg><span>Fijar</span>
+    </button>
+    <button type="button" class="ar-act ar-act--ghost" data-zoom title="Amplía la estación (también con pellizco o doble toque)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5M10.5 8v5M8 10.5h5"/></svg><span>Ampliar</span>
+    </button>
+    <span class="sr-only" id="pin-tip">Fija la escena en pantalla si pierdes la infografía</span>
   </div>
 
   <div class="scan-hint" data-scan hidden>

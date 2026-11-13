@@ -1,12 +1,11 @@
-// Silueta blanca y sombra de una lámina, horneadas UNA vez en <canvas>.
-// Los drop-shadow de CSS sobre los SVG animados se recalculaban en cada cuadro: en el celular eran lo más caro de
-// dibujar. La sombra sale de la silueta de la lámina (path *-sil) o, si no tiene (chancado primario), de su dibujo
-// estático dilatado, que además queda como contorno blanco sobre la infografía.
+// Silueta y sombra de una lámina. La silueta (path *-sil, blanca, con contorno blanco nítido por CSS) separa el
+// dibujo del fondo; su sombra se hornea UNA vez en <canvas>: los drop-shadow de CSS sobre los SVG animados se
+// recalculaban en cada cuadro y en el celular eran lo más caro de dibujar. Si la lámina no trae silueta (chancado
+// primario), se le crea una con la envolvente de su dibujo estático.
 const SIL = '[class$="-sil"], .mn-glow';
 const SHAPES = "path, polygon, polyline, rect, circle, ellipse, line";
 const FALLBACK = [{ c: "rgba(122,61,20,.14)", x: 0, y: 2, b: 3 }, { c: "rgba(122,61,20,.11)", x: 0, y: 12, b: 16 }];
-const GROUND = { c: "rgba(70,35,10,.22)", x: 0, y: 6, b: 22 }; // sombra sobre el papel cuando la lámina flota (AR)
-const PAPER = "#fff";
+const GROUND = { c: "rgba(70,35,10,.18)", x: 0, y: 4, b: 10 }; // sombra corta sobre el papel bajo la lámina que flota (AR)
 
 function chain(svg, node) {
   let m = new DOMMatrix();
@@ -40,44 +39,60 @@ function shapeOf(n) {
   }
   return null;
 }
-// rellena los huecos encerrados de la máscara (p. ej. el marco de una correa): se inunda el vacío desde el borde y lo
-// que no se alcanza queda adentro. Una vez por lámina, a media resolución.
-function fillHoles(c, w, h) {
-  const img = c.getImageData(0, 0, w, h), a = img.data, seen = new Uint8Array(w * h), stack = [];
-  const push = (i) => { if (!seen[i] && a[i * 4 + 3] < 128) { seen[i] = 1; stack.push(i); } };
-  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
-  for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
-  while (stack.length) {
-    const i = stack.pop(), x = i % w;
-    if (x > 0) push(i - 1);
-    if (x < w - 1) push(i + 1);
-    if (i >= w) push(i - w);
-    if (i < w * (h - 1)) push(i + w);
-  }
-  for (let i = 0; i < w * h; i++) if (!seen[i]) { a[i * 4] = a[i * 4 + 1] = a[i * 4 + 2] = a[i * 4 + 3] = 255; }
-  c.putImageData(img, 0, 0);
-}
-// rellena la envolvente convexa de la máscara: para láminas que no calzan 1:1 con lo impreso (el chancado primario es
-// una ampliación), así el dibujo impreso más chico no asoma entre las líneas abiertas de la lámina
-function fillHull(c, w, h, grow) {
-  const a = c.getImageData(0, 0, w, h).data, pts = [];
+// envolvente convexa de los píxeles opacos de un canvas (filas: extremo izquierdo y derecho), en px del canvas
+function hullOf(c) {
+  const w = c.width, h = c.height, a = c.getContext("2d").getImageData(0, 0, w, h).data, pts = [];
   for (let y = 0; y < h; y++) {
     let l = -1, r = -1;
     for (let x = 0; x < w; x++) if (a[(y * w + x) * 4 + 3] >= 128) { if (l < 0) l = x; r = x; }
     if (l >= 0) pts.push([l, y], [r, y]);
   }
-  if (pts.length < 3) return;
+  if (pts.length < 3) return [];
   pts.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
   const cross = (o, p, q) => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
   const lo = [], hi = [];
   for (const p of pts) { while (lo.length > 1 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
   for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (hi.length > 1 && cross(hi[hi.length - 2], hi[hi.length - 1], p) <= 0) hi.pop(); hi.push(p); }
-  const hull = lo.slice(0, -1).concat(hi.slice(0, -1));
-  c.fillStyle = c.strokeStyle = "#fff"; c.lineJoin = "round"; c.lineWidth = grow * 2;
-  c.beginPath();
-  hull.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
-  c.closePath();
-  c.fill(); c.stroke();
+  return lo.slice(0, -1).concat(hi.slice(0, -1));
+}
+// Silueta para una lámina que no la trae (chancado primario): la envolvente convexa del dibujo estático, algo
+// agrandada, como <polygon class="pm-sil"> al fondo del SVG. Es vector: su contorno blanco queda nítido a cualquier
+// escala, y como la lámina es una ampliación, tapa entera la estación impresa (más chica) que queda debajo.
+function hullSil(svg, base, w, h, halo) {
+  const pad = 40, c = document.createElement("canvas");
+  c.width = Math.ceil(w + pad * 2); c.height = Math.ceil(h + pad * 2);
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = ctx.strokeStyle = "#fff";
+  ctx.lineJoin = ctx.lineCap = "round";
+  const toCanvas = new DOMMatrix().translate(pad, pad).multiply(base);
+  for (const n of svg.querySelectorAll(SHAPES)) {
+    if (n.closest("defs, clipPath, mask, symbol, pattern, .pm-paper, .pm-sil") || (halo.skip && n.closest(halo.skip))) continue;
+    const cs = getComputedStyle(n);
+    if (cs.display === "none" || cs.visibility === "hidden") continue;
+    const bb = n.getBBox?.();
+    if (bb && bb.width < 2 && bb.height < 2) continue; // trazos sueltos de 1 px: estiraban la silueta hasta la etiqueta
+    const P = shapeOf(n);
+    if (!P) continue;
+    const t = toCanvas.multiply(chain(svg, n));
+    ctx.setTransform(t);
+    ctx.lineWidth = (parseFloat(cs.strokeWidth) || 1) + 2 / scaleOf(t);
+    ctx.stroke(P);
+    if (cs.fill !== "none" && n.tagName !== "line" && n.tagName !== "polyline") ctx.fill(P);
+  }
+  const hull = hullOf(c);
+  if (hull.length < 3) return null;
+  // un poco más grande que el dibujo (halo.grow px del contenedor), para que no asome lo impreso en el borde
+  const g = halo.grow ?? 12, mx = hull.reduce((s, p) => s + p[0], 0) / hull.length, my = hull.reduce((s, p) => s + p[1], 0) / hull.length;
+  const inv = toCanvas.inverse();
+  const pts = hull.map(([x, y]) => {
+    const d = Math.hypot(x - mx, y - my) || 1, q = inv.transformPoint({ x: x + ((x - mx) / d) * g, y: y + ((y - my) / d) * g });
+    return `${q.x.toFixed(1)},${q.y.toFixed(1)}`;
+  });
+  const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+  poly.setAttribute("class", "pm-sil");
+  poly.setAttribute("points", pts.join(" "));
+  svg.insertBefore(poly, svg.firstChild);
+  return poly;
 }
 const scaleOf = (m) => Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
 
@@ -93,15 +108,13 @@ function shadowsOf(el) {
 }
 
 /**
- * root: la lámina (debe estar en el documento para leer sus estilos). El canvas se ubica sobre el contenedor directo
- * del SVG del dibujo. opts:
- *   svg   → el SVG del dibujo (por defecto, el primero de root)
- *   halo  → { skip, r }: dibuja también el contorno blanco dilatando el dibujo estático (skip = selector de lo animado)
- *   ground → la sombra se devuelve suelta (para ponerla en el papel, bajo la lámina que flota) en vez de insertarla,
- *            sobre un parche blanco difuminado con la forma del dibujo que tapa lo impreso debajo
- *   paper  → el mismo parche, pero dentro de la lámina bajo el dibujo (demo: tapa la infografía de fondo)
- *   hull   → el parche cubre la envolvente convexa del dibujo, no sólo su silueta
- * Devuelve { shadow, w, h }: el canvas de la sombra, centrado sobre el contenedor del SVG, y su tamaño en px.
+ * root: la lámina (debe estar en el documento para leer sus estilos). opts:
+ *   svg    → el SVG del dibujo (por defecto, el primero de root)
+ *   halo   → { skip, grow }: la lámina no trae silueta (*-sil): se le crea una con la envolvente del dibujo estático
+ *            (skip = selector de lo animado, que no cuenta)
+ *   ground → la sombra se devuelve suelta (para ponerla en el papel, bajo la lámina que flota) en vez de insertarla
+ * La silueta lleva un contorno blanco nítido (CSS: stroke con vector-effect: non-scaling-stroke); aquí sólo se hornea
+ * su sombra. Devuelve { shadow, w, h }: el canvas de la sombra, centrado sobre el contenedor del SVG, y su tamaño en px.
  */
 export function bake(root, opts = {}) {
   const svg = opts.svg || root.querySelector("svg");
@@ -110,61 +123,31 @@ export function bake(root, opts = {}) {
   const h = host?.offsetHeight || parseFloat(host?.style.height) || 0;
   if (!svg || !w || !h) return { shadow: null, w, h };
   const base = viewBoxMatrix(svg, w, h);
-  const sil = opts.halo ? null : svg.querySelector(SIL);
-  let layers = sil ? shadowsOf(sil) : [];
-  let unit = 1;                                     // px del contenedor por unidad del elemento de la silueta
-  if (sil) { unit = scaleOf(base.multiply(chain(svg, sil))); sil.style.filter = "none"; }
+  let sil = svg.querySelector(SIL);
+  if (!sil && opts.halo) sil = hullSil(svg, base, w, h, opts.halo);
+  if (!sil) return { shadow: null, w, h };
+  let layers = shadowsOf(sil);
+  let unit = scaleOf(base.multiply(chain(svg, sil)));  // px del contenedor por unidad del elemento de la silueta
+  sil.style.filter = "none";
   if (!layers.length) { layers = FALLBACK; unit = 1; }
   if (opts.ground) layers = [...layers, { ...GROUND, x: GROUND.x / unit, y: GROUND.y / unit, b: GROUND.b / unit }];
-  // parche de papel (AR): la silueta dilatada R px y difuminada F px, en blanco, tapa el dibujo impreso bajo la lámina
-  const P0 = opts.ground || opts.paper, S = Math.max(w, h), R = P0 ? Math.round(S * 0.012 + 6) : 0, F = P0 ? Math.round(S * 0.02 + 8) : 0;
-  const pad = Math.ceil(Math.max(R + F * 1.6, ...layers.map((L) => (Math.abs(L.x) + Math.abs(L.y) + L.b * 1.6) * unit))) + 4;
+  const pad = Math.ceil(Math.max(...layers.map((L) => (Math.abs(L.x) + Math.abs(L.y) + L.b * 1.6) * unit))) + 4;
   const W = Math.ceil(w + pad * 2), H = Math.ceil(h + pad * 2);
 
   // máscara: la silueta en blanco (px del contenedor + margen)
   const mask = document.createElement("canvas");
   mask.width = W; mask.height = H;
   const ctx = mask.getContext("2d");
-  ctx.fillStyle = ctx.strokeStyle = "#fff";
-  ctx.lineJoin = ctx.lineCap = "round";
-  const at = (m) => { const t = new DOMMatrix().translate(pad, pad).multiply(base).multiply(m); ctx.setTransform(t); return scaleOf(t); };
-  if (sil) {
-    at(chain(svg, sil));
-    const P = shapeOf(sil);
-    if (P) ctx.fill(P);
-  } else {
-    const r = opts.halo?.r ?? 3.4;                 // el dibujo dilatado ~3 px, como las siluetas de las demás láminas
-    for (const n of svg.querySelectorAll(SHAPES)) {
-      if (n.closest("defs, clipPath, mask, symbol, pattern, .pm-paper") || (opts.halo?.skip && n.closest(opts.halo.skip))) continue;
-      const cs = getComputedStyle(n);
-      if (cs.display === "none" || cs.visibility === "hidden") continue;
-      const P = shapeOf(n);
-      if (!P) continue;
-      const bb = n.getBBox?.();
-      if (bb && bb.width < 2 && bb.height < 2) continue; // trazos sueltos de 1 px: dejaban puntos blancos y estiraban el parche
-      const s = at(chain(svg, n));
-      if (cs.fill !== "none" && n.tagName !== "line" && n.tagName !== "polyline") ctx.fill(P);
-      ctx.lineWidth = (2 * r) / s + (parseFloat(cs.strokeWidth) || 1);
-      ctx.stroke(P);
-    }
-  }
+  ctx.fillStyle = "#fff";
+  ctx.setTransform(new DOMMatrix().translate(pad, pad).multiply(base).multiply(chain(svg, sil)));
+  const P = shapeOf(sil);
+  if (P) ctx.fill(P);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 
   // sombra: se dibuja la máscara fuera del lienzo y sólo su sombra cae adentro; a media resolución (va desenfocada)
   const q = 0.5, shadow = document.createElement("canvas");
   shadow.width = Math.ceil(W * q); shadow.height = Math.ceil(H * q);
   const sx = shadow.getContext("2d"), far = shadow.width + 64;
-  if (R) {
-    // dilatación: la máscara estampada en dos anillos; el difuminado se hace con shadowBlur (ctx.filter no existe en Safari)
-    const d = document.createElement("canvas");
-    d.width = shadow.width; d.height = shadow.height;
-    const dx = d.getContext("2d");
-    for (const rr of [R / 2, R]) for (let a = 0; a < 16; a++) dx.drawImage(mask, rr * q * Math.cos((a * Math.PI) / 8), rr * q * Math.sin((a * Math.PI) / 8), d.width, d.height);
-    if (opts.hull) fillHull(dx, d.width, d.height, R * q);
-    else fillHoles(dx, d.width, d.height);
-    sx.shadowColor = PAPER; sx.shadowBlur = F * q; sx.shadowOffsetX = far; sx.shadowOffsetY = 0;
-    sx.drawImage(d, -far, 0); sx.drawImage(d, -far, 0); // dos veces: núcleo opaco, borde suave
-  }
   for (const L of layers) {
     sx.shadowColor = L.c;
     sx.shadowBlur = L.b * unit * q;
@@ -172,10 +155,12 @@ export function bake(root, opts = {}) {
     sx.shadowOffsetY = L.y * unit * q;
     sx.drawImage(mask, -far, 0, shadow.width, shadow.height);
   }
-  const place = (c) => { c.className = "pm-baked"; c.style.cssText = `position:absolute;left:${-pad}px;top:${-pad}px;width:${W}px;height:${H}px;pointer-events:none`; };
   svg.style.position = "relative";
-  if (opts.halo) { place(mask); host.insertBefore(mask, svg); }
   if (opts.ground) shadow.style.cssText = `width:${W}px;height:${H}px;pointer-events:none`;
-  else { place(shadow); host.insertBefore(shadow, host.firstChild); }
+  else {
+    shadow.className = "pm-baked";
+    shadow.style.cssText = `position:absolute;left:${-pad}px;top:${-pad}px;width:${W}px;height:${H}px;pointer-events:none`;
+    host.insertBefore(shadow, host.firstChild);
+  }
   return { shadow, w: W, h: H };
 }

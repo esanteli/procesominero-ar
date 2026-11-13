@@ -118,7 +118,7 @@ const live = createLive(rig, ui);
 window.pmLive = live; // acceso para QA desde la consola
 // contorno blanco + sombra del chancado primario (se hornea una vez, con la lámina ya en el documento)
 const PLATE_ANIMATED = ".pm-caex, .pm-picarrocas, .pm-rocks, .pm-dust, .pm-road-dust";
-const bakePlate = (ground) => bake(plate, { svg: rig.svg, halo: { skip: PLATE_ANIMATED }, ground, paper: true, hull: true });
+const bakePlate = (ground) => bake(plate, { svg: rig.svg, halo: { skip: PLATE_ANIMATED }, ground });
 
 // ---------------------------------------------------------------- HUD
 ui.inside.addEventListener("input", () => live.setInside(Number(ui.inside.value) / 100));
@@ -148,7 +148,10 @@ addEventListener("keydown", (e) => {
   else if (e.key === "ArrowUp") live.setInside(inside + 0.1);
   else if (e.key === "ArrowDown") live.setInside(inside - 0.1);
   else if (e.key === "Escape") {
-    if (document.body.dataset.view !== "chancador" || (!live.selected && Number(ui.inside.value) === 0)) explorer?.back();
+    // sin nada elegido ni interior abierto, Esc vuelve: al mapa (demo) o a la infografía completa (AR)
+    if (document.body.dataset.view !== "chancador" || (!live.selected && Number(ui.inside.value) === 0)) {
+      if (document.body.dataset.mode === "ar") setFocus(null); else explorer?.back();
+    }
     live.select(null); live.setInside(0);
   }
   else return;
@@ -304,15 +307,25 @@ const PUE_TARGET = { x: 4180, y: 420, w: 960, h: 450 };
 // Las diez láminas se arman en la pantalla de precarga y viven juntas en un grupo CSS3D (world), en las coordenadas
 // del marcador de la infografía completa (marcador 0: ancho 1000 = ancho de la infografía, origen al centro, y hacia
 // arriba). El grupo se cuelga del marcador que MindAR esté siguiendo (uno a la vez): un sector o la infografía entera.
-// Así, al reconocer un solo sector aparecen también las estaciones vecinas en su lugar, y en un plano general se ven
-// todas. Lejos sólo hay animación (sin panel ni toques); la estación que llena el centro de la pantalla se vuelve
-// interactiva. Las que quedan fuera de la pantalla se ocultan y se pausan.
+// Dos estados, como el demo sin cámara:
+//   OVERVIEW → todas las estaciones animadas, sin panel ni toques; un hotspot sobre cada etiqueta impresa.
+//   FOCUS(S) → una estación: panel, toques, Fijar y Ampliar. Las demás se desvanecen y pausan su animación.
+// Se enfoca tocando su hotspot (o acercándose mucho a ella); se vuelve con el botón "Infografía", con Esc o tocando fuera.
 const POSTER = { x: 0, y: 0, w: 5497, h: 1623 };
 const KW = 1000 / POSTER.w;
-// enfoque: fracción de la pantalla que debe ocupar una estación (centrada) para volverse interactiva, y para dejar de serlo
-const FOCUS_IN = 0.26, FOCUS_OUT = 0.14;
+// enfoque automático al acercarse: fracción de la pantalla que debe ocupar una estación centrada (y bajo la cual se
+// vuelve a permitir después de salir de ella)
+const FOCUS_IN = 0.3, FOCUS_OUT = 0.14;
 // deformación máxima aceptada de una lámina en pantalla (borde más largo / borde opuesto)
 const MAX_WARP = 1.7;
+// estabilidad: filtro One Euro propio sobre la pose (posición, rotación y escala por separado)
+const POSE = { minCutoff: 1.0, beta: 6, rotMinCutoff: 0.8, rotBeta: 1.2, dCutoff: 1.0 };
+const JUMP = 1.45;      // salto máximo de escala entre dos poses seguidas; más que eso es una pose degenerada
+const EDGE_ON = 0.12;   // coseno mínimo entre la normal del papel y la cámara (~83°): más de canto es degenerada
+const REJECT_MAX = 8;   // poses rechazadas seguidas antes de aceptar la nueva (el papel sí cambió de lugar)
+const HOLD_MS = 700, FADE_MS = 320;   // al perder el marcador: se sostiene la escena y luego se desvanece
+const SHAKY_MS = 2500, JITTER_MAX = 0.012;   // si el seguimiento se pierde o vibra este tiempo en FOCUS, se sugiere Fijar
+const ZOOM_MAX = 3;
 // objeto CSS3D de un elemento centrado en (cx, cy) px de la infografía; s = px de la infografía por px del elemento
 function worldObj(el, cx, cy, s, z, CSS3DObject) {
   const o = flat(new CSS3DObject(el));
@@ -327,30 +340,33 @@ function worldObj(el, cx, cy, s, z, CSS3DObject) {
 function flat(o) { o.element.style.willChange = "transform"; return o; }
 // la lámina flota LIFT sobre el papel, medido en su propio marcador (ancho 1000), se vea desde un sector o de lejos
 const liftOf = (T) => (LIFT * T.w) / POSTER.w;
-// caja de la lámina en el mundo [x0, x1, y0, y1], para medir cuánto de la pantalla ocupa
+// caja de un rectángulo de la infografía en el mundo [x0, x1, y0, y1]
 const boxOf = (cx, cy, w, h) => [(cx - w / 2 - POSTER.w / 2) * KW, (cx + w / 2 - POSTER.w / 2) * KW, -(cy + h / 2 - POSTER.h / 2) * KW, -(cy - h / 2 - POSTER.h / 2) * KW];
-// estaciones de stations/*.js: módulo, fábrica, global de QA, clase AR, recorte de su marcador
+const rectBox = ([x, y, w, h]) => boxOf(x + w / 2, y + h / 2, w, h);
+// estaciones de stations/*.js: módulo, fábrica, global de QA, clase AR, recorte de su marcador, id en stations.js
 const AR_DEFS = [
-  { id: "rajo", view: "rajo", st: { n: "1", name: "Rajo" }, mod: "./stations/rajo.js", make: "createRajo", qa: "pmRajo", cls: "rajo-plate--ar", T: RAJO_TARGET },
-  { id: "mina", view: "mina", st: { n: "1", name: "Mina subterránea" }, mod: "./stations/mina-subterranea.js", make: "createMina", qa: "pmMina", T: MINA_TARGET,
+  { id: "rajo", demo: "rajo", view: "rajo", st: { n: "1", name: "Rajo" }, mod: "./stations/rajo.js", make: "createRajo", qa: "pmRajo", cls: "rajo-plate--ar", T: RAJO_TARGET },
+  { id: "mina", demo: "mina-subterranea", view: "mina", st: { n: "1", name: "Mina subterránea" }, mod: "./stations/mina-subterranea.js", make: "createMina", qa: "pmMina", T: MINA_TARGET,
     // al aparecer, el haz de radiografía barre el terreno
     active: (m, v) => { m.setActive(v); if (v) { m.setXray(0, true); m.setXray(1); } } },
-  { id: "secundario", view: "secundario", st: { n: "2.2", name: "Chancado secundario y terciario" }, mod: "./stations/chancado-secundario.js", make: "createSecundario", qa: "pmSec", cls: "sec-plate--ar", T: SEC_TARGET },
-  { id: "pilas", view: "pilas", st: { n: "3", name: "Pilas de lixiviación" }, mod: "./stations/pilas-lixiviacion.js", make: "createPilas", qa: "pmPilas", cls: "lx-plate--ar", T: LIX_TARGET },
-  { id: "molienda", view: "molienda", st: { n: "2", name: "Molino SAG y de bolas" }, mod: "./stations/molienda.js", make: "createMolienda", qa: "pmMol", cls: "mo-plate--ar", T: MOL_TARGET },
-  { id: "flotacion", view: "flotacion", st: { n: "3", name: "Celdas de flotación" }, mod: "./stations/flotacion.js", make: "createFlotacion", qa: "pmFlo", cls: "fl-plate--ar", T: FLO_TARGET },
-  { id: "sxew", view: "sxew", st: { n: "4", name: "Extracción por solvente y electroobtención" }, mod: "./stations/sx-ew.js", make: "createSxEw", qa: "pmSx", cls: "sx-plate--ar", T: SXEW_TARGET },
-  { id: "fundicion", view: "fundicion", st: { n: "4", name: "Fundición" }, mod: "./stations/fundicion.js", make: "createFundicion", qa: "pmFu", cls: "fu-plate--ar", T: FUN_TARGET },
-  { id: "puerto", view: "puerto", st: { n: "5", name: "Puerto" }, mod: "./stations/puerto.js", make: "createPuerto", qa: "pmPu", cls: "pu-plate--ar", T: PUE_TARGET },
+  { id: "secundario", demo: "chancado-secundario", view: "secundario", st: { n: "2.2", name: "Chancado secundario y terciario" }, mod: "./stations/chancado-secundario.js", make: "createSecundario", qa: "pmSec", cls: "sec-plate--ar", T: SEC_TARGET },
+  { id: "pilas", demo: "pilas-lixiviacion", view: "pilas", st: { n: "3", name: "Pilas de lixiviación" }, mod: "./stations/pilas-lixiviacion.js", make: "createPilas", qa: "pmPilas", cls: "lx-plate--ar", T: LIX_TARGET },
+  { id: "molienda", demo: "concentradora", view: "molienda", st: { n: "2", name: "Molino SAG y de bolas" }, mod: "./stations/molienda.js", make: "createMolienda", qa: "pmMol", cls: "mo-plate--ar", T: MOL_TARGET },
+  { id: "flotacion", demo: "celdas-flotacion", view: "flotacion", st: { n: "3", name: "Celdas de flotación" }, mod: "./stations/flotacion.js", make: "createFlotacion", qa: "pmFlo", cls: "fl-plate--ar", T: FLO_TARGET },
+  { id: "sxew", demo: "electroobtencion", view: "sxew", st: { n: "4", name: "Extracción por solvente y electroobtención" }, mod: "./stations/sx-ew.js", make: "createSxEw", qa: "pmSx", cls: "sx-plate--ar", T: SXEW_TARGET },
+  { id: "fundicion", demo: "fundicion", view: "fundicion", st: { n: "4", name: "Fundición" }, mod: "./stations/fundicion.js", make: "createFundicion", qa: "pmFu", cls: "fu-plate--ar", T: FUN_TARGET },
+  { id: "puerto", demo: "puerto", view: "puerto", st: { n: "5", name: "Puerto" }, mod: "./stations/puerto.js", make: "createPuerto", qa: "pmPu", cls: "pu-plate--ar", T: PUE_TARGET },
 ];
-let mindar = null, pinned = false, pinnedS = null, camera3 = null, V3 = null, world = null, host = null;
-const arStations = [];   // { id, view, st, T, obj, objs, el, box, setActive, unfocus, shown }
+let mindar = null, pinned = false, pinnedS = null, camera3 = null, V3 = null, T3 = null, world = null, host = null, cssLayer = null;
+let lostTimer = 0, fadeTimer = 0, lostSince = 0, allowed = null, autoBlock = null;
+const arStations = [];   // { id, idx, view, st, T, obj, objs, el, svg, box, label, setActive, unfocus, shown }
 window.pmAR = arStations; // QA desde la consola: láminas armadas y cuáles se ven (shown)
-window.pmARState = () => ({ host: host?.i ?? null, focus: arCurrent?.id ?? null, ar: document.body.dataset.ar, shown: arStations.filter((S) => S.shown).map((S) => S.id) });
-window.pmARBoxes = () => (world ? arStations.filter((S) => S.shown).map((S) => [S.id, screenBox(S).map((v) => +v.toFixed(2))]) : []);
+window.pmARState = () => ({ host: host?.i ?? null, focus: arCurrent?.id ?? null, ar: document.body.dataset.ar, pinned, zoom: pinnedS?.zoom?.z ?? 1,
+  shown: arStations.filter((S) => S.shown).map((S) => S.id), rejects: pose.rejected, jitter: +pose.jitter.toFixed(4) });
+window.pmARBoxes = () => (world ? arStations.filter((S) => S.shown).map((S) => [S.id, screenBox(S.box).map((v) => +(+v).toFixed(2))]) : []);
 let arCurrent = null, cssDirty = true;
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const painted = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 function camMessage(err) {
   const n = err?.name || "";
   if (n === "NotAllowedError" || n === "SecurityError") return "Permiso de cámara denegado · actívalo en el navegador y recarga";
@@ -358,9 +374,10 @@ function camMessage(err) {
   if (n === "NotReadableError") return "La cámara está ocupada por otra app";
   return "No se pudo abrir la cámara";
 }
-// salir del escaneo: se apaga la cámara y se recarga la página de inicio (libera la cámara, el seguimiento y las láminas)
+// botón de arriba: en FOCUS vuelve a la infografía; en la vista general sale del escaneo a la página de inicio
 const exitBtn = $("[data-exit-ar]");
 exitBtn.addEventListener("click", () => {
+  if (document.body.dataset.mode === "ar" && arCurrent) { setFocus(null); return; }
   try { mindar?.stop(); } catch {}
   document.querySelectorAll("video").forEach((v) => v.srcObject?.getTracks?.().forEach((t) => t.stop()));
   const q = new URLSearchParams(location.search);
@@ -369,10 +386,10 @@ exitBtn.addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------- armado de las láminas (en la precarga)
-const ground = (o) => { o.element.style.pointerEvents = "none"; return o; };
+const ground = (o) => { o.element.style.pointerEvents = "none"; o.element.classList.add("ar-ground"); return o; };
 function buildChancado(CSS3DObject) {
   // en el documento un instante para medirla y hornear su sombra; oculta con opacity (con visibility el horneado
-  // salta los trazos y quedaba vacío)
+  // salta los trazos)
   plate.style.opacity = "0";
   document.body.appendChild(plate);
   const { shadow } = bakePlate(true);
@@ -383,8 +400,8 @@ function buildChancado(CSS3DObject) {
   plate.classList.add("ar-plate");
   const obj = worldObj(plate, P.cx, P.cy, P.k, liftOf(CH_TARGET), CSS3DObject);
   const objs = shadow ? [ground(worldObj(shadow, P.gx, P.gy, P.k, 0, CSS3DObject)), obj] : [obj];
-  return { id: "chancado", view: "chancador", st: { n: "2", name: "Chancado Primario" }, T: CH_TARGET, obj, objs, el: plate,
-    box: boxOf(P.cx, P.cy, P.w, P.h), setActive: (v) => live.setActive(v), unfocus: () => live.select(null) };
+  return { id: "chancado", demo: "chancado-primario", view: "chancador", st: { n: "2", name: "Chancado Primario" }, T: CH_TARGET, obj, objs, el: plate,
+    svg: rig.svg, box: boxOf(P.cx, P.cy, P.w, P.h), setActive: (v) => live.setActive(v), unfocus: () => { live.select(null); live.setInside(0); } };
 }
 async function buildStation(D, CSS3DObject) {
   const mod = await import(D.mod);
@@ -403,8 +420,9 @@ async function buildStation(D, CSS3DObject) {
   const cx = L + W / 2, cy = Tp + H / 2;
   const obj = worldObj(s.el, cx, cy, 1, liftOf(D.T), CSS3DObject);
   const objs = shadow ? [ground(worldObj(shadow, cx, cy, 1, 0, CSS3DObject)), obj] : [obj];
-  mod.bindPanel(s, { onEscape: () => s.select(null) });
-  return { id: D.id, view: D.view, st: D.st, T: D.T, obj, objs, el: s.el, box: boxOf(cx, cy, W, H),
+  // Esc sin nada seleccionado vuelve a la infografía
+  mod.bindPanel(s, { onEscape: () => { s.select(null); if (document.body.dataset.mode === "ar") setFocus(null); } });
+  return { id: D.id, demo: D.demo, view: D.view, st: D.st, T: D.T, obj, objs, el: s.el, svg: s.el.querySelector("svg"), box: boxOf(cx, cy, W, H),
     setActive: D.active ? (v) => D.active(s, v) : (v) => s.setActive(v), unfocus: () => s.select?.(null) };
 }
 
@@ -421,21 +439,31 @@ function toDemo(msg) {
   ui.status.textContent = msg;
   return startDemo();
 }
+// en FOCUS, MindAR sólo busca el marcador de la estación activa (y el de la infografía completa, para sostenerla de
+// lejos): menos carga y sin saltos a otro marcador. Se intercepta su paso de detección.
+function patchController() {
+  const c = mindar?.controller;
+  if (!c || c.__pm) return;
+  const detect = c._detectAndMatch.bind(c);
+  c._detectAndMatch = (input, idx) => detect(input, allowed ? idx.filter((i) => allowed.has(i)) : idx);
+  c.__pm = true;
+}
 async function startAR() {
   setMode("ar");
   exitBtn.hidden = false;
   document.body.dataset.ar = "loading";
   pre.hidden = false;
-  const scan = $("[data-scan]");
   const total = AR_DEFS.length + 4;    // motor, marcadores, diez láminas, cámara
   let done = 0;
   const task = async (label, fn) => { progress(done, total, label); await painted(); try { return await fn(); } finally { progress(++done, total, label); } };
-  let THREE, CSS3DObject, mindSrc;
+  let THREE, CSS3DObject, mindSrc, LABELS;
   try {
     await task("Cargando el motor de realidad aumentada…", async () => {
       THREE = await import("three");
       ({ CSS3DObject } = await import("three/addons/renderers/CSS3DRenderer.js"));
       await import("../vendor/mindar/mindar-image-three.prod.js");
+      const { STATIONS } = await import("./stations.js");
+      LABELS = Object.fromEntries(STATIONS.map((st) => [st.id, st.label]));
     });
     // los marcadores se descargan aquí y MindAR los lee de memoria (no se bajan dos veces)
     mindSrc = await task("Descargando los marcadores de la infografía…", async () => {
@@ -447,11 +475,19 @@ async function startAR() {
     console.error(err);
     return toDemo("No se pudo cargar el AR · mostrando demo");
   }
+  T3 = THREE;
   const n = AR_DEFS.length + 1;
   arStations.push(await task(`Preparando las animaciones · 1 de ${n} · Chancado Primario`, () => buildChancado(CSS3DObject)));
   for (const [i, D] of AR_DEFS.entries()) {
     try { arStations.push(await task(`Preparando las animaciones · ${i + 2} de ${n} · ${D.st.name}`, () => buildStation(D, CSS3DObject))); }
     catch (err) { console.error(`[AR] no se pudo armar ${D.id}`, err); }
+  }
+  // marcador de cada estación (1 chancado, 2… las de AR_DEFS), etiqueta impresa y su hotspot
+  for (const S of arStations) {
+    S.idx = S.id === "chancado" ? 1 : AR_DEFS.findIndex((D) => D.id === S.id) + 2;
+    S.label = LABELS[S.demo] ? rectBox(LABELS[S.demo]) : S.box;
+    S.zoom = S.svg ? zoomable(S.svg) : null;
+    S.hot = hotspotFor(S);
   }
 
   mindar = new window.MINDAR.IMAGE.MindARThree({
@@ -459,11 +495,15 @@ async function startAR() {
     imageTargetSrc: mindSrc,
     maxTrack: 1,
     uiLoading: "no", uiScanning: "no", uiError: "no",
-    filterMinCF: 0.001, filterBeta: 5,   // poco temblor sin que la lámina se arrastre al mover el celular
-    warmupTolerance: 3, missTolerance: 8, // aparece rápido y no parpadea con un desenfoque breve
+    // MindAR filtra cada pose: corte bajo = menos temblor quieto; beta alto = menos retraso al moverse.
+    // warmup/miss altos: "encontrado" y "perdido" no parpadean con un cuadro malo.
+    filterMinCF: 0.0005, filterBeta: 20,
+    warmupTolerance: 5, missTolerance: 10,
   });
   const { renderer, cssRenderer, cssScene, camera } = mindar;
   camera3 = camera; V3 = new THREE.Vector3();
+  cssLayer = cssRenderer.domElement;
+  cssLayer.classList.add("ar-layer");
   // MindAR crea un WebGL a pantalla completa (antialias, ×densidad del equipo: ×3 en iPhone) que aquí no dibuja nada:
   // todo va en CSS3D. Se libera su memoria de GPU y se deja de redibujar.
   renderer.setPixelRatio(1); renderer.setSize(1, 1);
@@ -481,45 +521,56 @@ async function startAR() {
     M.setPosition(((POSTER.w / 2 - T.x - T.w / 2) * 1000) / T.w, (-(POSTER.h / 2 - T.y - T.h / 2) * 1000) / T.w, 0);
     return { i, T, M, anchor: mindar.addCSSAnchor(i) };
   });
+  const raw = new THREE.Matrix4();
   for (const H of HOSTS) {
     H.anchor.onTargetFound = () => {
+      clearTimeout(lostTimer); clearTimeout(fadeTimer);
+      cssLayer.classList.remove("ar-layer--out");
+      if (host !== H) pose.ready = false;      // otro marcador: el filtro parte de cero
       host = H;
-      scan.hidden = true;
-      document.body.dataset.tracking = "on";
+      lostSince = 0;
+      syncUi();
     };
     H.anchor.onTargetUpdate = () => {
-      if (host !== H) return;
-      world.matrix.multiplyMatrices(H.anchor.group.matrix, H.M);
+      if (host !== H || !H.anchor.visible) return;
+      raw.multiplyMatrices(H.anchor.group.matrix, H.M);
+      if (!poseUpdate(raw, performance.now())) return;   // pose degenerada: se mantiene la última válida
       cssDirty = true;
       updateView();
     };
     H.anchor.onTargetLost = () => {
       if (host !== H) return;
-      host = null;
-      for (const S of arStations) show(S, false);
-      if (pinned) return;
-      setFocus(null);
-      scan.hidden = false;
-      delete document.body.dataset.tracking;
+      lostSince = performance.now();
+      // histéresis: la escena se sostiene un momento (un desenfoque breve no la borra) y luego se desvanece
+      lostTimer = setTimeout(() => {
+        cssLayer.classList.add("ar-layer--out");
+        hotLayer.hidden = true;
+        fadeTimer = setTimeout(() => {
+          host = null;
+          pose.ready = false;
+          for (const S of arStations) show(S, false);
+          cssLayer.classList.remove("ar-layer--out");
+          syncUi();
+        }, FADE_MS);
+      }, HOLD_MS);
     };
   }
 
-  // MindAR pide la cámara sin resolución y los navegadores entregan 640×480: a esa resolución el arte de líneas finas
-  // (sobre todo el rajo) casi no deja puntos y el seguimiento no se engancha. A 1280×720 el rajo aparece al instante.
+  // cámara trasera a 1280×720 (~30 fps): equilibrio entre nitidez y fluidez. MindAR la pide sin resolución y los
+  // navegadores entregan 640×480, donde el arte de líneas finas (sobre todo el rajo) casi no deja puntos.
   const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
   navigator.mediaDevices.getUserMedia = (c) =>
-    gum(c?.video && typeof c.video === "object" ? { ...c, video: { width: { ideal: 1280 }, height: { ideal: 720 }, ...c.video } } : c);
+    gum(c?.video ? { ...c, video: { ...(typeof c.video === "object" ? c.video : {}), facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } } : c);
   try {
     await task("Abriendo la cámara…", () => mindar.start());
   } catch (err) {
     console.error(err);
     return toDemo(`${camMessage(err)} · mostrando demo`);
   }
+  patchController();
   URL.revokeObjectURL(mindSrc);
   pre.hidden = true;
-  scan.hidden = false;
-  setFocus(null);
-  $("[data-pin]").hidden = false;
+  syncUi();
   // CSS3D se redibuja sólo cuando el seguimiento movió algo (MindAR entrega ~30 poses/s; la pantalla va a 60–120 Hz)
   addEventListener("resize", () => { cssDirty = true; });
   const loop = () => {
@@ -527,24 +578,90 @@ async function startAR() {
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
+  setInterval(watchShaky, 500);
   // al volver a la app la cámara puede quedar pausada o cortada (iOS la corta en segundo plano)
   document.addEventListener("visibilitychange", () => { if (!document.hidden) resumeCamera(); });
   addEventListener("pagehide", () => { try { mindar.stop(); } catch {} });
+}
+
+// ---------------------------------------------------------------- pose estable
+// One Euro sobre la pose descompuesta (posición, cuaternión, escala): quieto suaviza mucho (menos temblor) y al moverse
+// sigue rápido (menos retraso). Antes, las poses degeneradas (saltos de escala, papel visto de canto o de espaldas) se
+// descartan: eran las láminas "explotadas" al re-engancharse.
+const pose = { ready: false, rejected: 0, jitter: 0 };
+const lowpass = (cutoff, dt) => 1 / (1 + 1 / (2 * Math.PI * cutoff * dt));
+function poseUpdate(m, now) {
+  if (!pose.p) {
+    pose.p = new T3.Vector3(); pose.q = new T3.Quaternion(); pose.s = new T3.Vector3();
+    pose.rp = new T3.Vector3(); pose.rq = new T3.Quaternion(); pose.rs = new T3.Vector3(); pose.n = new T3.Vector3();
+  }
+  const { rp, rq, rs } = pose;
+  const det = m.determinant();
+  m.decompose(rp, rq, rs);
+  // normal del papel frente a la cámara: la columna Z de la pose contra la dirección a la cámara
+  const e = m.elements;
+  const facing = (pose.n.set(e[8], e[9], e[10]).normalize().dot(V3.copy(rp).negate().normalize())) * Math.sign(det);
+  const size = Math.cbrt(Math.abs(det));
+  let ok = Number.isFinite(det) && size > 0 && Number.isFinite(rp.x) && Math.abs(facing) > EDGE_ON;
+  if (ok && pose.ready) {
+    const jump = size / pose.size;
+    ok = jump < JUMP && jump > 1 / JUMP && Math.sign(facing) === pose.side;
+  }
+  if (!ok) {
+    if (++pose.rejected < REJECT_MAX || !Number.isFinite(det) || size === 0) return false;
+    pose.ready = false;            // demasiados seguidos: el papel sí cambió (re-sincronizar)
+  }
+  pose.rejected = 0;
+  const dt = Math.min(Math.max((now - (pose.t || now)) / 1000, 1 / 120), 0.25);
+  pose.t = now;
+  if (!pose.ready) {
+    pose.p.copy(rp); pose.q.copy(rq); pose.s.copy(rs);
+    pose.v = 0; pose.w = 0; pose.jitter = 0; pose.side = Math.sign(facing);
+    pose.ready = true;
+  } else {
+    // posición y escala: velocidad relativa a la distancia (no depende de las unidades)
+    const dist = pose.p.length() || 1;
+    const v = rp.distanceTo(pose.p) / dist / dt;
+    pose.v += (v - pose.v) * lowpass(POSE.dCutoff, dt);
+    const a = lowpass(POSE.minCutoff + POSE.beta * pose.v, dt);
+    pose.p.lerp(rp, a);
+    pose.s.lerp(rs, a);
+    // rotación: velocidad angular → slerp
+    const w = pose.q.angleTo(rq) / dt;
+    pose.w += (w - pose.w) * lowpass(POSE.dCutoff, dt);
+    pose.q.slerp(rq, lowpass(POSE.rotMinCutoff + POSE.rotBeta * pose.w, dt));
+    // vibración medida: lo que se aparta la pose cruda de la suavizada
+    pose.jitter += (rp.distanceTo(pose.p) / dist - pose.jitter) * 0.1;
+  }
+  pose.size = Math.cbrt(Math.abs(pose.s.x * pose.s.y * pose.s.z));
+  world.matrix.compose(pose.p, pose.q, pose.s);
+  return true;
 }
 
 // ---------------------------------------------------------------- qué se ve y qué se puede tocar
 // mostrar/ocultar una lámina (y su sombra) y pausar su animación cuando no se ve
 function show(S, v) {
   if (S === pinnedS || S.shown === v) return;
+  clearTimeout(S.fadeT); S.fading = false;
   S.shown = v;
-  S.objs.forEach((o) => { o.visible = v; });
+  S.objs.forEach((o) => {
+    o.visible = v;
+    o.element.classList.remove("ar-out");
+    o.element.classList.toggle("ar-in", v);
+  });
   S.setActive(v);
   cssDirty = true;
 }
-// rectángulo de la lámina en pantalla, en coordenadas normalizadas (-1…1), y si su proyección es confiable
+// en FOCUS, las demás se desvanecen y luego se ocultan (su animación se pausa)
+function fadeOut(S) {
+  if (!S.shown || S.fading || S === pinnedS) return;
+  S.fading = true;
+  S.objs.forEach((o) => { o.element.classList.remove("ar-in"); o.element.classList.add("ar-out"); });
+  S.fadeT = setTimeout(() => { S.fading = false; if (arCurrent && arCurrent !== S) show(S, false); }, FADE_MS);
+}
+// rectángulo en pantalla (coordenadas normalizadas -1…1) de una caja del mundo, y si su proyección es confiable
 const P4 = [[0, 0], [0, 0], [0, 0], [0, 0]];
-function screenBox(S) {
-  const [x0, x1, y0, y1] = S.box;
+function screenBox([x0, x1, y0, y1]) {
   let a = Infinity, b = -Infinity, c = Infinity, d = -Infinity, behind = false;
   camera3.updateMatrixWorld();
   [[x0, y1], [x1, y1], [x0, y0], [x1, y0]].forEach(([x, y], i) => {
@@ -561,47 +678,310 @@ function screenBox(S) {
   return [a, b, c, d, behind || warp > MAX_WARP];
 }
 function updateView() {
-  let best = null, bestScore = 0;
+  let best = null, bestCover = 0;
   for (const S of arStations) {
-    const [a, b, c, d, bad] = screenBox(S);
+    const [a, b, c, d, bad] = screenBox(S.box);
     const vw = Math.min(b, 1) - Math.max(a, -1), vh = Math.min(d, 1) - Math.max(c, -1);
     const on = !bad && vw > 0 && vh > 0;
+    if (arCurrent) {                       // FOCUS: sólo la estación activa
+      if (S === arCurrent) show(S, on); else if (S.shown) fadeOut(S);
+      continue;
+    }
     show(S, on);
     if (!on) continue;
-    const cover = (vw * vh) / 4;    // fracción de la pantalla que ocupa
+    // enfoque automático al acercarse mucho a una estación (centrada y ocupando buena parte de la pantalla)
+    const cover = (vw * vh) / 4;
     const mx = (Math.max(a, -1) + Math.min(b, 1)) / 2, my = (Math.max(c, -1) + Math.min(d, 1)) / 2;
-    const mine = S === arCurrent;
-    if (Math.abs(mx) > 0.6 || Math.abs(my) > 0.6 || cover < (mine ? FOCUS_OUT : FOCUS_IN)) continue;
-    const score = cover * (mine ? 1.4 : 1);   // la enfocada se queda salvo que otra la supere con claridad
-    if (score > bestScore) { best = S; bestScore = score; }
+    if (S.id === autoBlock && cover < FOCUS_OUT) autoBlock = null;
+    if (Math.abs(mx) < 0.5 && Math.abs(my) < 0.5 && cover >= FOCUS_IN && S.id !== autoBlock && cover > bestCover) { best = S; bestCover = cover; }
   }
-
-  if (!pinned) setFocus(best);
+  if (!arCurrent) {
+    placeHotspots();
+    if (best && !pinned) setFocus(best);
+  }
 }
-// la estación enfocada recibe toques y su panel; las demás sólo se animan
+// la estación enfocada recibe toques, su panel, Fijar y Ampliar; las demás se apagan
 function setFocus(S) {
-  const state = S ? "focus" : host ? "overview" : "scan";
-  if (S === arCurrent && document.body.dataset.ar === state) return;
+  if (S === arCurrent) { syncUi(); return; }
   const prev = arCurrent;
-  if (prev && prev !== S) {
+  if (prev) {
+    if (pinned) togglePin(false);
     prev.unfocus?.();
     prev.el.style.pointerEvents = "none";
     prev.el.classList.remove("is-focus");
+    autoBlock = prev.id;               // acercado a ella: que no se vuelva a enfocar sola al salir
   }
   arCurrent = S;
-  document.body.dataset.ar = state;
+  allowed = S ? new Set([0, S.idx]) : null;
+  hideToast();
+  shakySince = 0; toastShown = false;
   if (S) {
-    if (prev !== S) { S.el.style.pointerEvents = "auto"; S.el.classList.add("is-focus"); reraster(S); }
+    S.el.style.pointerEvents = "auto";
+    S.el.classList.add("is-focus");
+    reraster(S);
+    for (const O of arStations) if (O !== S) fadeOut(O);
     showView(S.view, S.st);
-  } else {
-    ui.status.textContent = host ? "Vista general · acércate a una estación para interactuar" : "Buscando la infografía…";
+    placeActions(S);
+    coach(false);
   }
+  syncUi();
+  if (host && pose.ready) updateView();
+}
+// estado de la interfaz: vista general / enfoque / buscando
+function syncUi() {
+  const tracking = !!host;
+  const state = arCurrent ? "focus" : tracking ? "overview" : "scan";
+  document.body.dataset.ar = state;
+  if (tracking) document.body.dataset.tracking = "on"; else delete document.body.dataset.tracking;
+  exitBtn.querySelector("span").textContent = arCurrent ? "Infografía" : "Inicio";
+  exitBtn.setAttribute("aria-label", arCurrent ? "Volver a la infografía completa" : "Salir del escaneo y volver al inicio");
+  $("[data-scan]").hidden = tracking || pinned;
+  hotLayer.hidden = state !== "overview";
+  if (pinned) ui.status.textContent = "Escena fijada en pantalla";
+  // en FOCUS sólo se busca el marcador de esa estación (o la infografía completa): se dice cuál
+  else if (arCurrent) ui.status.textContent = tracking ? `Estación ${arCurrent.st.n} · ${arCurrent.st.name}` : `Buscando ${arCurrent.st.name}…`;
+  else ui.status.textContent = tracking ? "Toca una estación para enfocarla" : "Buscando la infografía…";
+  if (state === "overview" && !store.get("pm-coach-focus")) coach(true);
 }
 // una lámina rasterizada chica (vista de lejos) se ve borrosa al acercarse: al enfocarla se vuelve a rasterizar
 function reraster(S) {
   S.objs.forEach((o) => { o.element.style.willChange = "auto"; });
   requestAnimationFrame(() => requestAnimationFrame(() => S.objs.forEach((o) => { o.element.style.willChange = "transform"; })));
 }
+// tocar fuera de la estación enfocada (en la cámara) vuelve a la infografía
+document.addEventListener("click", (e) => {
+  if (document.body.dataset.mode !== "ar" || !arCurrent || pinned || !e.target.closest?.("#ar")) return;
+  if (e.target.closest(".ar-plate.is-focus")) return;
+  setFocus(null);
+});
+
+// ---------------------------------------------------------------- hotspots sobre las etiquetas impresas
+const hotLayer = $("[data-ar-hotspots]");
+function hotspotFor(S) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "ar-hotspot";
+  b.setAttribute("aria-label", `Enfocar estación ${S.st.n}: ${S.st.name}`);
+  b.innerHTML = '<i class="ar-hotspot-ring"></i>';
+  b.addEventListener("click", (e) => { e.stopPropagation(); setFocus(S); });
+  hotLayer.appendChild(b);
+  return b;
+}
+// cada hotspot sigue a su etiqueta en pantalla; área táctil mínima de 44 px
+function placeHotspots() {
+  const W = innerWidth, H = innerHeight;
+  for (const S of arStations) {
+    const [a, b, c, d, bad] = screenBox(S.label);
+    const x = ((a + 1) / 2) * W, y = ((1 - d) / 2) * H, w = ((b - a) / 2) * W, h = ((d - c) / 2) * H;
+    const on = S.shown && !bad && x + w > 0 && x < W && y + h > 0 && y < H;
+    S.hot.hidden = !on;
+    if (!on) continue;
+    const bw = Math.max(44, w + 12), bh = Math.max(44, h + 12);
+    S.hot.style.cssText = `width:${bw.toFixed(0)}px;height:${bh.toFixed(0)}px;transform:translate(${(x + w / 2 - bw / 2).toFixed(1)}px,${(y + h / 2 - bh / 2).toFixed(1)}px)`;
+    S.hot.dataset.x = (x + w / 2).toFixed(0); S.hot.dataset.y = (y - 4).toFixed(0);
+  }
+  if (!coachEl.hidden) placeCoach();
+}
+// coachmark: la primera vez que se ve la infografía, una burbuja sobre el hotspot más central
+const coachEl = $("[data-coach]");
+function coach(on) {
+  if (!on) { if (!coachEl.hidden) { coachEl.hidden = true; store.set("pm-coach-focus", "1"); } return; }
+  if (coachEl.hidden) { coachEl.hidden = false; placeCoach(); }
+}
+function placeCoach() {
+  const hs = arStations.map((S) => S.hot).filter((h) => !h.hidden);
+  if (!hs.length) { coachEl.style.visibility = "hidden"; return; }
+  const cx = innerWidth / 2, cy = innerHeight / 2;
+  const h = hs.reduce((m, h) => (Math.hypot(h.dataset.x - cx, h.dataset.y - cy) < Math.hypot(m.dataset.x - cx, m.dataset.y - cy) ? h : m));
+  coachEl.style.visibility = "";
+  coachEl.style.left = `${Math.min(Math.max(+h.dataset.x, 140), innerWidth - 140)}px`;
+  coachEl.style.top = `${+h.dataset.y}px`;
+}
+coachEl.querySelector("button").addEventListener("click", () => coach(false));
+
+// ---------------------------------------------------------------- Fijar y Ampliar (junto al reproductor)
+const actions = $("[data-ar-actions]");
+const pinBtn = $("[data-pin]");
+// la barra va dentro del reproductor del panel de la estación enfocada
+function placeActions(S) {
+  const seq = document.querySelector(`[data-panel-view="${S.view}"] .seq`);
+  if (seq && actions.parentNode !== seq) seq.appendChild(actions);
+  actions.hidden = !seq;
+}
+// aviso: si el seguimiento se pierde o vibra un rato, se sugiere Fijar (una vez por estación enfocada)
+const toast = $("[data-toast]");
+let shakySince = 0, toastShown = false, toastTimer = 0;
+function watchShaky() {
+  if (!arCurrent || pinned || toastShown) { shakySince = 0; return; }
+  const shaky = (lostSince && performance.now() - lostSince > 300) || (host && pose.jitter > JITTER_MAX);
+  if (!shaky) { shakySince = 0; return; }
+  shakySince ||= performance.now();
+  if (performance.now() - shakySince > SHAKY_MS) {
+    toastShown = true;
+    toast.hidden = false;
+    pinBtn.classList.add("is-nudge");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, 6000);
+  }
+}
+function hideToast() { toast.hidden = true; pinBtn.classList.remove("is-nudge"); }
+toast.addEventListener("click", () => { hideToast(); if (!pinned) togglePin(true); });
+
+const pinLayer = $("[data-pin-layer]");
+const zoomHud = $("[data-zoom-hud]");
+// fijar: la lámina enfocada sale del seguimiento y queda plana en pantalla (sirve cuando el seguimiento está inestable)
+function togglePin(on = !pinned) {
+  const S = on ? arCurrent : pinnedS;
+  if (!S || on === pinned) return;
+  pinned = on;
+  pinnedS = on ? S : null;
+  pinBtn.setAttribute("aria-pressed", String(on));
+  pinBtn.querySelector("span").textContent = on ? "Fijado" : "Fijar";
+  hideToast();
+  if (on) {
+    S.objs.forEach((o) => world.remove(o)); // CSS3D suelta el elemento (y su sombra)…
+    pinLayer.hidden = false;
+    pinLayer.appendChild(S.el);              // …y lo ponemos plano en pantalla
+    S.el.style.transform = "";
+    S.el.style.display = "";
+    S.el.style.visibility = "visible";
+    S.el.style.pointerEvents = "auto";
+    S.el.classList.remove("ar-out", "ar-in");
+    S.el.classList.add("plate--pinned");
+    sizeHud();
+    S.setActive(true);
+  } else {
+    S.zoom?.reset();
+    S.el.classList.remove("plate--pinned", "is-zoomed");
+    pinLayer.hidden = true;
+    S.objs.forEach((o) => world.add(o));
+    S.shown = null;
+    cssDirty = true;
+    if (host && pose.ready) updateView(); else show(S, false);
+  }
+  zoomHud.hidden = !on;
+  syncZoom();
+  syncUi();
+}
+pinBtn.addEventListener("click", () => togglePin());
+
+// zoom 1×–3× sobre la lámina fijada, escalando el viewBox de su SVG (como "Explorar interior"): los detalles
+// chicos se mantienen nítidos y los toques siguen cayendo en su equipo. Ampliar fija la escena: el zoom
+// amplificaría el temblor del seguimiento.
+function zoomable(svg) {
+  if (svg.__zoom) return svg.__zoom;
+  const set = Element.prototype.setAttribute;
+  let base = (svg.getAttribute("viewBox") || "0 0 100 100").split(/[\s,]+/).map(Number), z = 1, fx = 0.5, fy = 0.5;
+  const view = () => {
+    const [x, y, w, h] = base, W = w / z, H = h / z;
+    return [Math.min(Math.max(x + fx * w - W / 2, x), x + w - W), Math.min(Math.max(y + fy * h - H / 2, y), y + h - H), W, H];
+  };
+  const apply = () => {
+    const [x0, y0, W, H] = view(), [x, y, w, h] = base;
+    fx = (x0 + W / 2 - x) / w; fy = (y0 + H / 2 - y) / h;
+    set.call(svg, "viewBox", `${x0.toFixed(2)} ${y0.toFixed(2)} ${W.toFixed(2)} ${H.toFixed(2)}`);
+  };
+  // si la estación cambia su viewBox (el chancado al explorar el interior), el zoom se aplica sobre el nuevo
+  svg.setAttribute = function (k, v) { if (k === "viewBox") { base = String(v).split(/[\s,]+/).map(Number); apply(); } else set.call(this, k, v); };
+  return (svg.__zoom = {
+    get z() { return z; },
+    // nuevo zoom manteniendo fijo el punto que está en la fracción (px, py) del SVG en pantalla
+    at(nz, px = 0.5, py = 0.5) {
+      const [x0, y0, W, H] = view(), [x, y, w, h] = base;
+      const ux = x0 + px * W, uy = y0 + py * H;
+      z = Math.min(Math.max(nz, 1), ZOOM_MAX);
+      const W2 = w / z, H2 = h / z;
+      fx = (ux - px * W2 + W2 / 2 - x) / w; fy = (uy - py * H2 + H2 / 2 - y) / h;
+      apply();
+    },
+    // desplazar una fracción del ancho/alto visible
+    pan(dx, dy) { fx -= dx / z; fy -= dy / z; apply(); },
+    reset() { z = 1; fx = fy = 0.5; apply(); },
+  });
+}
+const zoomVal = $("[data-zoom-val]");
+function syncZoom() {
+  const S = pinnedS, z = S?.zoom?.z ?? 1;
+  zoomVal.textContent = `${z.toFixed(1).replace(".", ",")}×`;
+  S?.el.classList.toggle("is-zoomed", z > 1.01);
+  pinLayer.classList.toggle("is-zoomed", z > 1.01);
+}
+function zoomBy(f, px, py) {
+  const S = pinnedS;
+  if (!S?.zoom) return;
+  S.zoom.at(S.zoom.z * f, px, py);
+  syncZoom();
+}
+// punto de la pantalla → fracción dentro del SVG de la lámina fijada
+function svgFrac(cx, cy) {
+  const r = pinnedS?.svg?.getBoundingClientRect();
+  if (!r?.width) return [0.5, 0.5];
+  return [Math.min(Math.max((cx - r.left) / r.width, 0), 1), Math.min(Math.max((cy - r.top) / r.height, 0), 1)];
+}
+$("[data-zoom]").addEventListener("click", () => {
+  if (!pinned) togglePin(true);
+  const z = pinnedS?.zoom?.z ?? 1;
+  zoomBy((z < 1.9 ? 2 : Math.min(z + 0.5, ZOOM_MAX)) / z);
+});
+$("[data-zoom-in]").addEventListener("click", () => zoomBy(1.25));
+$("[data-zoom-out]").addEventListener("click", () => zoomBy(0.8));
+$("[data-zoom-reset]").addEventListener("click", () => { pinnedS?.zoom?.reset(); syncZoom(); });
+// pellizco, arrastre (con zoom) y doble toque sobre la lámina fijada; rueda en el computador
+{
+  const pts = new Map();
+  let pinch = null, dragged = false, lastTap = null;
+  pinLayer.addEventListener("pointerdown", (e) => {
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
+    if (pts.size === 1) dragged = false;
+    if (pts.size === 2) {
+      const [a, b] = [...pts.values()];
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: pinnedS?.zoom?.z ?? 1 };
+    }
+  });
+  pinLayer.addEventListener("pointermove", (e) => {
+    const p = pts.get(e.pointerId);
+    if (!p || !pinnedS?.zoom) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    if (pts.size === 2 && pinch) {
+      const [a, b] = [...pts.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y), [fx, fy] = svgFrac((a.x + b.x) / 2, (a.y + b.y) / 2);
+      pinnedS.zoom.at(pinch.z * (d / pinch.d), fx, fy);
+      dragged = true;
+      syncZoom();
+    } else if (pts.size === 1 && pinnedS.zoom.z > 1.01) {
+      if (!dragged && Math.hypot(e.clientX - p.x0, e.clientY - p.y0) < 6) return;
+      dragged = true;
+      const r = pinnedS.svg.getBoundingClientRect();
+      pinnedS.zoom.pan(dx / r.width, dy / r.height);
+    }
+  });
+  const up = (e) => {
+    const p = pts.get(e.pointerId);
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinch = null;
+    if (!p || dragged || e.type === "pointercancel") return;
+    // doble toque: alterna 1× ↔ 2× en ese punto
+    const now = performance.now();
+    if (lastTap && now - lastTap.t < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
+      const [fx, fy] = svgFrac(e.clientX, e.clientY), z = pinnedS?.zoom?.z ?? 1;
+      pinnedS?.zoom?.at(z > 1.4 ? 1 : 2, fx, fy);
+      syncZoom();
+      lastTap = null;
+    } else lastTap = { t: now, x: e.clientX, y: e.clientY };
+  };
+  pinLayer.addEventListener("pointerup", up);
+  pinLayer.addEventListener("pointercancel", up);
+  // tras arrastrar o pellizcar, el "click" que sigue no debe elegir un equipo
+  pinLayer.addEventListener("click", (e) => { if (dragged) { e.stopPropagation(); e.preventDefault(); dragged = false; } }, true);
+  pinLayer.addEventListener("wheel", (e) => {
+    if (!pinnedS?.zoom) return;
+    e.preventDefault();
+    const [fx, fy] = svgFrac(e.clientX, e.clientY);
+    zoomBy(Math.exp(-e.deltaY * 0.0015), fx, fy);
+  }, { passive: false });
+}
+
 let resuming = false;
 async function resumeCamera() {
   const v = mindar?.video;
@@ -613,44 +993,11 @@ async function resumeCamera() {
   try {
     try { mindar.stop(); } catch {}
     await mindar.start();
-    ui.status.textContent = "Buscando la infografía…";
+    patchController();
+    syncUi();
   } catch (err) {
     console.error(err);
     ui.status.textContent = `${camMessage(err)} · recarga la página`;
   }
   resuming = false;
 }
-
-// ---------------------------------------------------------------- fijar la lámina en pantalla (la enfocada)
-const pinLayer = $("[data-pin-layer]");
-$("[data-pin]").addEventListener("click", (e) => {
-  const S = pinned ? pinnedS : arCurrent;
-  if (!S) return;
-  pinned = !pinned;
-  pinnedS = pinned ? S : null;
-  e.currentTarget.setAttribute("aria-pressed", String(pinned));
-  if (pinned) {
-    S.objs.forEach((o) => world.remove(o)); // CSS3D suelta el elemento (y su sombra)…
-    pinLayer.hidden = false;
-    pinLayer.appendChild(S.el);              // …y lo ponemos plano en pantalla
-    S.el.style.transform = "";
-    S.el.style.display = "";
-    S.el.style.visibility = "visible";
-    S.el.style.pointerEvents = "auto";
-    S.el.classList.add("plate--pinned");
-    document.body.dataset.ar = "focus";
-    showView(S.view, S.st);
-    sizeHud();
-    $("[data-scan]").hidden = true;
-    ui.status.textContent = "Lámina fijada en pantalla";
-    S.setActive(true);
-  } else {
-    S.el.classList.remove("plate--pinned");
-    pinLayer.hidden = true;
-    S.objs.forEach((o) => world.add(o));
-    S.shown = null;
-    cssDirty = true;
-    if (host) { updateView(); if (arCurrent) showView(arCurrent.view, arCurrent.st); }
-    else { show(S, false); setFocus(null); $("[data-scan]").hidden = false; }
-  }
-});
