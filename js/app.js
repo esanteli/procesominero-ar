@@ -5,6 +5,9 @@ import { createLive } from "./live.js";
 import { STEPS } from "./caex.js";
 import * as M from "./model.js";
 import { bake } from "./halo.js";
+import { guardEdges } from "./edge-guard.js";
+
+guardEdges(); // tablets: el pulgar apoyado en el borde no cuenta como dedo (evita el zoom sin querer)
 
 // ---------------------------------------------------------------- registro lámina ↔ infografía
 // El target (assets/target-chancado.png, 1140×780) es un recorte de la infografía alrededor de la estación 2.
