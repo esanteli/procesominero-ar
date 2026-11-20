@@ -22,7 +22,12 @@
   <!-- modo demo: la infografía completa, navegable; cada estación abre su visualización -->
   <div class="explorer" data-explorer hidden>
     <div class="map-world" data-world>
-      <img class="map-poster" src="assets/infografia.jpg" alt="Infografía Proceso Minero de Espacio CoWork" draggable="false" loading="lazy" decoding="async">
+      <!-- AVIF (~210 KB) → WebP (~860 KB) → JPG sRGB (~900 KB); el original CMYK (3,3 MB) queda sólo como fuente -->
+      <picture class="map-poster-pic">
+        <source srcset="assets/infografia.avif" type="image/avif">
+        <source srcset="assets/infografia.webp" type="image/webp">
+        <img class="map-poster" src="assets/infografia-srgb.jpg" width="5497" height="1623" alt="Infografía Proceso Minero de Espacio CoWork" draggable="false" loading="lazy" decoding="async">
+      </picture>
       <div class="map-spot" data-spot hidden></div>
       <div class="map-hotspots" data-hotspots></div>
       <div class="map-layer" data-layer></div>

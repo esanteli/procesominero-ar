@@ -13,7 +13,8 @@
   <style>
     html, body { background: #2b2620; }
     .bench-world { position: absolute; left: 0; top: 0; width: 5497px; height: 1623px; transform-origin: 0 0;
-      background: url(assets/infografia.jpg) 0 0 / 100% 100% no-repeat; }
+      background: url(assets/infografia-srgb.jpg) 0 0 / 100% 100% no-repeat;
+      background-image: image-set(url(assets/infografia.avif) type("image/avif"), url(assets/infografia.webp) type("image/webp"), url(assets/infografia-srgb.jpg) type("image/jpeg")); }
     .bench-world > * { position: absolute; }
     .bench-world.no-poster { background: none; }
     .bench-log { position: fixed; left: 6px; bottom: 6px; z-index: 50; margin: 0; padding: 6px 8px; border-radius: 6px;
