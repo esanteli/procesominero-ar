@@ -434,11 +434,45 @@ La lámina es DOM real dentro de la escena (CSS3D), por eso los camiones se pued
 ## Para pasar de prueba a producción
 
 1. **Nombrar capas en Illustrator** (`caex-1`, `caex-1-tolva`, `manto`, `carcasa`, `correa`…) y exportar con *IDs de objeto: nombres de capa*.
-   `PARTS` en `rig.js` acepta `"#id"`, así el rig deja de depender del orden del archivo.
+   Anotar cada nombre en `LAYER_NAMES` (`rig.js`): se busca primero por nombre (id o `data-name`) y, si no está, por la ruta de `PARTS`.
 2. **Marcador en alta**: exportar la zona de la estación desde el `.ai` a ~2000 px y recompilar `targets.mind`
    (con `tools/compilar-marcador.html`). Hoy sale de un JPG de 3012 px.
 3. **Una estación por marcador**: cada estación = un recorte + su SVG + su modelo. Ya funciona con chancado (0), rajo (1), mina (2) y secundario (3);
    para sumar otra, agrega su recorte a la compilación de `targets.mind` y su `addCSSAnchor(i)` en `app.js`.
-4. **Infografía en CMYK**: `assets/infografia.jpg` viene en CMYK. Chrome y Safari la muestran bien, pero conviene exportarla en RGB (sRGB)
-   para que los colores sean iguales en todos los equipos y pese menos.
+4. ~~**Infografía en CMYK**~~ Hecho: `tools/optimizar-infografia.mjs` genera `infografia.avif` / `.webp` / `-srgb.jpg` en sRGB
+   (210 KB / 860 KB / 900 KB, antes 3,3 MB); el original CMYK queda como fuente y no se publica.
 5. Ajustar `STATION.scale` / `lift` y `RAJO_TARGET.lift` en `app.js` con la infografía impresa a tamaño real.
+
+## Rendimiento y publicación
+
+**Medir**
+- `?perf` (en cualquier modo): HUD con ms por cuadro (promedio y p95), ms de JS por cuadro y tareas largas. Desde la consola,
+  `pmPerf.reset()` y `pmPerf.snapshot()` miden un tramo. Ojo: un tab de automatización o en segundo plano limita
+  `requestAnimationFrame` a ~1 fps; medir en una ventana visible.
+- `bench.html`: las 10 láminas a la vez, animadas, en su lugar sobre la infografía (simula la vista general del AR sin cámara).
+  Opciones: `?only=rajo,puerto`, `?static`, `?noposter`, `?fps=0` (sin el límite de 30), `?hz=60` (medir sin vsync), `?adapt`.
+- `?nolayers` apaga las capas de pintado (para comparar). Las aperturas dejan marcas `pm:<estación>:inicio|importada|montada|sombra|panel`
+  en el panel Performance de DevTools.
+
+**Qué se hizo**
+- *Capas de pintado* (`js/layers.js`, en chancado secundario, pilas y puerto): lo quieto del SVG va en copias que se
+  rasterizan una vez y lo que se mueve en SVG chicos intercalados, respetando el orden de pintado. El SVG original queda
+  debajo, invisible, recibiendo los toques. Si cambia algo quieto (elegir un equipo, deslizadores), vuelve al SVG
+  completo al instante y rearma después. `pmLayers` en la consola muestra el estado.
+- *Precarga en reposo* (demo): mientras se mira la infografía se importa, arma y hornea cada estación; abrirla sólo la inserta.
+- *Reloj* (`js/clock.js`): en la vista general del AR cada lámina anima a 30 cuadros/s y se reparten entre cuadros
+  (cada cuadro dibuja la mitad); baja a 15 o 10 si el equipo no da. En foco, sin límite. `pmClock` en la consola.
+- *Registro de errores* (`js/report.js`): apagado. Para encenderlo, la URL del endpoint en `<meta name="pm-report">`
+  de `index.html` (o `window.PM_REPORT_URL`). Recibe un JSON (`text/plain`) por falla de cámara, de carga o de JS.
+
+**Build y publicación**
+- `npm run build` → `dist/`: JS y three minificados (esbuild, archivo por archivo), CSS minificado, SVG por SVGO sin
+  tocar la estructura (las rutas de `PARTS` y los `children[i]` de las estaciones siguen valiendo), JS/CSS versionados
+  por hash con el importmap (caché larga e immutable), y `sw.js` con la lista de archivos.
+- `npm run preview` sirve `dist/` en el puerto 3001. Sin build, la raíz sigue funcionando igual (`npm run dev`).
+- Vercel corre `npm run build` y publica `dist/` (ver `vercel.json` y `.vercelignore`).
+- **cowork.ceim.cl/ar2d/**: copiar el contenido de `dist/` a esa carpeta. Todo es relativo (probado servido desde `/ar2d/`,
+  con el service worker limitado a esa carpeta). Para la caché larga, el servidor debe mandar
+  `Cache-Control: public, max-age=31536000, immutable` a lo que se pide con `?v=` y `no-cache` a `sw.js` y los `.html`.
+- *Service worker*: guarda la app entera (marcadores, SVG, JS, infografía) para cuando se corta el wifi; un caché por
+  versión del build; una versión nueva toma el control sólo en la pantalla de inicio (recarga una vez). `?nosw` lo salta.
