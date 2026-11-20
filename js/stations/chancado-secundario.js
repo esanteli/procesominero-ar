@@ -11,6 +11,7 @@
 // Las cotas del HPGR y de la tolva salen de los vértices del dibujo (ver README). Las correas avanzan a velocidad
 // constante y lo que cambia es la carga (como en planta); el alimentador sí cambia de velocidad (regula la descarga).
 import { SIL } from "./secundario-geo.js";
+import { createLayers } from "../layers.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const ASSET = new URL("../../assets/secundario/chancado-secundario.svg", import.meta.url).href;
@@ -471,7 +472,7 @@ export async function createSecundario() {
     hopIn.style.opacity = Math.min(1, hv * 1.6).toFixed(3);
     // HPGR m3: cuerpo, losa y corte
     const Xc = cutX(shown.cut), Xh = Math.min(Xc, HP.x);
-    doorRect.setAttribute("width", f1(O3[0] + 0.866 * Xh));
+    const dw = f1(O3[0] + 0.866 * Xh); if (doorRect.getAttribute("width") !== dw) doorRect.setAttribute("width", dw); // sólo si cambia (no repinta de balde)
     const key = Xc < HP.x - 0.01 ? "" : "closed";
     if (key === "" || hpKey !== key) { setHTML(hpG, hpgrSvg(iso(O3), Xc, s, tour)); hpKey = key; }
 
@@ -539,7 +540,10 @@ export async function createSecundario() {
 
   // ------------------------------------------------------------ reloj
   const listeners = new Set();
+  // capas de pintado: el dibujo quieto se rasteriza una vez; sólo se repinta lo que se mueve (ver js/layers.js)
+  const layers = createLayers(svg, { name: "secundario", dynamic: () => [...mods.map((M) => M.fl), prodL, feedL, inclL], roaming: () => [tourG, tourPulse] });
   function frame(now) {
+    layers.tick();
     const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
     if (playing) step(dt);
     const k = 1 - Math.exp(-dt * 6);                                  // los cortes siguen al valor pedido (seguimiento exponencial)
@@ -568,7 +572,7 @@ export async function createSecundario() {
       units.forEach((eq, u) => u.classList.toggle("sc-dim", !!selected && eq !== selected));
       draw();
     },
-    destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
+    destroy() { api.setActive(false); layers.destroy(); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); api.select(g ? (selected === g.dataset.eq ? null : g.dataset.eq) : null); });
   const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
