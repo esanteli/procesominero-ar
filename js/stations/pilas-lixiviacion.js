@@ -15,6 +15,7 @@
 // Z → (0 ; −1), ajustada a las losas de las pilas del PDF (140 × 80, losa de 6). Origen: esquina izquierda de la pila
 // de la izquierda, a nivel del suelo. El tambor se dibuja en las unidades de su SVG (isometría 0,866 / 0,5).
 import { ARCS, STRIPS, SIL } from "./pilas-geo.js";
+import { createLayers } from "../layers.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const A_AGLO = new URL("../../assets/pilas/aglomerador.svg", import.meta.url).href;
@@ -688,7 +689,11 @@ export async function createPilas() {
 
   // ------------------------------------------------------------ reloj
   const listeners = new Set();
+  // capas de pintado: el dibujo quieto se rasteriza una vez; sólo se repinta lo que se mueve (ver js/layers.js).
+  // Lo animado se detecta solo; el marcador que sigue la partícula recorre toda la lámina.
+  const layers = createLayers(svg, { name: "pilas", roaming: () => [tourG, tourPulse] });
   function frame(now) {
+    layers.tick();
     const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
     if (playing) step(dt);
     const k = 1 - Math.exp(-dt * 6);
@@ -717,7 +722,7 @@ export async function createPilas() {
       units.forEach((eq, u) => u.classList.toggle("lx-dim", !!selected && eq !== selected));
       draw();
     },
-    destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
+    destroy() { api.setActive(false); layers.destroy(); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); api.select(g ? (selected === g.dataset.eq ? null : g.dataset.eq) : null); });
   const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };

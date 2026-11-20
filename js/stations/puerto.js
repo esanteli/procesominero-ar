@@ -20,6 +20,7 @@
 // Geometría: px de la infografía; los tres dibujos están a escala 2 (registro por correlación). Isometría de mundo
 // W(e, n, z) en px con origen en el extremo de la correa en el muelle (fin de la galería): n a lo largo de la correa
 // (hacia el barco), e a lo ancho, z hacia arriba.
+import { createLayers } from "../layers.js";
 const NS = "http://www.w3.org/2000/svg";
 const U = (f) => new URL(`../../assets/puerto/${f}`, import.meta.url).href;
 const clamp = (v, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
@@ -633,7 +634,11 @@ export async function createPuerto() {
 
   // ------------------------------------------------------------ reloj
   const listeners = new Set();
+  // capas de pintado: el dibujo quieto se rasteriza una vez; sólo se repinta lo que se mueve (ver js/layers.js).
+  // Lo animado se detecta solo; el marcador que sigue la partícula recorre toda la lámina.
+  const layers = createLayers(svg, { name: "puerto", roaming: () => [tourG, tourPulse] });
   function frame(now) {
+    layers.tick();
     const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
     if (playing) step(dt);
     const kk = 1 - Math.exp(-dt * 6);
@@ -657,7 +662,7 @@ export async function createPuerto() {
     setH(v) { ST.h = clamp(Math.round(v * 2) / 2, H_MIN, H_MAX); draw(); },
     setShip(v) { ST.ship = mod(v, 1); draw(); },
     select(id) { selected = id && EQUIP[id] ? id : null; root.toggleAttribute("data-sel", !!selected); units.forEach(([u, eq]) => u.classList.toggle("pu-dim", !!selected && eq !== selected)); draw(); },
-    destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
+    destroy() { api.setActive(false); layers.destroy(); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); const id = g?.dataset.eq; api.select(id ? (selected === id ? null : id) : null); });
   const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
