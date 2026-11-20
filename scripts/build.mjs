@@ -47,9 +47,12 @@ const SVGO = {
 };
 
 const t0 = performance.now();
-fs.rmSync(DIST, { recursive: true, force: true });
+// se vacía el contenido (no la carpeta: en Windows no se puede borrar si un servidor local la tiene abierta)
+fs.mkdirSync(DIST, { recursive: true });
+for (const e of fs.readdirSync(DIST)) fs.rmSync(path.join(DIST, e), { recursive: true, force: true });
 const stats = { js: [0, 0], css: [0, 0], svg: [0, 0], otros: [0, 0] };
 const versions = {};  // ruta → hash (JS y CSS)
+const all = createHash("sha256"); // contenido de TODO lo publicado: define la versión del build (y del SW)
 for (const f of FILES) {
   const src = path.join(ROOT, f), out = path.join(DIST, f);
   fs.mkdirSync(path.dirname(out), { recursive: true });
@@ -71,6 +74,7 @@ for (const f of FILES) {
     data = Buffer.from(optimize(raw.toString(), { path: f, ...SVGO }).data);
   }
   stats[kind][0] += raw.length; stats[kind][1] += data.length;
+  if (!/^(index|bench)\.html$|^sw\.js$/.test(f)) all.update(f).update(data);
   fs.writeFileSync(out, data);
 }
 
@@ -81,7 +85,8 @@ for (const f of Object.keys(versions).filter((f) => f.endsWith(".js"))) {
   imports[`./${f}`] = v(f);
   if (f.startsWith("vendor/addons/")) imports[`three/addons/${f.slice("vendor/addons/".length)}`] = v(f);
 }
-const BUILD = hash(Buffer.from(JSON.stringify(versions) + FILES.join())); // cambia con cualquier JS/CSS o archivo nuevo
+all.update(fs.readFileSync(path.join(ROOT, "index.html"))).update(fs.readFileSync(path.join(ROOT, "sw.js")));
+const BUILD = all.digest("hex").slice(0, 10); // cambia con cualquier archivo publicado (SVG, marcadores, HTML…)
 for (const page of ["index.html", "bench.html"]) {
   const p = path.join(DIST, page);
   let html = fs.readFileSync(p, "utf8");

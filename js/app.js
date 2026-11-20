@@ -10,6 +10,27 @@ import { guardEdges } from "./edge-guard.js";
 
 guardEdges(); // tablets: el pulgar apoyado en el borde no cuenta como dedo (evita el zoom sin querer)
 
+// Service worker (sólo en el build: dist/ marca <html data-build>; ?nosw lo salta): guarda la app para cuando se corta
+// el wifi. Se registra con la página ya cargada, así no compite con ella por la red. Una versión nueva sólo toma el
+// control en la pantalla de inicio (recarga una vez); a mitad de una sesión espera, para no mezclar versiones.
+if ("serviceWorker" in navigator && document.documentElement.dataset.build && !new URLSearchParams(location.search).has("nosw")) {
+  const hadController = !!navigator.serviceWorker.controller;
+  const atIntro = () => document.body.dataset.mode === "intro";
+  const start = () => setTimeout(async () => {
+    try {
+      const reg = await navigator.serviceWorker.register("sw.js");
+      const offer = (w) => { if (w && hadController && atIntro()) w.postMessage("activar"); };
+      offer(reg.waiting);
+      reg.addEventListener("updatefound", () => {
+        const w = reg.installing;
+        w?.addEventListener("statechange", () => { if (w.state === "installed") offer(w); });
+      });
+      navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController && atIntro()) location.reload(); }, { once: true });
+    } catch (err) { console.warn("service worker:", err); }
+  }, 3000);
+  if (document.readyState === "complete") start(); else addEventListener("load", start, { once: true });
+}
+
 // ---------------------------------------------------------------- registro lámina ↔ infografía
 // El target (assets/target-chancado.png, 1140×780) es un recorte de la infografía alrededor de la estación 2.
 // MindAR (anchor CSS) usa un espacio donde el ancho del target = 1000 px, origen al centro, y hacia arriba.
