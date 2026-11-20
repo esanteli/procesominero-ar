@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Banco de rendimiento · Proceso Minero AR</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
+  </script>
+  <script>window.PM_PERF = true; // el HUD de js/perf.js siempre encendido aquí</script>
+  <style>
+    html, body { background: #2b2620; }
+    .bench-world { position: absolute; left: 0; top: 0; width: 5497px; height: 1623px; transform-origin: 0 0;
+      background: url(assets/infografia.jpg) 0 0 / 100% 100% no-repeat; }
+    .bench-world > * { position: absolute; }
+    .bench-world.no-poster { background: none; }
+    .bench-log { position: fixed; left: 6px; bottom: 6px; z-index: 50; margin: 0; padding: 6px 8px; border-radius: 6px;
+      background: rgba(20, 12, 6, .78); color: #fff; font: 11px/1.35 ui-monospace, Menlo, Consolas, monospace; white-space: pre; }
+  </style>
+</head>
+<!-- Simula la vista general (OVERVIEW) del AR sin cámara: las 10 láminas a la vez, animadas, en su lugar sobre la
+     infografía. Opciones en la URL: ?only=rajo,puerto (sólo esas) · ?noposter (sin la imagen de fondo)
+     · ?static (armadas pero sin animar) · ?k=0.5 (escala del mundo; por defecto, ajustada al ancho). -->
+<body class="pm" data-mode="ar" data-ar="overview">
+  <!-- dentro de .ar-stage, como en el AR (ahí se apagan los filter de los SVG) -->
+  <div class="ar-stage"><div class="bench-world" data-world></div></div>
+  <pre class="bench-log" data-log>armando…</pre>
+  <script type="module" src="js/bench.js"></script>
+</body>
+</html>

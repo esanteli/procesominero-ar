@@ -1,5 +1,6 @@
 // Orquesta la experiencia: monta la lámina viva, la ancla sobre la infografía (AR) o la muestra
 // sobre la imagen de la infografía (demo), y conecta el HUD con live.js.
+import "./perf.js"; // ?perf: HUD de rendimiento (va primero: envuelve requestAnimationFrame)
 import { mountRig, GEO } from "./rig.js";
 import { createLive } from "./live.js";
 import { STEPS } from "./caex.js";
