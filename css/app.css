@@ -238,6 +238,9 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
 .hotspot:focus-visible { outline: 6px solid #ef7835; outline-offset: 6px; }
 .explorer[data-view="station"] .hotspot { pointer-events: none; }
 .explorer[data-view="station"] .hotspot-ring { animation: none; opacity: 0; }
+/* cargando (primera apertura, si la precarga en reposo aún no la armó): el anillo de la etiqueta late rápido */
+.explorer .hotspot[data-loading] .hotspot-ring { opacity: 1; border-style: dashed; animation: hs-loading .7s ease-in-out infinite alternate; }
+@keyframes hs-loading { from { opacity: .35; } to { opacity: 1; } }
 
 /* foco de la estación abierta: el resto de la infografía se apaga */
 .map-spot { position: absolute; border-radius: 28px; pointer-events: none; box-shadow: 0 0 0 99999px #f6efe8bb; transition: opacity .4s var(--pm-ease); }

@@ -186,12 +186,11 @@ addEventListener("keydown", (e) => {
 // alto real del HUD → la escena demo / escaneo / lámina fijada usan el espacio que queda libre
 const panel = $("[data-panel]");
 const sizeHud = () => {
-  document.documentElement.style.setProperty("--hud-h", `${panel.offsetHeight + 8}px`);
-  const room = document.querySelector("[data-pin-layer]").getBoundingClientRect();
-  const pe = document.querySelector(".plate--pinned") || plate;
-  const s = Math.min((innerWidth - 24) / (pe.offsetWidth || 1000), (innerHeight - 64 - panel.offsetHeight - 24) / (pe.offsetHeight || 760));
+  // primero se lee todo y después se escribe (leer después de escribir obliga a recalcular el layout en el acto)
+  const ph = panel.offsetHeight, pe = document.querySelector(".plate--pinned") || plate;
+  const s = Math.min((innerWidth - 24) / (pe.offsetWidth || 1000), (innerHeight - 64 - ph - 24) / (pe.offsetHeight || 760));
+  document.documentElement.style.setProperty("--hud-h", `${ph + 8}px`);
   document.documentElement.style.setProperty("--pin-s", Math.max(0.2, s).toFixed(3));
-  void room;
 };
 new ResizeObserver(sizeHud).observe(panel);
 addEventListener("resize", sizeHud);
@@ -240,6 +239,18 @@ const PLATE_W_ON_POSTER = (STATION.scale * STATION.target.w) / CROP.k;
 let explorer = null;
 
 const chancadorStation = {
+  // precarga en reposo (js/explorer.js): hornea su silueta y sombra antes de la primera apertura (~100 ms con la CPU ×4)
+  prepare({ layer }) {
+    if (plate.dataset.baked || plate.isConnected) return;
+    plate.classList.add("plate--demo");
+    plate.style.transform = "none";
+    plate.style.opacity = "0";
+    layer.appendChild(plate);
+    bakePlate(false);
+    plate.dataset.baked = "1";
+    plate.remove();
+    plate.style.opacity = "";
+  },
   enter({ layer }) {
     layer.appendChild(plate);
     plate.classList.add("plate--demo");

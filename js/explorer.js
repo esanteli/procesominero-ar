@@ -5,6 +5,7 @@
 // La URL lleva la estación (#rajo, #chancado-primario…): sirve para enlazar directo y el botón atrás funciona.
 import { POSTER, STATIONS, byId } from "./stations.js";
 import { bake } from "./halo.js";
+import { nextFrame, idle } from "./frames.js";
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -34,7 +35,12 @@ export function createExplorer({ stage, builtins = {}, onView = () => {} }) {
 
   // ---------------------------------------------------------------- cámara
   const apply = () => { world.style.transform = `translate(${cam.x.toFixed(2)}px, ${cam.y.toFixed(2)}px) scale(${cam.s.toFixed(5)})`; };
-  const box = () => stage.getBoundingClientRect();
+  // caja del mapa: se mide sólo cuando cambia de tamaño (medirla justo después de cambiar el panel obligaba a recalcular
+  // todo el layout en el acto, al abrir una estación)
+  let boxC = null;
+  const box = () => boxC || (boxC = stage.getBoundingClientRect());
+  new ResizeObserver(() => { boxC = null; }).observe(stage);
+  addEventListener("resize", () => { boxC = null; });
   function fitRect([x, y, w, h], pad = 0.08, cap = MAX_ZOOM) {
     const b = box();
     // tope de zoom: más allá la imagen de la infografía se ve pixelada (una estación vectorial puede pedir más)
@@ -156,6 +162,24 @@ export function createExplorer({ stage, builtins = {}, onView = () => {} }) {
     spot.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
     spot.hidden = false;
   }
+  // sombra horneada de una lámina (necesita estar en el documento: se mide). Invisible con opacity, no con
+  // visibility (con visibility el horneado salta los trazos).
+  function bakeOff(el) {
+    if (el.dataset.baked) return;
+    bake(el);
+    el.dataset.baked = "1";
+  }
+  // lámina armada en reposo: se pone un instante (invisible) para hornear su sombra y se saca. No se deja puesta: muchas
+  // láminas en el documento encarecen todo lo que lo recorre (estilos, búsquedas) mientras se usa otra estación.
+  function prebake(el) {
+    if (el.dataset.baked || el.isConnected) return;
+    const op = el.style.opacity;
+    el.style.opacity = "0";
+    layer.appendChild(el);
+    bakeOff(el);
+    el.remove();
+    el.style.opacity = op;
+  }
   async function open(id) {
     const st = byId(id);
     if (!st) return close();
@@ -164,30 +188,75 @@ export function createExplorer({ stage, builtins = {}, onView = () => {} }) {
     leaveCurrent();
     current = st;
     stage.dataset.view = "station";
-    hotspots.querySelectorAll(".hotspot").forEach((h) => h.toggleAttribute("data-active", h.dataset.station === id));
+    const spotEl = hotspots.querySelector(`.hotspot[data-station="${CSS.escape(id)}"]`);
+    hotspots.querySelectorAll(".hotspot").forEach((h) => h.toggleAttribute("data-active", h === spotEl));
     let focus = st.focus, view = "station";
+    const mk = (s) => performance.mark(`pm:${id}:${s}`); // marcas para el perfil (Performance de DevTools / ?perf)
+    const stale = () => { if (current === st) return false; spotEl?.removeAttribute("data-loading"); return true; }; // se fue a otra mientras cargaba
+    mk("inicio");
     if (st.module?.startsWith("builtin:")) {
       const b = builtins[st.module.slice(8)];
       const m = b?.enter({ station: st, layer });
       focus = m?.focus || focus;
       mounted = { leave: () => b.leave?.() };
       view = st.module.slice(8);
+      mk("montada");
     } else if (st.module) {
-      // módulo externo: js/stations/<id>.js con export async function mount(ctx)
+      // módulo externo: js/stations/<id>.js con export async function mount(ctx). Si ya se armó en reposo (precarga),
+      // montar sólo la inserta. Entre pasos se cede un cuadro: ninguna tarea larga y la cámara no se traba.
+      spotEl?.setAttribute("data-loading", "");
       try {
         const mod = await import(st.module.replace(/^\.\//, "./"));
+        mk("importada");
         const m = await mod.mount({ station: st, layer, poster: POSTER, focus: focusTo });
-        for (const el of layer.children) if (!el.dataset.baked && el.querySelector("svg")) { bake(el); el.dataset.baked = "1"; }
+        mk("montada");
+        if (stale()) { m?.destroy?.(); return; }
+        mounted = { leave: () => { m?.destroy?.(); queuePrebuild(st); } };
+        await nextFrame();                                   // primer cuadro de la lámina (estilo y layout) por su lado
+        if (stale()) return;
+        for (const el of layer.children) if (el.querySelector("svg")) bakeOff(el);
+        mk("sombra");
         focus = m?.focus || focus;
-        mounted = { leave: () => m?.destroy?.() };
         view = m?.view || "station";
+        await nextFrame();
+        if (stale()) return;
       } catch (err) { console.error(err); }
+      spotEl?.removeAttribute("data-loading");
     }
     showSpot(focus);
     stationFocus = focus;
     onView(view, st);
+    mk("panel");
     flyTo(fitRect(focus, 0.06), 800);
   }
+
+  // ---------------------------------------------------------------- precarga en reposo
+  // Mientras se mira la infografía, en ratos libres: se importa cada estación, se arma su lámina (prebuild) y se hornea
+  // su sombra. Abrirla después sólo la inserta. Una a la vez y cediendo el hilo entre pasos; al salir de una estación
+  // se vuelve a preparar para la próxima vez.
+  const pre = (window.pmPreload = { done: [], queue: [] });
+  let preloading = false;
+  function queuePrebuild(st) { if (!pre.queue.includes(st)) pre.queue.push(st); if (!preloading) runPreload(); }
+  async function runPreload() {
+    preloading = true;
+    await idle(4000);
+    while (pre.queue.length) {
+      const st = pre.queue.shift();
+      try {
+        await idle(3000);
+        if (st.module?.startsWith("builtin:")) { builtins[st.module.slice(8)]?.prepare?.({ station: st, layer }); }
+        else if (st.module) {
+          const mod = await import(st.module.replace(/^\.\//, "./"));
+          await idle(3000);
+          const api = await mod.prebuild?.();
+          if (api?.el && current?.id !== st.id) { await idle(3000); if (current?.id !== st.id) prebake(api.el); }
+        }
+        if (!pre.done.includes(st.id)) pre.done.push(st.id);
+      } catch (err) { console.warn("precarga", st.id, err); }
+    }
+    preloading = false;
+  }
+
   // una estación puede acercar la cámara a una zona suya (p. ej. el equipo elegido); sin rect vuelve a su encuadre
   let stationFocus = null;
   function focusTo(rect, maxZoom = MAX_ZOOM) {
@@ -222,6 +291,7 @@ export function createExplorer({ stage, builtins = {}, onView = () => {} }) {
   apply();
   onView("map");
   queueMicrotask(route); // la URL puede traer una estación (#rajo): se abre cuando el explorador ya existe
+  setTimeout(() => STATIONS.forEach((st) => st.module && queuePrebuild(st)), 1500); // precarga en reposo
 
   const idx = () => STATIONS.findIndex((s) => s.id === current?.id);
   return {
