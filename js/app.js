@@ -7,6 +7,7 @@ import { STEPS } from "./caex.js";
 import * as M from "./model.js";
 import { bake } from "./halo.js";
 import { guardEdges } from "./edge-guard.js";
+import { setFps, setAdaptive } from "./clock.js";
 
 guardEdges(); // tablets: el pulgar apoyado en el borde no cuenta como dedo (evita el zoom sin querer)
 
@@ -485,6 +486,7 @@ function patchController() {
   c.__pm = true;
 }
 async function startAR() {
+  setAdaptive(true);
   setMode("ar");
   exitBtn.hidden = false;
   document.body.dataset.ar = "loading";
@@ -764,10 +766,14 @@ function setFocus(S) {
   if (host && pose.ready) updateView();
 }
 // estado de la interfaz: vista general / enfoque / buscando
+let lastClockState = "";
 function syncUi() {
   const tracking = !!host;
   const state = arCurrent ? "focus" : tracking ? "overview" : "scan";
   document.body.dataset.ar = state;
+  // vista general: las láminas animan a 30 cuadros/s, repartidas entre cuadros (y bajan a 15 si el equipo no da);
+  // en foco, la estación elegida anima a pleno ritmo (js/clock.js)
+  if (state !== lastClockState) { lastClockState = state; setFps(state === "focus" ? 0 : 30); }
   if (tracking) document.body.dataset.tracking = "on"; else delete document.body.dataset.tracking;
   exitBtn.querySelector("span").textContent = arCurrent ? "Infografía" : "Inicio";
   exitBtn.setAttribute("aria-label", arCurrent ? "Volver a la infografía completa" : "Salir del escaneo y volver al inicio");

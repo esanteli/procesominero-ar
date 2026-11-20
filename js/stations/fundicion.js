@@ -19,6 +19,7 @@
 // Geometría: px de la infografía. El dibujo está a escala 2 (registro por correlación) y la nave usa una isometría
 // de mundo W(e, n, z): e → (0,866; 0,5) (hacia el frente), n → (0,866; −0,5) (a lo largo de la nave), z hacia arriba,
 // con origen en la esquina izquierda-posterior del piso. Nave: e 0…112,9 · n 0…192,2 · muros 40,6.
+import { nextTick, cancelTick } from "../clock.js";
 const NS = "http://www.w3.org/2000/svg";
 const U = (f) => new URL(`../../assets/fundicion/${f}`, import.meta.url).href;
 const clamp = (v, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
@@ -691,16 +692,16 @@ export async function createFundicion() {
     if (playing) step(dt);
     const kk = 1 - Math.exp(-dt * (shown.open < 0.999 && ST.open === 1 && !touched ? 1.6 : 6));
     for (const key of ["open", "cut"]) { shown[key] += (ST[key] - shown[key]) * kk; if (Math.abs(ST[key] - shown[key]) < 0.002) shown[key] = ST[key]; }
-    draw(); raf = active ? requestAnimationFrame(frame) : 0;
+    draw(); raf = active ? nextTick(frame) : 0;
   }
   let touched = false;
-  const kick = () => { if (active && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
+  const kick = () => { if (active && !raf) { last = performance.now(); raf = nextTick(frame); } };
   const api = {
     el: root, svg, PERIOD, STEPS,
     get selected() { return selected; }, get playing() { return playing; }, get detail() { return detailNow(); },
     get open() { return ST.open; }, get cut() { return ST.cut; }, get o2() { return ST.o2; },
     live, on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-    setActive(v) { active = v; if (v) kick(); else { cancelAnimationFrame(raf); raf = 0; } },
+    setActive(v) { active = v; if (v) kick(); else { cancelTick(raf); raf = 0; } },
     play() { playing = true; kick(); }, pause() { playing = false; }, togglePlay() { playing ? api.pause() : api.play(); },
     seek(v) { ST.t = ((v % PERIOD) + PERIOD) % PERIOD; draw(); },
     goStep(n) { api.seek(STEPS[clamp(n, 1, STEPS.length) - 1].t0 + 0.01); },
@@ -713,7 +714,7 @@ export async function createFundicion() {
     destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); const id = g?.dataset.eq; api.select(id ? (selected === id ? null : id) : null); });
-  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  const onVis = () => { if (document.hidden) { cancelTick(raf); raf = 0; } else kick(); };
   document.addEventListener("visibilitychange", onVis);
   draw();
   return api;

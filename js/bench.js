@@ -7,10 +7,14 @@ import "./perf.js";
 import { mountRig, GEO } from "./rig.js";
 import { createLive } from "./live.js";
 import { bake } from "./halo.js";
+import { setFps, setAdaptive } from "./clock.js";
 
 const q = new URLSearchParams(location.search);
 const ONLY = q.get("only")?.split(",").filter(Boolean);
 const ANIMATE = !q.has("static");
+// como la vista general del AR: 30 cuadros/s por lámina, repartidas entre cuadros (?fps=0 sin límite; ?adapt adaptativo)
+setFps(q.has("fps") ? Number(q.get("fps")) : 30);
+setAdaptive(q.has("adapt"));
 const world = document.querySelector("[data-world]");
 const logEl = document.querySelector("[data-log]");
 if (q.has("noposter")) world.classList.add("no-poster");

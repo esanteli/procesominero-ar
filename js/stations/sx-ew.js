@@ -18,6 +18,7 @@
 // Geometría: la lámina vive en px de la infografía. Todos los dibujos están a escala 2 (registro por correlación,
 // error < 1 px) y comparten una isometría de mundo W(e, n, z): e → (0,866; 0,5), n → (0,866; −0,5), z hacia arriba,
 // en px, con origen en la esquina izquierda del piso de la nave EW.
+import { nextTick, cancelTick } from "../clock.js";
 const NS = "http://www.w3.org/2000/svg";
 const U = (f) => new URL(`../../assets/sxew/${f}`, import.meta.url).href;
 const clamp = (v, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
@@ -616,15 +617,15 @@ export async function createSxEw() {
     if (playing) step(dt);
     const k = 1 - Math.exp(-dt * 6);
     for (const key of ["sx", "cel"]) { shown[key] += (ST[key] - shown[key]) * k; if (Math.abs(ST[key] - shown[key]) < 0.002) shown[key] = ST[key]; }
-    draw(); raf = active ? requestAnimationFrame(frame) : 0;
+    draw(); raf = active ? nextTick(frame) : 0;
   }
-  const kick = () => { if (active && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
+  const kick = () => { if (active && !raf) { last = performance.now(); raf = nextTick(frame); } };
   const api = {
     el: root, svg, PERIOD, STEPS,
     get selected() { return selected; }, get playing() { return playing; }, get detail() { return detailNow(); },
     get sx() { return ST.sx; }, get cel() { return ST.cel; }, get J() { return ST.J; },
     live, on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-    setActive(v) { active = v; if (v) kick(); else { cancelAnimationFrame(raf); raf = 0; } },
+    setActive(v) { active = v; if (v) kick(); else { cancelTick(raf); raf = 0; } },
     play() { playing = true; kick(); }, pause() { playing = false; }, togglePlay() { playing ? api.pause() : api.play(); },
     seek(v) { ST.t = ((v % PERIOD) + PERIOD) % PERIOD; draw(); },
     goStep(n) { api.seek(STEPS[clamp(n, 1, STEPS.length) - 1].t0 + 0.01); },
@@ -637,7 +638,7 @@ export async function createSxEw() {
     destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); api.select(g ? (selected === g.dataset.eq ? null : g.dataset.eq) : null); });
-  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  const onVis = () => { if (document.hidden) { cancelTick(raf); raf = 0; } else kick(); };
   document.addEventListener("visibilitychange", onVis);
   draw();
   return api;

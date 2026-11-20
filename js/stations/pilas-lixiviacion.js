@@ -16,6 +16,7 @@
 // de la izquierda, a nivel del suelo. El tambor se dibuja en las unidades de su SVG (isometría 0,866 / 0,5).
 import { ARCS, STRIPS, SIL } from "./pilas-geo.js";
 import { createLayers } from "../layers.js";
+import { nextTick, cancelTick } from "../clock.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const A_AGLO = new URL("../../assets/pilas/aglomerador.svg", import.meta.url).href;
@@ -699,15 +700,15 @@ export async function createPilas() {
     const k = 1 - Math.exp(-dt * 6);
     for (const key of ["drum", "cut"]) { shown[key] += (S[key] - shown[key]) * k; if (Math.abs(S[key] - shown[key]) < 0.002) shown[key] = S[key]; }
     draw();
-    raf = active ? requestAnimationFrame(frame) : 0;
+    raf = active ? nextTick(frame) : 0;
   }
-  const kick = () => { if (active && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
+  const kick = () => { if (active && !raf) { last = performance.now(); raf = nextTick(frame); } };
   const api = {
     el: root, svg, PERIOD, STEPS,
     get selected() { return selected; }, get playing() { return playing; },
     get drum() { return S.drum; }, get cut() { return S.cut; }, get rate() { return S.rate; },
     live, on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-    setActive(v) { active = v; if (v) kick(); else { cancelAnimationFrame(raf); raf = 0; } },
+    setActive(v) { active = v; if (v) kick(); else { cancelTick(raf); raf = 0; } },
     play() { playing = true; kick(); }, pause() { playing = false; }, togglePlay() { playing ? api.pause() : api.play(); },
     seek(v) { S.t = ((v % PERIOD) + PERIOD) % PERIOD; draw(); },
     goStep(n) { api.seek(STEPS[clamp(n, 1, STEPS.length) - 1].t0 + 0.01); },
@@ -725,7 +726,7 @@ export async function createPilas() {
     destroy() { api.setActive(false); layers.destroy(); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); api.select(g ? (selected === g.dataset.eq ? null : g.dataset.eq) : null); });
-  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  const onVis = () => { if (document.hidden) { cancelTick(raf); raf = 0; } else kick(); };
   document.addEventListener("visibilitychange", onVis);
   draw();
   return api;

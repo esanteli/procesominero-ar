@@ -8,6 +8,7 @@ import * as M from "./model.js";
 import * as C from "./caex.js";
 import { GEO, rockEl } from "./rig.js";
 import { renderTruck } from "./caex3d.js";
+import { nextTick, cancelTick } from "./clock.js";
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const smooth = (t) => t * t * (3 - 2 * t);
@@ -313,7 +314,7 @@ export function createLive(rig, ui) {
 
     const busy = playing || chamber.length || belt.length;
     const settled = calm && !busy && Math.abs(feed - feedTarget) < 1 && inside === insideTarget;
-    frame = active && !document.hidden && !settled ? requestAnimationFrame(tick) : 0;
+    frame = active && !document.hidden && !settled ? nextTick(tick) : 0;
   }
 
   function syncUi() {
@@ -335,7 +336,7 @@ export function createLive(rig, ui) {
   function wake() {
     if (!frame && active && !document.hidden) {
       last = 0;
-      frame = requestAnimationFrame(tick);
+      frame = nextTick(tick);
     }
   }
   const announce = () => {

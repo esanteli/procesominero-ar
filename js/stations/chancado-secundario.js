@@ -12,6 +12,7 @@
 // constante y lo que cambia es la carga (como en planta); el alimentador sí cambia de velocidad (regula la descarga).
 import { SIL } from "./secundario-geo.js";
 import { createLayers } from "../layers.js";
+import { nextTick, cancelTick } from "../clock.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const ASSET = new URL("../../assets/secundario/chancado-secundario.svg", import.meta.url).href;
@@ -549,15 +550,15 @@ export async function createSecundario() {
     const k = 1 - Math.exp(-dt * 6);                                  // los cortes siguen al valor pedido (seguimiento exponencial)
     for (const key of ["hop", "cut"]) { shown[key] += (S[key] - shown[key]) * k; if (Math.abs(S[key] - shown[key]) < 0.002) shown[key] = S[key]; }
     draw();
-    raf = active ? requestAnimationFrame(frame) : 0;
+    raf = active ? nextTick(frame) : 0;
   }
-  const kick = () => { if (active && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
+  const kick = () => { if (active && !raf) { last = performance.now(); raf = nextTick(frame); } };
   const api = {
     el: root, svg, PERIOD, STEPS,
     get selected() { return selected; }, get playing() { return playing; },
     get hop() { return S.hop; }, get cut() { return S.cut; }, get feed() { return S.feed; },
     live, on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-    setActive(v) { active = v; if (v) { kick(); } else { cancelAnimationFrame(raf); raf = 0; } },
+    setActive(v) { active = v; if (v) { kick(); } else { cancelTick(raf); raf = 0; } },
     play() { playing = true; kick(); }, pause() { playing = false; }, togglePlay() { playing ? api.pause() : api.play(); },
     seek(v) { S.t = ((v % PERIOD) + PERIOD) % PERIOD; draw(); },
     goStep(n) { api.seek(STEPS[clamp(n, 1, STEPS.length) - 1].t0 + 0.01); },
@@ -575,7 +576,7 @@ export async function createSecundario() {
     destroy() { api.setActive(false); layers.destroy(); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); api.select(g ? (selected === g.dataset.eq ? null : g.dataset.eq) : null); });
-  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  const onVis = () => { if (document.hidden) { cancelTick(raf); raf = 0; } else kick(); };
   document.addEventListener("visibilitychange", onVis);
   draw();
   return api;

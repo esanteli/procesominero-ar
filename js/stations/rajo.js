@@ -9,6 +9,7 @@
 // El CAEX se dibuja con el modelo 3D simplificado (js/caex3d.js) en cualquier rumbo, con su carga.
 import * as G from "./rajo-geo.js";
 import { renderTruck, projector } from "../caex3d.js";
+import { nextTick, cancelTick } from "../clock.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const ASSET = (f) => new URL(`../../assets/rajo/${f}`, import.meta.url).href;
@@ -427,23 +428,23 @@ export async function createRajo() {
   const emit = () => { const s = state(t, clock); listeners.forEach((fn) => fn(s, api)); return s; };
   // en AR se dibuja a ~30 cuadros/s (la cámara y el seguimiento van a 30): la mitad del trabajo, o un cuarto a 120 Hz
   function frame(now) {
-    raf = active && playing ? requestAnimationFrame(frame) : 0;
+    raf = active && playing ? nextTick(frame) : 0;
     const dt = Math.min(0.1, (now - last) / 1000 || 0);
     if (document.body.dataset.mode === "ar" && dt < 0.029) return;
     last = now;
     if (playing) { t = (t + dt) % PERIOD; clock += dt; }
     draw(emit());
   }
-  const kick = () => { if (active && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); } else if (active && !playing) draw(emit()); };
+  const kick = () => { if (active && !raf) { last = performance.now(); raf = nextTick(frame); } else if (active && !playing) draw(emit()); };
   const api = {
     el: root, svg, PERIOD, STEPS,
     get selected() { return selected; },
     get playing() { return playing; },
     live: () => state(t, clock),
     on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-    setActive(v) { active = v; if (v) kick(); else { cancelAnimationFrame(raf); raf = 0; } },
+    setActive(v) { active = v; if (v) kick(); else { cancelTick(raf); raf = 0; } },
     play() { playing = true; kick(); },
-    pause() { playing = false; cancelAnimationFrame(raf); raf = 0; draw(emit()); },
+    pause() { playing = false; cancelTick(raf); raf = 0; draw(emit()); },
     togglePlay() { playing ? api.pause() : api.play(); },
     seek(v) { t = ((v % PERIOD) + PERIOD) % PERIOD; draw(emit()); },
     goStep(n) { const st = STEPS[clamp(n, 1, STEPS.length) - 1]; api.seek(st.t0 + 0.01); },
@@ -465,7 +466,7 @@ export async function createRajo() {
     api.select(g ? (selected === g.dataset.equip ? null : g.dataset.equip) : null);
   });
   // pausa fuera de pantalla / pestaña oculta (como anatomy)
-  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  const onVis = () => { if (document.hidden) { cancelTick(raf); raf = 0; } else kick(); };
   document.addEventListener("visibilitychange", onVis);
   draw(emit());
   return api;

@@ -17,6 +17,7 @@
 //
 // Geometría: unidades del SVG (isometría 0,866 / 0,5). Las cotas de los tambores salen de ajustar las elipses del
 // dibujo (centro, radio y eje); los tubos, de esqueletizar su relleno (ver README).
+import { nextTick, cancelTick } from "../clock.js";
 const NS = "http://www.w3.org/2000/svg";
 const ASSET = new URL("../../assets/molienda/molienda.svg", import.meta.url).href;
 const clamp = (v, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
@@ -522,15 +523,15 @@ export async function createMolienda() {
     const k = 1 - Math.exp(-dt * 6);
     for (const key of ["sag", "bm"]) { shown[key] += (S[key] - shown[key]) * k; if (Math.abs(S[key] - shown[key]) < 0.002) shown[key] = S[key]; }
     draw();
-    raf = active ? requestAnimationFrame(frame) : 0;
+    raf = active ? nextTick(frame) : 0;
   }
-  const kick = () => { if (active && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
+  const kick = () => { if (active && !raf) { last = performance.now(); raf = nextTick(frame); } };
   const api = {
     el: root, svg, PERIOD, STEPS,
     get selected() { return selected; }, get playing() { return playing; }, get detail() { return detailNow(); },
     get sag() { return S.sag; }, get bm() { return S.bm; }, get feed() { return S.feed; },
     live, on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-    setActive(v) { active = v; if (v) kick(); else { cancelAnimationFrame(raf); raf = 0; } },
+    setActive(v) { active = v; if (v) kick(); else { cancelTick(raf); raf = 0; } },
     play() { playing = true; kick(); }, pause() { playing = false; }, togglePlay() { playing ? api.pause() : api.play(); },
     seek(v) { S.t = ((v % PERIOD) + PERIOD) % PERIOD; draw(); },
     goStep(n) { api.seek(STEPS[clamp(n, 1, STEPS.length) - 1].t0 + 0.01); },
@@ -548,7 +549,7 @@ export async function createMolienda() {
     destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); api.select(g ? (selected === g.dataset.eq ? null : g.dataset.eq) : null); });
-  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  const onVis = () => { if (document.hidden) { cancelTick(raf); raf = 0; } else kick(); };
   document.addEventListener("visibilitychange", onVis);
   draw();
   return api;

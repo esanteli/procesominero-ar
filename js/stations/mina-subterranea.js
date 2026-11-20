@@ -10,6 +10,7 @@
 // reconstruye en 3D desde la placa lateral del dibujo (js/stations/balde3d.js), así gira sin deformarse.
 
 import { bucketFaces, lipPoint } from "./balde3d.js";
+import { nextTick, cancelTick } from "../clock.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const ASSET = (f) => new URL(`../../assets/mina/${f}`, import.meta.url).href;
@@ -334,9 +335,9 @@ export async function createMina() {
     xrayShown += (xray - xrayShown) * (1 - Math.exp(-dt * 2.2)); // el haz sigue al valor pedido (seguimiento exponencial)
     if (Math.abs(xray - xrayShown) < 0.002) xrayShown = xray;
     draw(emit());
-    raf = active && (playing || xrayShown !== xray) ? requestAnimationFrame(frame) : 0;
+    raf = active && (playing || xrayShown !== xray) ? nextTick(frame) : 0;
   }
-  const kick = () => { if (active && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
+  const kick = () => { if (active && !raf) { last = performance.now(); raf = nextTick(frame); } };
   const api = {
     el: root, svg, PERIOD, STEPS,
     get selected() { return selected; },
@@ -344,7 +345,7 @@ export async function createMina() {
     get xray() { return xray; },
     live: () => state(t),
     on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-    setActive(v) { active = v; if (v) { kick(); draw(emit()); } else { cancelAnimationFrame(raf); raf = 0; } },
+    setActive(v) { active = v; if (v) { kick(); draw(emit()); } else { cancelTick(raf); raf = 0; } },
     play() { playing = true; kick(); },
     pause() { playing = false; draw(emit()); },
     togglePlay() { playing ? api.pause() : api.play(); },
@@ -362,7 +363,7 @@ export async function createMina() {
     destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest(".mn-eq"); api.select(g ? (selected === g.dataset.equip ? null : g.dataset.equip) : null); });
-  const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  const onVis = () => { if (document.hidden) { cancelTick(raf); raf = 0; } else kick(); };
   document.addEventListener("visibilitychange", onVis);
   draw(emit());
   return api;
