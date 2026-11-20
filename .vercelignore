@@ -1,0 +1,8 @@
+# Fuera del deploy (quedan en el repo). El build (scripts/build.mjs) además publica sólo lo que la app usa en dist/.
+# tools/: herramientas de desarrollo (compilar marcadores, extraer geometría, exportar el giro del CAEX, optimizar la infografía)
+tools/
+# fotogramas del giro del CAEX exportados para revisarlos en Illustrator: la app los calcula en vivo (js/caex3d.js)
+assets/caex/giro-generado/
+dist/
+node_modules/
+.lab/
