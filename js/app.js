@@ -1,6 +1,7 @@
 // Orquesta la experiencia: monta la lámina viva, la ancla sobre la infografía (AR) o la muestra
 // sobre la imagen de la infografía (demo), y conecta el HUD con live.js.
 import "./perf.js"; // ?perf: HUD de rendimiento (va primero: envuelve requestAnimationFrame)
+import { report } from "./report.js"; // registro de errores (apagado salvo que se configure un destino)
 import { mountRig, GEO } from "./rig.js";
 import { createLive } from "./live.js";
 import { STEPS } from "./caex.js";
@@ -511,6 +512,7 @@ async function startAR() {
     });
   } catch (err) {
     console.error(err);
+    report("ar-carga", err, "motor o marcadores");
     return toDemo("No se pudo cargar el AR · mostrando demo");
   }
   T3 = THREE;
@@ -518,7 +520,7 @@ async function startAR() {
   arStations.push(await task(`Preparando las animaciones · 1 de ${n} · Chancado Primario`, () => buildChancado(CSS3DObject)));
   for (const [i, D] of AR_DEFS.entries()) {
     try { arStations.push(await task(`Preparando las animaciones · ${i + 2} de ${n} · ${D.st.name}`, () => buildStation(D, CSS3DObject))); }
-    catch (err) { console.error(`[AR] no se pudo armar ${D.id}`, err); }
+    catch (err) { console.error(`[AR] no se pudo armar ${D.id}`, err); report("ar-lamina", err, D.id); }
   }
   // marcador de cada estación (1 chancado, 2… las de AR_DEFS), etiqueta impresa y su hotspot
   for (const S of arStations) {
@@ -598,11 +600,13 @@ async function startAR() {
   // navegadores entregan 640×480, donde el arte de líneas finas (sobre todo el rajo) casi no deja puntos.
   const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
   navigator.mediaDevices.getUserMedia = (c) =>
-    gum(c?.video ? { ...c, video: { ...(typeof c.video === "object" ? c.video : {}), facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } } : c);
+    gum(c?.video ? { ...c, video: { ...(typeof c.video === "object" ? c.video : {}), facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } } : c)
+      .catch((err) => { report("camara", err, "getUserMedia"); throw err; }); // MindAR rechaza sin el motivo: se registra aquí
   try {
     await task("Abriendo la cámara…", () => mindar.start());
   } catch (err) {
     console.error(err);
+    report("camara", err, "mindar.start");
     return toDemo(`${camMessage(err)} · mostrando demo`);
   }
   patchController();
@@ -1039,6 +1043,7 @@ async function resumeCamera() {
     syncUi();
   } catch (err) {
     console.error(err);
+    report("camara", err, "reanudar");
     ui.status.textContent = `${camMessage(err)} · recarga la página`;
   }
   resuming = false;
