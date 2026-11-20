@@ -730,9 +730,10 @@ export function bindPanel(fx, { onEscape, onFocus } = {}) {
   const opS = $("[data-fu-open]"), opO = $("[data-fu-open-out]"), cuS = $("[data-fu-cut]"), cuO = $("[data-fu-cut-out]"), oxS = $("[data-fu-o2]"), oxO = $("[data-fu-o2-out]");
   let lastStep = 0, lastText = "", lastInfo = "";
   const off = []; const on = (node, ev, fn, opt) => { node.addEventListener(ev, fn, opt); off.push(() => node.removeEventListener(ev, fn, opt)); };
+  const chips = [...document.querySelectorAll("[data-fu-chip]")]; // fijos en el panel: se buscan una vez, no en cada cuadro
   function renderInfo(s) {
     const id = fx.selected;
-    document.querySelectorAll("[data-fu-chip]").forEach((c) => c.toggleAttribute("data-on", c.dataset.fuChip === id));
+    chips.forEach((c) => c.toggleAttribute("data-on", c.dataset.fuChip === id));
     if (!id) { if (info.dataset.owner === "fu") info.hidden = true; return; }
     const e = EQUIP[id], specs = e.specs(s.m), sig = id + specs.join("|");
     if (sig === lastInfo && !info.hidden) return;
@@ -778,9 +779,13 @@ export function bindPanel(fx, { onEscape, onFocus } = {}) {
 
 // ---------------------------------------------------------------- explorador (demo sin cámara)
 const ZOOM = { ct: [4160, 900, 550, 290], cps: [4160, 900, 550, 290], grua: [4180, 990, 250, 200], refino: [4230, 900, 480, 260], rueda: [4230, 900, 480, 260], A: [4160, 900, 550, 290], B: [4230, 900, 480, 260] };
+// lámina armada de antemano, en reposo, mientras se mira la infografía (js/explorer.js): abrir sólo la inserta
+let prebuilt = null;
+export function prebuild() { return (prebuilt ||= createFundicion().catch(() => (prebuilt = null))); }
 export async function mount({ layer, focus }) {
-  const fx = await createFundicion();
-  layer.appendChild(fx.el);
+  const fx = (await prebuilt) || (await createFundicion());
+  prebuilt = null;
+  if (fx.el.parentNode !== layer) layer.appendChild(fx.el); // la precarga pudo dejarla ya puesta (estacionada)
   requestAnimationFrame(() => fx.el.setAttribute("data-in", ""));
   let focused = null;
   const want = (z, cap) => { const kz = z ? JSON.stringify(z) : ""; if (kz !== focused) { focused = kz; focus?.(z, cap); } };

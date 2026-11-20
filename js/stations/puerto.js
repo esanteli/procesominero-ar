@@ -682,9 +682,10 @@ export function bindPanel(fx, { onEscape, onFocus } = {}) {
   const plS = $("[data-pu-plant]"), plO = $("[data-pu-plant-out]"), beS = $("[data-pu-belt]"), beO = $("[data-pu-belt-out]"), hS = $("[data-pu-h]"), hO = $("[data-pu-h-out]");
   let lastStep = 0, lastText = "", lastInfo = "";
   const off = []; const on = (node, ev, fn, opt) => { node.addEventListener(ev, fn, opt); off.push(() => node.removeEventListener(ev, fn, opt)); };
+  const chips = [...document.querySelectorAll("[data-pu-chip]")]; // fijos en el panel: se buscan una vez, no en cada cuadro
   function renderInfo(s) {
     const id = fx.selected;
-    document.querySelectorAll("[data-pu-chip]").forEach((c) => c.toggleAttribute("data-on", c.dataset.puChip === id));
+    chips.forEach((c) => c.toggleAttribute("data-on", c.dataset.puChip === id));
     if (!id) { if (info.dataset.owner === "pu") info.hidden = true; return; }
     const e = EQUIP[id], specs = e.specs(s.m), sig = id + specs.join("|");
     if (sig === lastInfo && !info.hidden) return;
@@ -730,9 +731,13 @@ export function bindPanel(fx, { onEscape, onFocus } = {}) {
 
 // ---------------------------------------------------------------- explorador (demo sin cámara)
 const ZOOM = { espesadores: [4185, 500, 300, 230], mineroducto: [4190, 560, 300, 260], filtros: [4335, 420, 330, 420], galpon: [4335, 420, 330, 420], embarque: [4600, 420, 520, 300], A: [4335, 420, 330, 420], B: [4600, 420, 520, 300] };
+// lámina armada de antemano, en reposo, mientras se mira la infografía (js/explorer.js): abrir sólo la inserta
+let prebuilt = null;
+export function prebuild() { return (prebuilt ||= createPuerto().catch(() => (prebuilt = null))); }
 export async function mount({ layer, focus }) {
-  const fx = await createPuerto();
-  layer.appendChild(fx.el);
+  const fx = (await prebuilt) || (await createPuerto());
+  prebuilt = null;
+  if (fx.el.parentNode !== layer) layer.appendChild(fx.el); // la precarga pudo dejarla ya puesta (estacionada)
   requestAnimationFrame(() => fx.el.setAttribute("data-in", ""));
   let focused = null;
   const want = (z, cap) => { const kz = z ? JSON.stringify(z) : ""; if (kz !== focused) { focused = kz; focus?.(z, cap); } };

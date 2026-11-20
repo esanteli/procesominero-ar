@@ -655,9 +655,10 @@ export function bindPanel(fx, { onEscape, onFocus } = {}) {
   const sxS = $("[data-sx-in]"), sxO = $("[data-sx-in-out]"), celS = $("[data-sx-cel]"), celO = $("[data-sx-cel-out]"), jS = $("[data-sx-j]"), jO = $("[data-sx-j-out]");
   let lastStep = 0, lastText = "", lastInfo = "";
   const off = []; const on = (node, ev, fn, opt) => { node.addEventListener(ev, fn, opt); off.push(() => node.removeEventListener(ev, fn, opt)); };
+  const chips = [...document.querySelectorAll("[data-sx-chip]")]; // fijos en el panel: se buscan una vez, no en cada cuadro
   function renderInfo(s) {
     const id = fx.selected;
-    document.querySelectorAll("[data-sx-chip]").forEach((c) => c.toggleAttribute("data-on", c.dataset.sxChip === id));
+    chips.forEach((c) => c.toggleAttribute("data-on", c.dataset.sxChip === id));
     if (!id) { if (info.dataset.owner === "sx") info.hidden = true; return; }
     const e = EQUIP[id], specs = e.specs(s.m), sig = id + specs.join("|");
     if (sig === lastInfo && !info.hidden) return;
@@ -704,9 +705,13 @@ export function bindPanel(fx, { onEscape, onFocus } = {}) {
 
 // ---------------------------------------------------------------- explorador (demo sin cámara)
 const ZOOM = { piscina: [3150, 440, 260, 150], sx: [3110, 290, 450, 240], celdas: [3030, 290, 530, 230], puente: [3010, 330, 220, 170], horquilla: [3440, 450, 330, 130], A: [3110, 290, 450, 240], B: [3030, 290, 530, 230] };
+// lámina armada de antemano, en reposo, mientras se mira la infografía (js/explorer.js): abrir sólo la inserta
+let prebuilt = null;
+export function prebuild() { return (prebuilt ||= createSxEw().catch(() => (prebuilt = null))); }
 export async function mount({ layer, focus }) {
-  const fx = await createSxEw();
-  layer.appendChild(fx.el);
+  const fx = (await prebuilt) || (await createSxEw());
+  prebuilt = null;
+  if (fx.el.parentNode !== layer) layer.appendChild(fx.el); // la precarga pudo dejarla ya puesta (estacionada)
   requestAnimationFrame(() => fx.el.setAttribute("data-in", ""));
   let focused = null;
   const want = (z, cap) => { const k = z ? JSON.stringify(z) : ""; if (k !== focused) { focused = k; focus?.(z, cap); } };

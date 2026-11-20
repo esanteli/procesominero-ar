@@ -569,9 +569,10 @@ export function bindPanel(mo, { onEscape, onFocus } = {}) {
   let lastStep = 0, lastText = "", lastInfo = "";
   const off = [];
   const on = (node, ev, fn, opt) => { node.addEventListener(ev, fn, opt); off.push(() => node.removeEventListener(ev, fn, opt)); };
+  const chips = [...document.querySelectorAll("[data-mo-chip]")]; // fijos en el panel: se buscan una vez, no en cada cuadro
   function renderInfo(s) {
     const id = mo.selected;
-    document.querySelectorAll("[data-mo-chip]").forEach((c) => c.toggleAttribute("data-on", c.dataset.moChip === id));
+    chips.forEach((c) => c.toggleAttribute("data-on", c.dataset.moChip === id));
     if (!id) { if (info.dataset.owner === "mo") info.hidden = true; return; }
     const e = EQUIP[id], specs = e.specs(s.m), sig = id + specs.join("|");
     if (sig === lastInfo && !info.hidden) return;
@@ -625,9 +626,13 @@ export function bindPanel(mo, { onEscape, onFocus } = {}) {
 // ---------------------------------------------------------------- explorador (demo sin cámara)
 const toPoster = ([x, y, w, h]) => [x * REG.s + REG.tx, y * REG.s + REG.ty, w * REG.s, h * REG.s];
 const ZOOM = { sag: [320, 98, 400, 190], harnero: [370, 98, 350, 240], bolas: [390, 98, 330, 320], bombas: [520, 98, 200, 380], hidrociclones: [505, 98, 215, 260] }; // alto extra abajo: la ficha tapa esa zona
+// lámina armada de antemano, en reposo, mientras se mira la infografía (js/explorer.js): abrir sólo la inserta
+let prebuilt = null;
+export function prebuild() { return (prebuilt ||= createMolienda().catch(() => (prebuilt = null))); }
 export async function mount({ layer, focus }) {
-  const mo = await createMolienda();
-  layer.appendChild(mo.el);
+  const mo = (await prebuilt) || (await createMolienda());
+  prebuilt = null;
+  if (mo.el.parentNode !== layer) layer.appendChild(mo.el); // la precarga pudo dejarla ya puesta (estacionada)
   requestAnimationFrame(() => mo.el.setAttribute("data-in", ""));
   let focused = null;
   const want = (z, cap) => { const k = z ? JSON.stringify(z) : ""; if (k !== focused) { focused = k; focus?.(z ? toPoster(z) : null, cap); } };

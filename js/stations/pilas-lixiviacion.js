@@ -746,9 +746,10 @@ export function bindPanel(px, { onEscape, onFocus } = {}) {
   let lastStep = 0, lastText = "", lastInfo = "";
   const off = [];
   const on = (node, ev, fn, opt) => { node.addEventListener(ev, fn, opt); off.push(() => node.removeEventListener(ev, fn, opt)); };
+  const chips = [...document.querySelectorAll("[data-lx-chip]")]; // fijos en el panel: se buscan una vez, no en cada cuadro
   function renderInfo(s) {
     const id = px.selected;
-    document.querySelectorAll("[data-lx-chip]").forEach((c) => c.toggleAttribute("data-on", c.dataset.lxChip === id));
+    chips.forEach((c) => c.toggleAttribute("data-on", c.dataset.lxChip === id));
     if (!id) { if (info.dataset.owner === "lx") info.hidden = true; return; }
     const e = EQUIP[id], specs = e.specs({ ...s, flow: s.flowM3 }), sig = id + specs.join("|");
     if (sig === lastInfo && !info.hidden) return;
@@ -804,9 +805,13 @@ export function bindPanel(px, { onEscape, onFocus } = {}) {
 const ZOOM = { aglomerador: [2195, 470, 200, 300], correas: [2290, 340, 420, 380], apiladora: [2330, 300, 230, 260], pilas: [2340, 250, 500, 420], solucion: [2280, 290, 560, 460] }; // alto extra abajo: la ficha tapa esa zona
 const CAL_ZOOM = { A: [2150, 225, 260, 410], B: [2650, 230, 350, 260] };
 
+// lámina armada de antemano, en reposo, mientras se mira la infografía (js/explorer.js): abrir sólo la inserta
+let prebuilt = null;
+export function prebuild() { return (prebuilt ||= createPilas().catch(() => (prebuilt = null))); }
 export async function mount({ layer, focus }) {
-  const px = await createPilas();
-  layer.appendChild(px.el);
+  const px = (await prebuilt) || (await createPilas());
+  prebuilt = null;
+  if (px.el.parentNode !== layer) layer.appendChild(px.el); // la precarga pudo dejarla ya puesta (estacionada)
   requestAnimationFrame(() => px.el.setAttribute("data-in", ""));
   let focused = null;
   const want = (z, cap) => { const k = z ? JSON.stringify(z) : ""; if (k !== focused) { focused = k; focus?.(z, cap); } };

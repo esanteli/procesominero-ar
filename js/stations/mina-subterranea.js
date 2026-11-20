@@ -385,9 +385,10 @@ export function bindPanel(mina, { onEscape } = {}) {
   let lastStep = 0, lastText = "", lastInfo = "";
   const off = [];
   const on = (node, ev, fn, opt) => { node.addEventListener(ev, fn, opt); off.push(() => node.removeEventListener(ev, fn, opt)); };
+  const chips = [...document.querySelectorAll("[data-mn-chip]")]; // fijos en el panel: se buscan una vez, no en cada cuadro
   function renderInfo(s) {
     const id = mina.selected;
-    document.querySelectorAll("[data-mn-chip]").forEach((c) => c.toggleAttribute("data-on", c.dataset.mnChip === id));
+    chips.forEach((c) => c.toggleAttribute("data-on", c.dataset.mnChip === id));
     if (!id) { if (info.dataset.owner === "mina") info.hidden = true; return; }
     const e = EQUIP[id], specs = e.specs(s), sig = id + specs.join("|");
     if (sig === lastInfo && !info.hidden) return;
@@ -444,9 +445,13 @@ export function bindPanel(mina, { onEscape } = {}) {
 const ZOOM = { cargador: [20, 60, 330, 330], dumper: [120, 150, 300, 300] }; // en unidades del túnel (alto extra abajo: ficha)
 const toPoster = ([x, y, w, h]) => [x * REG.s + REG.tx, y * REG.s + REG.ty, w * REG.s, h * REG.s];
 
+// lámina armada de antemano, en reposo, mientras se mira la infografía (js/explorer.js): abrir sólo la inserta
+let prebuilt = null;
+export function prebuild() { return (prebuilt ||= createMina().catch(() => (prebuilt = null))); }
 export async function mount({ layer, focus }) {
-  const mina = await createMina();
-  layer.appendChild(mina.el);
+  const mina = (await prebuilt) || (await createMina());
+  prebuilt = null;
+  if (mina.el.parentNode !== layer) layer.appendChild(mina.el); // la precarga pudo dejarla ya puesta (estacionada)
   mina.el.classList.add("mina-plate--map");
   const unbind = bindPanel(mina, { onEscape: () => { location.hash = ""; } });
   mina.setActive(true);

@@ -596,9 +596,10 @@ export function bindPanel(sec, { onEscape, onFocus } = {}) {
   let lastStep = 0, lastText = "", lastInfo = "";
   const off = [];
   const on = (node, ev, fn, opt) => { node.addEventListener(ev, fn, opt); off.push(() => node.removeEventListener(ev, fn, opt)); };
+  const chips = [...document.querySelectorAll("[data-sc-chip]")]; // fijos en el panel: se buscan una vez, no en cada cuadro
   function renderInfo(s) {
     const id = sec.selected;
-    document.querySelectorAll("[data-sc-chip]").forEach((c) => c.toggleAttribute("data-on", c.dataset.scChip === id));
+    chips.forEach((c) => c.toggleAttribute("data-on", c.dataset.scChip === id));
     if (!id) { if (info.dataset.owner === "sec") info.hidden = true; return; }
     const e = EQUIP[id], specs = e.specs(s), sig = id + specs.join("|");
     if (sig === lastInfo && !info.hidden) return;
@@ -655,9 +656,13 @@ const toPoster = ([x, y, w, h]) => [x * REG.s + REG.tx, y * REG.s + REG.ty, w * 
 const ZOOM = { alim: [0, 0, 660, 560], tolva: [930, 300, 240, 380], alimentador: [920, 440, 220, 300], hpgr: [890, 500, 250, 360], producto: [860, 580, 353, 330] }; // alto extra abajo: la ficha tapa esa zona
 const CAL_ZOOM = { A: [10, 420, 220, 360], B: [215, 440, 320, 340] };
 
+// lámina armada de antemano, en reposo, mientras se mira la infografía (js/explorer.js): abrir sólo la inserta
+let prebuilt = null;
+export function prebuild() { return (prebuilt ||= createSecundario().catch(() => (prebuilt = null))); }
 export async function mount({ layer, focus }) {
-  const sec = await createSecundario();
-  layer.appendChild(sec.el);
+  const sec = (await prebuilt) || (await createSecundario());
+  prebuilt = null;
+  if (sec.el.parentNode !== layer) layer.appendChild(sec.el); // la precarga pudo dejarla ya puesta (estacionada)
   requestAnimationFrame(() => sec.el.setAttribute("data-in", ""));
   let focused = null;
   const want = (z, cap) => { const k = z ? JSON.stringify(z) : ""; if (k !== focused) { focused = k; focus?.(z ? toPoster(z) : null, cap); } };

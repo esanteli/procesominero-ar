@@ -491,9 +491,10 @@ export function bindPanel(rajo, { onEscape } = {}) {
   const off = [];
   const on = (node, ev, fn, opt) => { node.addEventListener(ev, fn, opt); off.push(() => node.removeEventListener(ev, fn, opt)); };
 
+  const chips = [...document.querySelectorAll("[data-rj-chip]")]; // fijos en el panel: se buscan una vez, no en cada cuadro
   function renderInfo(s) {
     const id = rajo.selected;
-    document.querySelectorAll("[data-rj-chip]").forEach((c) => c.toggleAttribute("data-on", c.dataset.rjChip === id));
+    chips.forEach((c) => c.toggleAttribute("data-on", c.dataset.rjChip === id));
     if (!id) { if (info.dataset.owner === "rajo") info.hidden = true; return; }
     const e = EQUIP[id], specs = e.specs(s);
     const sig = id + specs.join("|");
@@ -567,9 +568,13 @@ export function bindPanel(rajo, { onEscape } = {}) {
 const ZOOM = { perforadora: [350, 478, 190, 240], pala: [405, 552, 190, 240], caex: null }; // alto extra abajo: la ficha tapa la mitad inferior
 const toPoster = ([x, y, w, h]) => [x * G.REG.s + G.REG.tx, y * G.REG.s + G.REG.ty, w * G.REG.s, h * G.REG.s];
 
+// lámina armada de antemano, en reposo, mientras se mira la infografía (js/explorer.js): abrir sólo la inserta
+let prebuilt = null;
+export function prebuild() { return (prebuilt ||= createRajo().catch(() => (prebuilt = null))); }
 export async function mount({ layer, focus }) {
-  const rajo = await createRajo();
-  layer.appendChild(rajo.el);
+  const rajo = (await prebuilt) || (await createRajo());
+  prebuilt = null;
+  if (rajo.el.parentNode !== layer) layer.appendChild(rajo.el); // la precarga pudo dejarla ya puesta (estacionada)
   rajo.el.classList.add("rajo-plate--map");
   requestAnimationFrame(() => rajo.el.setAttribute("data-in", ""));
   const unbind = bindPanel(rajo, { onEscape: () => { location.hash = ""; } });
