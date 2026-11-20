@@ -6,7 +6,13 @@
   "scripts": {
     "dev": "npx --yes serve@14.2.4 . -l 3000",
     "demo": "npx --yes serve@14.2.4 . -l 3000",
+    "build": "node scripts/build.mjs",
+    "preview": "npm run build && npx --yes serve@14.2.4 dist -l 3001",
     "giro": "node tools/generar-giro-caex.mjs"
   },
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "svgo": "4.1.0"
+  }
 }
