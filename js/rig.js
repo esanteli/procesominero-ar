@@ -1,7 +1,8 @@
 // "Rig" del SVG exportado desde Illustrator.
 // El archivo original no trae IDs, así que cada pieza se ubica por su ruta en el árbol
 // (índices de hijos desde <svg>, contando <defs>). Si en Illustrator nombras las capas
-// (Exportar > SVG > IDs de objeto: nombres de capa), basta reemplazar la ruta por "#id".
+// (Exportar > SVG > IDs de objeto: nombres de capa), basta anotar el nombre en LAYER_NAMES:
+// se busca primero por nombre y, si no está, por la ruta de siempre.
 // El SVG fuente no se modifica: el rig envuelve piezas y agrega capas vivas en tiempo de carga.
 
 import { ARM } from "./caex.js";
@@ -76,13 +77,22 @@ export const GEO = {
   belt: { a: [648, 617.5], b: [737, 667], halfWidth: 7 },
 };
 
-function resolve(svg, path) {
+// Nombres de capa de Illustrator para las piezas (Exportar > SVG > IDs de objeto: nombres de capa). Vacío hoy: el
+// dibujo actual no trae capas nombradas. Cuando las traiga, basta poner aquí el nombre de cada capa (p. ej.
+// crusher: "Chancador"); se busca por id y por data-name (Illustrator guarda ahí el nombre original), y si no aparece
+// se usa la ruta de PARTS de siempre. Para las listas (mantle), un arreglo de nombres en el mismo orden.
+export const LAYER_NAMES = {};
+
+const byName = (svg, name) => name && (svg.querySelector(`[id="${CSS.escape(name)}"]`) || svg.querySelector(`[data-name="${CSS.escape(name)}"]`));
+function byPath(svg, path) {
   if (path.startsWith("#")) return svg.querySelector(path);
   let el = svg;
-  for (const i of path.split(".")) {
-    el = el && el.children[Number(i)];
-  }
-  if (!el) throw new Error(`rig: no encuentro la pieza ${path}`);
+  for (const i of path.split(".")) el = el && el.children[Number(i)];
+  return el || null;
+}
+function resolve(svg, path, name) {
+  const el = byName(svg, name) || byPath(svg, path);
+  if (!el) throw new Error(`rig: no encuentro la pieza ${name ? `"${name}" ni ` : ""}${path}`);
   return el;
 }
 
@@ -133,7 +143,10 @@ export async function mountRig(container, url) {
 
   // 1) resolver TODAS las rutas antes de mover nada (los índices cambian al envolver)
   const r = {};
-  for (const [k, v] of Object.entries(PARTS)) r[k] = Array.isArray(v) ? v.map((p) => resolve(svg, p)) : resolve(svg, v);
+  for (const [k, v] of Object.entries(PARTS)) {
+    const n = LAYER_NAMES[k];
+    r[k] = Array.isArray(v) ? v.map((p, i) => resolve(svg, p, Array.isArray(n) ? n[i] : undefined)) : resolve(svg, v, typeof n === "string" ? n : undefined);
+  }
 
   // 2) piezas móviles del dibujo base
   const mantle = wrapAll(r.mantle, { "data-mantle": "" });
