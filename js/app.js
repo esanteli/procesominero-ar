@@ -351,6 +351,10 @@ const PUE_TARGET = { x: 4180, y: 420, w: 960, h: 450 };
 // Se enfoca tocando su hotspot (o acercándose mucho a ella); se vuelve con el botón "Infografía", con Esc o tocando fuera.
 const POSTER = { x: 0, y: 0, w: 5497, h: 1623 };
 const KW = 1000 / POSTER.w;
+// Corrección fina del anclaje en AR por estación, en px de la infografía ([dx, dy]; + = derecha / abajo). Vacía: en el
+// demo y con cámara simulada todas calzan (< 1 px en la infografía). Si en la tablet una se ve corrida, abrir con
+// ?calibrar, enfocarla, moverla con las flechas hasta que calce y copiar aquí el valor que muestra.
+const AR_NUDGE = {};
 // enfoque automático al acercarse: fracción de la pantalla que debe ocupar una estación centrada (y bajo la cual se
 // vuelve a permitir después de salir de ella)
 const FOCUS_IN = 0.3, FOCUS_OUT = 0.14;
@@ -361,7 +365,9 @@ const POSE = { minCutoff: 1.0, beta: 6, rotMinCutoff: 0.8, rotBeta: 1.2, dCutoff
 const JUMP = 1.45;      // salto máximo de escala entre dos poses seguidas; más que eso es una pose degenerada
 const EDGE_ON = 0.12;   // coseno mínimo entre la normal del papel y la cámara (~83°): más de canto es degenerada
 const REJECT_MAX = 8;   // poses rechazadas seguidas antes de aceptar la nueva (el papel sí cambió de lugar)
-const HOLD_MS = 700, FADE_MS = 320;   // al perder el marcador: se sostiene la escena y luego se desvanece
+const FADE_MS = 320;       // al enfocar una estación, las demás se desvanecen en este tiempo
+const LOST_FADE_MS = 400;  // al perder el marcador la escena se desvanece en este tiempo y su simulación se pausa
+const LOST_REJECTS = 3;    // poses rechazadas seguidas que cuentan como pérdida
 const SHAKY_MS = 2500, JITTER_MAX = 0.012;   // si el seguimiento se pierde o vibra este tiempo en FOCUS, se sugiere Fijar
 const ZOOM_MAX = 3;
 // objeto CSS3D de un elemento centrado en (cx, cy) px de la infografía; s = px de la infografía por px del elemento
@@ -375,6 +381,7 @@ function worldObj(el, cx, cy, s, z, CSS3DObject) {
 }
 // will-change: la lámina se rasteriza una vez y la GPU sólo la mueve; sin esto el navegador la volvía a dibujar
 // entera cada vez que el seguimiento cambiaba su escala (cada cuadro).
+function nudge(objs, d) { if (d) for (const o of objs) { o.position.x += d[0] * KW; o.position.y -= d[1] * KW; } }
 function flat(o) { o.element.style.willChange = "transform"; return o; }
 // la lámina flota LIFT sobre el papel, medido en su propio marcador (ancho 1000), se vea desde un sector o de lejos
 const liftOf = (T) => (LIFT * T.w) / POSTER.w;
@@ -396,7 +403,7 @@ const AR_DEFS = [
   { id: "puerto", demo: "puerto", view: "puerto", st: { n: "5", name: "Puerto" }, mod: "./stations/puerto.js", make: "createPuerto", qa: "pmPu", cls: "pu-plate--ar", T: PUE_TARGET },
 ];
 let mindar = null, pinned = false, pinnedS = null, camera3 = null, V3 = null, T3 = null, world = null, host = null, cssLayer = null;
-let lostTimer = 0, fadeTimer = 0, lostSince = 0, allowed = null, autoBlock = null;
+let fadeTimer = 0, lostSince = 0, allowed = null, autoBlock = null;
 const arStations = [];   // { id, idx, view, st, T, obj, objs, el, svg, box, label, setActive, unfocus, shown }
 window.pmAR = arStations; // QA desde la consola: láminas armadas y cuáles se ven (shown)
 window.pmARState = () => ({ host: host?.i ?? null, focus: arCurrent?.id ?? null, ar: document.body.dataset.ar, pinned, zoom: pinnedS?.zoom?.z ?? 1,
@@ -413,6 +420,60 @@ function camMessage(err) {
   return "No se pudo abrir la cámara";
 }
 // botón de arriba: en FOCUS vuelve a la infografía; en la vista general sale del escaneo a la página de inicio
+// pantalla completa: más espacio para la escena en la tablet. No aparece si el navegador no la permite (Safari en
+// iPhone) o si la app ya corre instalada (manifest: display standalone).
+{
+  const fsBtn = $("[data-fullscreen]"), root = document.documentElement;
+  const current = () => document.fullscreenElement || document.webkitFullscreenElement;
+  const can = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+  const installed = matchMedia("(display-mode: standalone), (display-mode: fullscreen)").matches || navigator.standalone;
+  fsBtn.hidden = !can || installed;
+  const sync = () => {
+    const on = !!current();
+    fsBtn.setAttribute("aria-pressed", String(on));
+    fsBtn.setAttribute("aria-label", on ? "Salir de pantalla completa" : "Pantalla completa");
+    fsBtn.title = fsBtn.getAttribute("aria-label");
+  };
+  fsBtn.addEventListener("click", async () => {
+    try {
+      if (current()) await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      else await (root.requestFullscreen || root.webkitRequestFullscreen).call(root, { navigationUI: "hide" });
+    } catch (err) { console.warn("pantalla completa:", err); }
+  });
+  document.addEventListener("fullscreenchange", sync);
+  document.addEventListener("webkitfullscreenchange", sync);
+}
+// La ficha del equipo se abre del lado contrario al equipo elegido (en horizontal), para no taparlo. Se mira dónde
+// está en pantalla el equipo elegido (sus piezas data-eq / data-equip) y se cambia de lado sólo si cruza claramente el
+// centro (al mover la tablet no salta de un lado a otro).
+const sideOf = (() => {
+  const apiOf = () => {
+    const view = document.body.dataset.view;
+    if (view === "chancador") return { selected: live.selected, root: plate, attr: "data-equip" };
+    const D = AR_DEFS.find((d) => d.view === view), s = D && window[D.qa];
+    return s ? { selected: s.selected, root: s.el, attr: "data-eq" } : null;
+  };
+  let side = "right";
+  function update() {
+    if (info.hidden) return;
+    const a = apiOf();
+    if (!a?.selected || !a.root) return;
+    let l = Infinity, r = -Infinity;
+    for (const e of a.root.querySelectorAll(`[${a.attr}="${CSS.escape(a.selected)}"]`)) {
+      if (e.closest(".ly-copy")) continue;
+      const b = e.getBoundingClientRect();
+      if (b.width || b.height) { l = Math.min(l, b.left); r = Math.max(r, b.right); }
+    }
+    if (!Number.isFinite(l)) return;
+    const cx = (l + r) / 2 / innerWidth;
+    const next = cx > 0.58 ? "left" : cx < 0.42 ? "right" : side;   // margen: no salta cerca del centro
+    if (next !== side || info.dataset.side !== next) { side = next; info.dataset.side = side; }
+  }
+  new MutationObserver(() => { update(); setTimeout(update, 900); }).observe(info, { attributes: true, attributeFilter: ["hidden"], childList: true, subtree: true, characterData: true });
+  setInterval(update, 600); // en AR la lámina se mueve con la cámara
+  addEventListener("resize", update);
+  return () => side;
+})();
 const exitBtn = $("[data-exit-ar]");
 exitBtn.addEventListener("click", () => {
   if (document.body.dataset.mode === "ar" && arCurrent) { setFocus(null); return; }
@@ -438,6 +499,7 @@ function buildChancado(CSS3DObject) {
   plate.classList.add("ar-plate");
   const obj = worldObj(plate, P.cx, P.cy, P.k, liftOf(CH_TARGET), CSS3DObject);
   const objs = shadow ? [ground(worldObj(shadow, P.gx, P.gy, P.k, 0, CSS3DObject)), obj] : [obj];
+  nudge(objs, AR_NUDGE.chancado);
   return { id: "chancado", demo: "chancado-primario", view: "chancador", st: { n: "2", name: "Chancado Primario" }, T: CH_TARGET, obj, objs, el: plate,
     svg: rig.svg, box: boxOf(P.cx, P.cy, P.w, P.h), setActive: (v) => live.setActive(v), unfocus: () => { live.select(null); live.setInside(0); } };
 }
@@ -458,6 +520,7 @@ async function buildStation(D, CSS3DObject) {
   const cx = L + W / 2, cy = Tp + H / 2;
   const obj = worldObj(s.el, cx, cy, 1, liftOf(D.T), CSS3DObject);
   const objs = shadow ? [ground(worldObj(shadow, cx, cy, 1, 0, CSS3DObject)), obj] : [obj];
+  nudge(objs, AR_NUDGE[D.id]);
   // Esc sin nada seleccionado vuelve a la infografía
   mod.bindPanel(s, { onEscape: () => { s.select(null); if (document.body.dataset.mode === "ar") setFocus(null); } });
   return { id: D.id, demo: D.demo, view: D.view, st: D.st, T: D.T, obj, objs, el: s.el, svg: s.el.querySelector("svg"), box: boxOf(cx, cy, W, H),
@@ -564,36 +627,22 @@ async function startAR() {
   const raw = new THREE.Matrix4();
   for (const H of HOSTS) {
     H.anchor.onTargetFound = () => {
-      clearTimeout(lostTimer); clearTimeout(fadeTimer);
-      cssLayer.classList.remove("ar-layer--out");
+      endLost();
       if (host !== H) pose.ready = false;      // otro marcador: el filtro parte de cero
       host = H;
-      lostSince = 0;
       syncUi();
     };
     H.anchor.onTargetUpdate = () => {
       if (host !== H || !H.anchor.visible) return;
       raw.multiplyMatrices(H.anchor.group.matrix, H.M);
-      if (!poseUpdate(raw, performance.now())) return;   // pose degenerada: se mantiene la última válida
+      // pose degenerada: se mantiene la última válida; varias seguidas = MindAR "sigue" algo que no es el papel
+      // (el piso, la mesa): se trata como pérdida, para que la lámina no quede congelada flotando sobre el entorno
+      if (!poseUpdate(raw, performance.now())) { if (pose.rejected >= LOST_REJECTS) beginLost(); return; }
+      endLost();
       cssDirty = true;
       updateView();
     };
-    H.anchor.onTargetLost = () => {
-      if (host !== H) return;
-      lostSince = performance.now();
-      // histéresis: la escena se sostiene un momento (un desenfoque breve no la borra) y luego se desvanece
-      lostTimer = setTimeout(() => {
-        cssLayer.classList.add("ar-layer--out");
-        hotLayer.hidden = true;
-        fadeTimer = setTimeout(() => {
-          host = null;
-          pose.ready = false;
-          for (const S of arStations) show(S, false);
-          cssLayer.classList.remove("ar-layer--out");
-          syncUi();
-        }, FADE_MS);
-      }, HOLD_MS);
-    };
+    H.anchor.onTargetLost = () => { if (host === H) beginLost(); };
   }
 
   // cámara trasera a 1280×720 (~30 fps): equilibrio entre nitidez y fluidez. MindAR la pide sin resolución y los
@@ -632,6 +681,29 @@ async function startAR() {
 // descartan: eran las láminas "explotadas" al re-engancharse.
 const pose = { ready: false, rejected: 0, jitter: 0 };
 const lowpass = (cutoff, dt) => 1 / (1 + 1 / (2 * Math.PI * cutoff * dt));
+// Pérdida del marcador: la escena se desvanece de inmediato (LOST_FADE_MS) y al terminar se oculta y se pausan las
+// simulaciones (show(S, false) → setActive(false)). Si el marcador vuelve durante el desvanecido, se recupera sin
+// salto. La lámina fijada con el alfiler no está en esta capa: no se ve afectada.
+function beginLost() {
+  if (lostSince) return;
+  lostSince = performance.now();
+  cssLayer.classList.add("ar-layer--out");
+  hotLayer.hidden = true;
+  clearTimeout(fadeTimer);
+  fadeTimer = setTimeout(() => {
+    host = null;
+    pose.ready = false;
+    for (const S of arStations) show(S, false);
+    cssLayer.classList.remove("ar-layer--out");
+    syncUi();
+  }, LOST_FADE_MS);
+}
+function endLost() {
+  if (!lostSince) return;
+  clearTimeout(fadeTimer);
+  lostSince = 0;
+  cssLayer.classList.remove("ar-layer--out");
+}
 function poseUpdate(m, now) {
   if (!pose.p) {
     pose.p = new T3.Vector3(); pose.q = new T3.Quaternion(); pose.s = new T3.Vector3();
@@ -770,8 +842,25 @@ function setFocus(S) {
   if (host && pose.ready) updateView();
 }
 // estado de la interfaz: vista general / enfoque / buscando
+// ?calibrar: flechas para mover la lámina enfocada de a 1 px de la infografía y ver cuánto (para AR_NUDGE)
+const calib = new URLSearchParams(location.search).has("calibrar") ? (() => {
+  const box = document.createElement("div");
+  box.className = "calib";
+  box.innerHTML = `<output data-calib-val></output><div>${[["←", -1, 0], ["→", 1, 0], ["↑", 0, -1], ["↓", 0, 1]].map(([t, x, y]) => `<button type="button" data-dx="${x}" data-dy="${y}" aria-label="Mover ${t}">${t}</button>`).join("")}</div>`;
+  document.body.appendChild(box);
+  const off = {};
+  const show = () => { const S = arCurrent; box.hidden = !S; if (!S) return; const d = off[S.id] || [0, 0]; box.querySelector("[data-calib-val]").textContent = `AR_NUDGE.${S.id} = [${d[0]}, ${d[1]}]`; };
+  box.addEventListener("click", (e) => {
+    const bt = e.target.closest("button"), S = arCurrent; if (!bt || !S) return;
+    const dx = +bt.dataset.dx, dy = +bt.dataset.dy, d = (off[S.id] ||= [0, 0]);
+    d[0] += dx; d[1] += dy; nudge(S.objs, [dx, dy]); cssDirty = true; show();
+    console.log(`AR_NUDGE.${S.id} = [${(AR_NUDGE[S.id]?.[0] || 0) + d[0]}, ${(AR_NUDGE[S.id]?.[1] || 0) + d[1]}]`);
+  });
+  return { show };
+})() : null;
 let lastClockState = "";
 function syncUi() {
+  calib?.show();
   const tracking = !!host;
   const state = arCurrent ? "focus" : tracking ? "overview" : "scan";
   document.body.dataset.ar = state;

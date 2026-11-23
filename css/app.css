@@ -90,6 +90,10 @@ body[data-tracking] .status::before, body[data-mode="demo"] .status::before { ba
 .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: var(--pm-orange); stroke-width: 1.8; stroke-linejoin: round; }
 .icon-btn[aria-pressed="true"] { background: var(--pm-orange); }
 .icon-btn[aria-pressed="true"] svg { stroke: #fff; }
+.fs-btn { flex: none; width: 44px; height: 44px; }
+.fs-btn svg { stroke-width: 2.2; stroke-linecap: round; }
+.fs-btn .fs-out, .fs-btn[aria-pressed="true"] .fs-in { display: none; }
+.fs-btn[aria-pressed="true"] .fs-out { display: inline; }
 
 .panel { margin: 0 auto; width: min(100%, 640px); padding: 14px 16px calc(14px + var(--safe-b));
   background: var(--pm-glass); backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2);
@@ -1078,9 +1082,12 @@ body[data-mode="ar"] .scan-hint p { backdrop-filter: blur(8px); -webkit-backdrop
   body[data-mode="ar"] .panel-view > .seq { grid-area: seq; }
   body[data-mode="ar"] .readout-row { min-height: 0; }
   body[data-mode="ar"] .meter { height: 22px; }
-  /* la ficha del equipo pasa al costado, arriba a la derecha, para no tapar la lámina */
-  body[data-mode="ar"] .info { left: auto; right: 12px; bottom: auto; top: calc(64px + env(safe-area-inset-top, 0px)); margin: 0;
+}
+/* horizontal (tablet): la ficha del equipo va al costado, del lado contrario al equipo elegido (data-side, app.js) */
+@media (orientation: landscape) and (min-width: 700px) {
+  .info { left: auto; right: 12px; bottom: auto; top: calc(64px + env(safe-area-inset-top, 0px)); margin: 0;
     width: min(360px, 36vw); max-height: calc(100vh - var(--hud-h, 300px) - 80px); overflow: auto; }
+  .info[data-side="left"] { left: 12px; right: auto; }
 }
 @media (orientation: landscape) and (min-width: 1100px) {
   body[data-mode="ar"] .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) {
@@ -1118,7 +1125,7 @@ body[data-mode="ar"]:not([data-ar="focus"]) [data-panel] { display: none; }
 /* ---------------------------------------------------------------- AR: vista general ↔ estación enfocada */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* las demás estaciones se desvanecen al enfocar una; al volver, reaparecen */
-.ar-layer { transition: opacity .32s ease; }
+.ar-layer { transition: opacity .4s ease; } /* = LOST_FADE_MS en app.js */
 .ar-layer--out { opacity: 0; }
 .ar-plate, .ar-ground { transition: opacity .32s ease; }
 .ar-out { opacity: 0 !important; pointer-events: none !important; }
@@ -1176,3 +1183,11 @@ body[data-mode="ar"]:not([data-ar="focus"]) [data-panel] { display: none; }
 .zoom-hud output { min-width: 46px; text-align: center; font-family: var(--pm-mono); font-size: 13px; color: #5a3b27; }
 .zoom-hud .zoom-reset { font-size: 13px; padding: 0 12px; }
 @media (prefers-reduced-motion: reduce) { .ar-hotspot-ring, .ar-act.is-nudge { animation: none; } .ar-in { animation: none; } }
+
+/* ?calibrar (app.js): flechas para ajustar el anclaje de la lámina enfocada */
+.calib { position: fixed; top: calc(70px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 40;
+  display: grid; gap: 6px; justify-items: center; padding: 8px 10px; border-radius: 16px; background: rgba(20, 12, 6, .78); color: #fff;
+  font: 13px/1.3 var(--pm-mono); }
+.calib[hidden] { display: none; }
+.calib div { display: flex; gap: 6px; }
+.calib button { width: 44px; height: 44px; border: 0; border-radius: 12px; background: var(--pm-orange); color: #fff; font-size: 20px; cursor: pointer; }

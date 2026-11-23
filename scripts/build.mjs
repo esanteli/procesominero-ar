@@ -30,7 +30,7 @@ const SKIP = [
   /^assets\/target-[\w-]+\.png$/,   // recortes para compilar targets.mind (tools/compilar-marcador.html)
   /^assets\/infografia\.jpg$/,      // original CMYK: se publican infografia.avif/.webp/-srgb.jpg
 ];
-const FILES = ["index.html", "bench.html", "sw.js", ...["css", "js", "vendor", "assets"].flatMap((d) => walk(path.join(ROOT, d)).map(rel))]
+const FILES = ["index.html", "bench.html", "sw.js", "manifest.webmanifest", ...["css", "js", "vendor", "assets"].flatMap((d) => walk(path.join(ROOT, d)).map(rel))]
   .filter((f) => fs.existsSync(path.join(ROOT, f)) && !SKIP.some((re) => re.test(f)));
 
 const SVGO = {
