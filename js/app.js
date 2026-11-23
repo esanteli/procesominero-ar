@@ -412,6 +412,94 @@ window.pmARBoxes = () => (world ? arStations.filter((S) => S.shown).map((S) => [
 let arCurrent = null, cssDirty = true;
 const painted = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+
+// ---------------------------------------------------------------- siglas: botón "?" junto a la lectura de cada estación
+// Las abreviaturas comunes van escritas completas; los términos técnicos que conviene conservar (Ley, SAG, PLS…) se
+// explican aquí. Se lista sólo lo que aparece en esa estación (lectura, equipos y deslizadores); sin siglas, sin botón.
+const GLOSARIO = [
+  [/\bLey\b/, "Ley", "Porcentaje de cobre que contiene el material."],
+  [/\bRecuperación\b/, "Recuperación", "Parte del cobre que entra a la planta y se logra capturar en el concentrado."],
+  [/\bRougher\b/i, "Rougher", "Primera etapa de flotación: recupera la mayor parte del cobre; la limpieza lo concentra después."],
+  [/\bDescarga\b/, "Descarga", "Porcentaje de sólidos en el lodo que sale por el fondo del espesador."],
+  [/\bSAG\b/, "SAG", "Molino semiautógeno: muele el mineral con el propio mineral y algunas bolas de acero."],
+  [/\bCC\b/, "CC", "Carga circulante: el material grueso que los hidrociclones devuelven al molino."],
+  [/\bP80\b/, "P80", "Tamaño por el que pasa el 80 % del material molido."],
+  [/\bHPGR\b/, "HPGR", "Rodillos de alta presión: trituran el mineral apretándolo entre dos cilindros."],
+  [/\bPLS\b/, "PLS", "Solución rica en cobre que sale de las pilas de lixiviación."],
+  [/\bSX\b/, "SX", "Extracción por solvente: un líquido orgánico captura el cobre del PLS."],
+  [/\bEW\b/, "EW", "Electroobtención: la corriente deposita el cobre en los cátodos."],
+  [/η/, "η", "Eficiencia de corriente: parte de la electricidad que de verdad deposita cobre."],
+  [/kWh\/kg/, "kWh/kg", "Energía eléctrica gastada por cada kilo de cobre producido."],
+  [/\bTML\b/, "TML", "Límite de humedad transportable: sobre él, la carga puede volverse fluida en el barco."],
+  [/\bkt\b/, "kt", "Miles de toneladas."],
+  [/\bCAEX\b/, "CAEX", "Camión de extracción de alto tonelaje (unas 300 t de carga)."],
+  [/\bTeniente\b/, "Convertidor Teniente", "Horno que funde el concentrado; tecnología desarrollada en Chile."],
+];
+{
+  const pop = document.createElement("div");
+  pop.className = "gloss"; pop.hidden = true; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Qué significan las siglas");
+  document.body.appendChild(pop);
+  const termsOf = (view) => {
+    const t = [...view.querySelectorAll(".readout, .chip, .ctl-label")].map((e) => [...e.childNodes].map((n) => n.textContent).join(" ")).join(" · "); // "01 Rougher", no "01Rougher"
+    return GLOSARIO.filter(([re]) => re.test(t));
+  };
+  const close = () => { pop.hidden = true; document.querySelectorAll(".gloss-btn[aria-expanded=true]").forEach((b) => b.setAttribute("aria-expanded", "false")); };
+  for (const row of document.querySelectorAll(".panel-view .readout-row")) {
+    const view = row.closest(".panel-view"), btn = document.createElement("button");
+    btn.type = "button"; btn.className = "gloss-btn"; btn.textContent = "?";
+    btn.setAttribute("aria-label", "Qué significan las siglas"); btn.setAttribute("aria-expanded", "false");
+    row.appendChild(btn);
+    const sync = () => { btn.hidden = !termsOf(view).length; };
+    sync(); setInterval(() => { if (!view.hidden) sync(); }, 2000);
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (!pop.hidden && btn.getAttribute("aria-expanded") === "true") return close();
+      pop.innerHTML = `<dl>${termsOf(view).map(([, k, d]) => `<dt>${k}</dt><dd>${d}</dd>`).join("")}</dl>`;
+      pop.hidden = false; btn.setAttribute("aria-expanded", "true");
+      const r = btn.getBoundingClientRect(), w = Math.min(340, innerWidth - 24);
+      pop.style.width = `${w}px`;
+      pop.style.left = `${Math.max(12, Math.min(innerWidth - w - 12, r.left - 12))}px`;
+      pop.style.bottom = `${innerHeight - r.top + 8}px`;
+    });
+  }
+  document.addEventListener("click", (e) => { if (!pop.hidden && !e.target.closest(".gloss")) close(); });
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && !pop.hidden) close(); }, true);
+}
+
+// ---------------------------------------------------------------- guía de controles (primera vez en cada estación)
+// 3 a 5 s, sobre los grupos del panel: equipos, deslizadores y secuencia. Un toque la salta; no vuelve a salir.
+{
+  const el = document.createElement("div");
+  el.className = "guide"; el.hidden = true;
+  document.body.appendChild(el);
+  let t = 0;
+  const hide = () => { el.hidden = true; el.innerHTML = ""; clearTimeout(t); };
+  const TIPS = [[".chips", "Toca un equipo para ver su ficha"], [".controls", "Desliza para mirar por dentro"], [".seq", "Sigue el recorrido paso a paso"]];
+  function show(view) {
+    const key = `pm-guia-${view}`;
+    if (store.get(key)) return;
+    const pv = document.querySelector(`[data-panel-view="${CSS.escape(view)}"]`);
+    if (!pv || pv.hidden || !pv.offsetParent) return;
+    store.set(key, "1");
+    const tips = TIPS.map(([sel, txt]) => {
+      const g = pv.querySelector(`:scope > ${sel}`);
+      if (!g || !g.offsetParent) return "";
+      const r = g.getBoundingClientRect(), x = Math.max(12, Math.min(innerWidth - 232, r.left + r.width / 2 - 110));
+      return `<p class="guide-tip" style="left:${x}px;top:${Math.max(70, r.top - 10)}px">${txt}</p>`;
+    }).join("");
+    if (!tips) return;
+    el.innerHTML = `${tips}<button type="button" class="guide-skip">Entendido</button>`;
+    el.hidden = false;
+    clearTimeout(t); t = setTimeout(hide, 5000);
+  }
+  el.addEventListener("click", hide);
+  document.addEventListener("pointerdown", (e) => { if (!el.hidden && !e.target.closest(".guide")) hide(); }, true);
+  new MutationObserver(() => {
+    const v = document.body.dataset.view;
+    hide();
+    if (v && v !== "map" && v !== "station") setTimeout(() => requestAnimationFrame(() => { if (document.body.dataset.view === v) show(v); }), 700);
+  }).observe(document.body, { attributes: true, attributeFilter: ["data-view"] });
+}
 function camMessage(err) {
   const n = err?.name || "";
   if (n === "NotAllowedError" || n === "SecurityError") return "Permiso de cámara denegado · actívalo en el navegador y recarga";

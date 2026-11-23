@@ -476,7 +476,7 @@ export function bindPanel(fx, { onEscape, onFocus } = {}) {
       stepBtns.forEach((b) => { const k = Number(b.dataset.step); b.toggleAttribute("data-done", k < st.n); b.toggleAttribute("data-current", k === st.n); }); lastStep = st.n; }
     stepBtns[st.n - 1].style.setProperty("--p", clamp((s.t - st.t0) / (st.t1 - st.t0)).toFixed(3));
     meter.style.setProperty("--fill", (s.m.R / 100).toFixed(3));
-    const text = `Recup. ${Math.round(s.m.R)} % · Ley ${Math.round(s.m.G)} % Cu · Descarga ${s.m.uf} %`;
+    const text = `Recuperación ${Math.round(s.m.R)} % · Ley ${Math.round(s.m.G)} % Cu · Descarga ${s.m.uf} %`;
     if (text !== lastText) { readout.textContent = text; lastText = text; }
     playBtn.setAttribute("aria-pressed", String(fx.playing)); playBtn.setAttribute("aria-label", fx.playing ? "Pausar" : "Reproducir");
     renderInfo(s);

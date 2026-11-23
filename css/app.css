@@ -1260,3 +1260,29 @@ body[data-mode="ar"] .seq { grid-template-columns: 48px 1fr auto; }
   .seq > .seq-nav { grid-area: foot; justify-self: start; }
   .seq > .ar-actions { grid-area: foot; justify-self: end; margin: 0; }
 }
+
+/* siglas (app.js): "?" al final de la lectura y una ventanita con las definiciones */
+.readout-row .readout { flex: 1; min-width: 0; }
+.gloss-btn { flex: none; width: 44px; height: 44px; margin: -6px -4px -6px 0; border: 0; border-radius: 50%; background: #fff4ea; color: var(--pm-orange);
+  font: 700 18px/1 var(--pm-sans); cursor: pointer; }
+.gloss-btn[hidden] { display: none; }
+.gloss-btn[aria-expanded="true"] { background: var(--pm-orange); color: #fff; }
+.gloss { position: fixed; z-index: 30; max-height: 50vh; overflow: auto; padding: 12px 14px; border-radius: 16px; background: rgba(255, 255, 255, .96);
+  box-shadow: 0 14px 40px -12px #3a24145c; color: #5a3b27; font-size: 14px; line-height: 1.4; }
+.gloss[hidden] { display: none; }
+.gloss dl { margin: 0; display: grid; gap: 4px 0; }
+.gloss dt { font-weight: 700; color: var(--pm-orange); margin-top: 4px; }
+.gloss dt:first-child { margin-top: 0; }
+.gloss dd { margin: 0; }
+
+/* guía de controles (primera vez en cada estación, 5 s; un toque la salta) */
+.guide { position: fixed; inset: 0; z-index: 25; pointer-events: none; }
+.guide[hidden] { display: none; }
+.guide-tip { position: absolute; width: 220px; margin: 0; transform: translateY(-100%); padding: 10px 12px; border-radius: 14px;
+  background: #3a2414eb; color: #fff; font-size: 14px; font-weight: 500; line-height: 1.3; text-align: center; animation: guide-in .3s ease both; }
+.guide-tip::after { content: ""; position: absolute; left: 50%; top: 100%; margin-left: -8px; border: 8px solid transparent; border-top-color: #3a2414eb; }
+.guide-skip { position: absolute; left: 50%; top: calc(76px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); pointer-events: auto;
+  min-height: 44px; padding: 0 20px; border: 0; border-radius: 99px; background: var(--pm-orange); color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 10px 24px -10px #3a24148c; }
+@keyframes guide-in { from { opacity: 0; transform: translateY(calc(-100% + 6px)); } }
+@media (prefers-reduced-motion: reduce) { .guide-tip { animation: none; } }

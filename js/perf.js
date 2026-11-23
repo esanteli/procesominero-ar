@@ -1,11 +1,12 @@
-// Medición de rendimiento: agrega ?perf a la URL (o window.PM_PERF = true antes de cargar) para ver un HUD con
+// Medición de rendimiento: agrega ?perf (o ?debug) a la URL (o window.PM_PERF = true antes de cargar) para ver un HUD con
 //   cuadro → ms entre cuadros (promedio y p95 del último segundo) y cuadros por segundo
 //   JS     → ms de JavaScript por cuadro: suma de lo que tardan los callbacks de requestAnimationFrame
 //   largas → tareas largas (> 50 ms, PerformanceObserver "longtask"): cuántas y la mayor
 // Debe importarse ANTES que todo lo demás (primera línea de app.js): envuelve requestAnimationFrame.
 // window.pmPerf.reset() / snapshot() sirven para medir un tramo desde la consola o desde un script.
 // Nota de método: un tab de automatización (o en segundo plano) limita rAF a ~1 fps: mide en una ventana visible.
-const ON = typeof window !== "undefined" && (window.PM_PERF || new URLSearchParams(location.search).has("perf"));
+const Q = typeof location !== "undefined" ? new URLSearchParams(location.search) : new URLSearchParams();
+const ON = typeof window !== "undefined" && (window.PM_PERF || Q.has("perf") || Q.has("debug")); // ?debug también lo muestra (con la consola)
 
 function install() {
   const raf0 = window.requestAnimationFrame.bind(window);
