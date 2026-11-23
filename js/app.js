@@ -474,6 +474,57 @@ const sideOf = (() => {
   addEventListener("resize", update);
   return () => side;
 })();
+// Ficha plegable: botón junto a cerrar; deslizarla hacia su borde (o hacia abajo) la pliega y deja sólo el título;
+// tocarla o deslizarla hacia arriba la despliega. Una sola capa de detalle a la vez: si se abre un detalle flotante de
+// la lámina (tarjetas *-callout: corte de la tolva, de la celda…), la ficha se pliega sola y vuelve al cerrarlo.
+{
+  const head = info.querySelector(".info-head"), title = info.querySelector("[data-info-title]");
+  const fold = document.createElement("button");
+  fold.type = "button"; fold.className = "info-fold";
+  fold.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>';
+  head.insertBefore(fold, head.querySelector("[data-info-close]"));
+  let auto = false;
+  const folded = () => info.hasAttribute("data-folded");
+  const setFold = (on, byAuto = false) => {
+    info.toggleAttribute("data-folded", on);
+    fold.setAttribute("aria-expanded", String(!on));
+    fold.setAttribute("aria-label", on ? "Desplegar la ficha" : "Plegar la ficha");
+    auto = on && byAuto;
+  };
+  setFold(false);
+  fold.addEventListener("click", (e) => { e.stopPropagation(); setFold(!folded()); });
+  info.addEventListener("click", (e) => { if (folded() && !e.target.closest("button")) setFold(false); });
+  let sw = null;
+  info.addEventListener("pointerdown", (e) => { if (!e.target.closest("button")) sw = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
+  info.addEventListener("pointerup", (e) => {
+    if (!sw || sw.id !== e.pointerId) return;
+    const dx = e.clientX - sw.x, dy = e.clientY - sw.y; sw = null;
+    const toEdge = info.dataset.side === "left" ? dx < -50 : dx > 50;
+    if (!folded() && ((Math.abs(dx) > Math.abs(dy) && toEdge) || dy > 50)) setFold(true);
+    else if (folded() && dy < -40) setFold(false);
+  });
+  info.addEventListener("pointercancel", () => { sw = null; });
+  // otro equipo → ficha desplegada (salvo que haya un detalle abierto)
+  let lastTitle = "";
+  new MutationObserver(() => { if (title.textContent !== lastTitle) { lastTitle = title.textContent; setFold(detailOpen(), true); } }).observe(title, { childList: true, characterData: true, subtree: true });
+  const activePlate = () => (document.body.dataset.mode === "ar" ? arCurrent?.el : document.querySelector(".map-layer > *"));
+  function detailOpen() {
+    const root = activePlate();
+    if (!root) return false;
+    for (const c of root.querySelectorAll('[class$="-callout"], [class*="-callout "]')) {
+      if (c.closest(".ly-copy")) continue;
+      const cs = getComputedStyle(c), b = c.getBoundingClientRect();
+      if (cs.display !== "none" && cs.visibility !== "hidden" && parseFloat(cs.opacity) > 0.05 && b.width > 4) return true;
+    }
+    return false;
+  }
+  setInterval(() => {
+    if (info.hidden) return;
+    const d = detailOpen();
+    if (d && !folded()) setFold(true, true);
+    else if (!d && auto) setFold(false);
+  }, 300);
+}
 const exitBtn = $("[data-exit-ar]");
 exitBtn.addEventListener("click", () => {
   if (document.body.dataset.mode === "ar" && arCurrent) { setFocus(null); return; }

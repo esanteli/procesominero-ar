@@ -1070,29 +1070,11 @@ body[data-mode="ar"] .info { background: rgba(255, 255, 255, .74); backdrop-filt
 body[data-mode="ar"] .scan-hint p { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
 /* horizontal: el panel se estira a lo ancho y baja de alto (lectura y equipos | controles | secuencia) */
-@media (orientation: landscape) and (min-width: 700px) {
-  body[data-mode="ar"] .panel { width: min(100% - 24px, 1240px); margin-bottom: 10px; border-radius: 20px; }
-  body[data-mode="ar"] .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "read ctl" "chips ctl" "seq ctl";
-    column-gap: 16px; row-gap: 6px; align-items: center; }
-  body[data-mode="ar"] .panel-view:not(:has(> .controls)) { grid-template-areas: "read seq" "chips seq"; }
-  body[data-mode="ar"] .panel-view > .readout-row { grid-area: read; }
-  body[data-mode="ar"] .panel-view > .chips { grid-area: chips; flex-wrap: wrap; overflow: visible; }
-  body[data-mode="ar"] .panel-view > .controls { grid-area: ctl; gap: 2px; }
-  body[data-mode="ar"] .panel-view > .seq { grid-area: seq; }
-  body[data-mode="ar"] .readout-row { min-height: 0; }
-  body[data-mode="ar"] .meter { height: 22px; }
-}
 /* horizontal (tablet): la ficha del equipo va al costado, del lado contrario al equipo elegido (data-side, app.js) */
 @media (orientation: landscape) and (min-width: 700px) {
   .info { left: auto; right: 12px; bottom: auto; top: calc(64px + env(safe-area-inset-top, 0px)); margin: 0;
     width: min(360px, 36vw); max-height: calc(100vh - var(--hud-h, 300px) - 80px); overflow: auto; }
   .info[data-side="left"] { left: 12px; right: auto; }
-}
-@media (orientation: landscape) and (min-width: 1100px) {
-  body[data-mode="ar"] .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.05fr); grid-template-areas: "read ctl seq" "chips ctl seq"; }
-  body[data-mode="ar"] .panel-view:not(:has(> .controls)) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "read seq" "chips seq"; }
 }
 /* horizontal en celular (poca altura): barra superior y panel más bajos */
 @media (orientation: landscape) and (max-height: 500px) {
@@ -1191,3 +1173,90 @@ body[data-mode="ar"]:not([data-ar="focus"]) [data-panel] { display: none; }
 .calib[hidden] { display: none; }
 .calib div { display: flex; gap: 6px; }
 .calib button { width: 44px; height: 44px; border: 0; border-radius: 12px; background: var(--pm-orange); color: #fff; font-size: 20px; cursor: pointer; }
+
+/* ================================================================ tablet: objetivos táctiles y lectura
+   Todo lo que se toca mide al menos 44 px de alto (la barra de pasos y los deslizadores conservan su dibujo delgado:
+   crece el área sensible, no el trazo) y ningún texto del HUD baja de 13 px. */
+.chip { min-height: 44px; font-size: 14px; padding-top: 0; padding-bottom: 0; }
+.chip span { font-size: 13px; }
+.chips { gap: 8px; }
+.ctl { min-height: 44px; font-size: 14px; }
+.ctl output, .readout { font-size: 13.5px; }
+input[type="range"], body[data-mode="ar"] input[type="range"] { height: 44px; }
+input[type="range"]::-webkit-slider-thumb { width: 28px; height: 28px; margin-top: -11px; }
+input[type="range"]::-moz-range-thumb { width: 26px; height: 26px; }
+.seq-step { height: 44px; padding: 19px 0; margin: -11px 0; }
+.seq-nav-btn { width: 44px; height: 44px; }
+.seq-play, body[data-mode="ar"] .seq-play { width: 48px; height: 48px; }
+.seq { grid-template-columns: 48px 1fr auto; }
+body[data-mode="ar"] .seq { grid-template-columns: 48px 1fr auto; }
+.seq-label b { font-size: 13px; }
+.back-btn { min-height: 44px; }
+.info-close { width: 44px; height: 44px; }
+.info-kicker { font-size: 13px; }
+.info-specs li { font-size: 13px; }
+.ar-act { min-height: 44px; font-size: 14px; }
+.zoom-hud button { min-width: 44px; height: 44px; }
+.coach button { min-height: 44px; padding: 0 16px; }
+.zoom-hud output, .seq-label { font-size: 14px; }
+
+/* ================================================================ AR en horizontal: zona del pulgar
+   El panel deja de ser una franja: lectura y equipos abajo a la izquierda (pulgar izquierdo), secuencia, deslizadores
+   y Fijar/Ampliar abajo a la derecha (pulgar derecho). El centro queda libre para la escena. */
+@media (orientation: landscape) and (min-width: 700px) {
+  body[data-mode="ar"] .panel { width: 100%; margin: 0; padding: 0 12px calc(10px + var(--safe-b)); background: none; border-radius: 0;
+    box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
+  body[data-mode="ar"] .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) {
+    grid-template-columns: minmax(250px, 30%) minmax(0, 1fr) minmax(330px, 36%);
+    grid-template-areas: "read . ctl" "chips . seq"; column-gap: 12px; row-gap: 8px; align-items: end; }
+  body[data-mode="ar"] .panel-view:not(:has(> .controls)) { grid-template-areas: "read . seq" "chips . seq"; }
+  body[data-mode="ar"] .panel-view > * { pointer-events: auto; }
+  /* cada grupo es su propia tarjeta translúcida (entre ellas se ve la escena) */
+  body[data-mode="ar"] .panel-view > .readout-row, body[data-mode="ar"] .panel-view > .chips,
+  body[data-mode="ar"] .panel-view > .controls, body[data-mode="ar"] .panel-view > .seq {
+    background: rgba(255, 255, 255, .62); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    border-radius: 18px; box-shadow: inset 0 1px 0 #ffffffb3, 0 10px 28px -14px #0000004d; }
+  body[data-mode="ar"] .panel-view > .readout-row { grid-area: read; padding: 8px 12px; align-self: end; }
+  body[data-mode="ar"] .panel-view > .chips { grid-area: chips; flex-wrap: wrap; overflow: visible; padding: 8px; align-content: flex-end; }
+  body[data-mode="ar"] .panel-view > .controls { grid-area: ctl; gap: 4px; padding: 6px 12px; }
+  body[data-mode="ar"] .panel-view > .seq { grid-area: seq; padding: 8px 10px; }
+  body[data-mode="ar"] .ctl { grid-template-columns: 112px 1fr 70px; gap: 10px; }
+  body[data-mode="ar"] .meter { height: 26px; }
+  /* secuencia: play + pasos arriba (cada paso, un blanco de ≥ 44 px), anterior/siguiente con Fijar y Ampliar abajo */
+  body[data-mode="ar"] .panel-view > .seq { grid-template-columns: 48px minmax(0, 1fr); grid-template-areas: "play body" "foot foot"; row-gap: 6px; }
+  body[data-mode="ar"] .seq > .seq-play { grid-area: play; }
+  body[data-mode="ar"] .seq > .seq-body { grid-area: body; }
+  body[data-mode="ar"] .seq > .seq-nav { grid-area: foot; justify-self: start; }
+  body[data-mode="ar"] .seq > .ar-actions { grid-area: foot; justify-self: end; margin: 0; }
+}
+/* horizontal en tablets grandes: el grupo derecho pone deslizadores y secuencia lado a lado si caben */
+@media (orientation: landscape) and (min-width: 1280px) {
+  body[data-mode="ar"] .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) { grid-template-columns: minmax(260px, 28%) minmax(0, 1fr) minmax(360px, 34%); }
+}
+
+/* el paso actual se lee entero: hasta dos líneas (antes se cortaba con "…") */
+.seq-label { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; align-items: start; }
+.seq-label span { display: inline; }
+.seq-label b { margin-right: 6px; }
+
+/* ficha plegable (app.js): plegada queda sólo la cabecera con el título; se toca para desplegar */
+.info-head { gap: 6px; }
+.info-head .info-kicker { flex: 1; }
+.info-fold { width: 44px; height: 44px; border: 0; border-radius: 50%; background: #fff4ea; cursor: pointer; display: grid; place-items: center; }
+.info-fold svg { width: 18px; height: 18px; fill: none; stroke: var(--pm-orange); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s; }
+.info[data-folded] .info-fold svg { transform: rotate(180deg); }
+.info[data-folded] .info-text, .info[data-folded] .info-specs, .info[data-folded] .info-actions { display: none; }
+.info[data-folded] .info-title { margin: 0 0 2px; font-size: 16px; }
+.info[data-folded] { cursor: pointer; touch-action: none; }
+.info { touch-action: pan-y; }
+.seq-steps { gap: 2px; }
+.info[data-folded] { width: fit-content; min-width: 220px; max-width: min(360px, 36vw); }
+/* pantallas angostas: la secuencia en dos filas (play + pasos arriba; anterior/siguiente y Fijar/Ampliar abajo) para
+   que cada paso de la barra mida ≥ 44 px de ancho */
+@media (max-width: 700px) {
+  .seq, body[data-mode="ar"] .seq { grid-template-columns: 48px minmax(0, 1fr); grid-template-areas: "play body" "foot foot"; row-gap: 6px; }
+  .seq > .seq-play { grid-area: play; }
+  .seq > .seq-body { grid-area: body; }
+  .seq > .seq-nav { grid-area: foot; justify-self: start; }
+  .seq > .ar-actions { grid-area: foot; justify-self: end; margin: 0; }
+}
