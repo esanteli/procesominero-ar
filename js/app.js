@@ -413,6 +413,29 @@ let arCurrent = null, cssDirty = true;
 const painted = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 
+// ---------------------------------------------------------------- vertical en celular: deslizadores tras "Controles" (T8)
+// Quedan a la vista la lectura, los equipos y la secuencia; el botón (al final de la fila de equipos) despliega los
+// deslizadores. Sólo en vertical en pantallas angostas (CSS); en tablet y en horizontal se ven siempre.
+{
+  let open = false;
+  const views = [...document.querySelectorAll(".panel-view")].filter((v) => v.querySelector(":scope > .controls"));
+  const sync = () => views.forEach((v) => {
+    v.toggleAttribute("data-ctl-open", open);
+    const b = v.querySelector(":scope > .ctl-toggle");
+    b.setAttribute("aria-expanded", String(open));
+    b.querySelector("span").textContent = open ? "Ocultar" : "Controles";
+  });
+  for (const v of views) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "ctl-toggle";
+    b.setAttribute("aria-controls", (v.querySelector(":scope > .controls").id ||= `ctl-${v.dataset.panelView}`));
+    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Controles</span>';
+    v.querySelector(":scope > .chips").after(b);
+    b.addEventListener("click", () => { open = !open; sync(); });
+  }
+  sync();
+}
+
 // ---------------------------------------------------------------- fila de equipos que no cabe (T4)
 // Si los chips se desplazan en horizontal, un degradado en el borde avisa que siguen (data-more: izquierda, derecha o
 // ambos). Al elegir un equipo, su chip se trae a la vista.

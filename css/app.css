@@ -1342,3 +1342,22 @@ body[data-mode="ar"] .readout-row .readout { background: rgba(255, 255, 255, .8)
 .scan-demo[hidden] { display: none; }
 .gloss-guide { display: block; width: 100%; min-height: 44px; margin: 0 0 10px; border: 0; border-radius: 99px; background: #fff4ea; color: var(--pm-orange);
   font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+
+/* T8 · vertical en celular: deslizadores tras el botón «Controles» (al final de la fila de equipos) */
+.ctl-toggle { display: none; }
+@media (orientation: portrait) and (max-width: 700px) {
+  .panel-view:has(> .ctl-toggle) { grid-template-columns: minmax(0, 1fr) auto; column-gap: 6px; }
+  .panel-view:has(> .ctl-toggle) > :not(.chips):not(.ctl-toggle) { grid-column: 1 / -1; }
+  .ctl-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; align-self: center;
+    border: 1.5px solid var(--pm-orange); border-radius: 99px; background: #fff; color: var(--pm-orange);
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .ctl-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+  .ctl-toggle[aria-expanded="true"] { background: var(--pm-orange); color: #fff; }
+  .panel-view:not([data-ctl-open]) > .controls { display: none; }
+}
+@media (orientation: portrait) and (max-width: 700px) {
+  body[data-mode="ar"] .panel { padding-top: 8px; gap: 6px; }
+  body[data-mode="ar"] .panel-view { row-gap: 6px; }
+  body[data-mode="ar"] .seq { padding-top: 4px; padding-bottom: 4px; }
+  body[data-mode="ar"] .info[data-folded] { bottom: calc(var(--hud-h, 300px) - 2px); }
+}
