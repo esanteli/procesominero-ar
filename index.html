@@ -567,6 +567,15 @@
     <button type="button">Entendido</button>
   </div>
   <!-- AR: aviso cuando el seguimiento está inestable -->
+  <!-- sin cámara (permiso rechazado, sin cámara trasera…): el demo abre con este aviso -->
+  <div class="notice" data-notice role="alertdialog" aria-labelledby="notice-title" hidden>
+    <p class="notice-title" id="notice-title" data-notice-title>No se pudo abrir la cámara</p>
+    <p class="notice-text" data-notice-text></p>
+    <div class="notice-actions">
+      <button type="button" class="notice-btn notice-btn--ghost" data-notice-retry>Reintentar</button>
+      <button type="button" class="notice-btn" data-notice-ok>Ver el demo</button>
+    </div>
+  </div>
   <button type="button" class="ar-toast" data-toast hidden>¿Se mueve mucho? Toca <b>Fijar</b></button>
   <!-- AR: zoom de la lámina fijada -->
   <div class="zoom-hud" data-zoom-hud hidden role="group" aria-label="Zoom de la lámina">

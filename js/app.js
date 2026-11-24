@@ -688,7 +688,44 @@ function patchController() {
   c._detectAndMatch = (input, idx) => detect(input, allowed ? idx.filter((i) => allowed.has(i)) : idx);
   c.__pm = true;
 }
+// La cámara se pide apenas se toca "Escanear infografía", ANTES de preparar las diez láminas (~5 s): si la persona la
+// rechaza, va directo al demo con la explicación de cómo reactivarla, sin pantalla de carga de por medio. Concedida,
+// el mismo stream se le entrega a MindAR (no se abre la cámara dos veces).
+const CAM = { audio: false, video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } };
+let camStream = null;
+async function askCamera() {
+  const btn = $("[data-start-ar]");
+  btn.disabled = true;
+  btn.textContent = "Pidiendo la cámara…";
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia(CAM);
+    return true;
+  } catch (err) {
+    report("camara", err, "permiso");
+    camDenied(err);
+    return false;
+  }
+}
+// sin cámara: al demo, con un aviso que explica qué pasó y cómo volver a intentarlo
+function camDenied(err) {
+  const n = err?.name || "";
+  const how = n === "NotAllowedError" || n === "SecurityError"
+    ? "Para usar la realidad aumentada, permite la cámara en los ajustes del sitio (el ícono junto a la dirección, o Ajustes › Safari › Cámara en iPhone y iPad) y toca Reintentar."
+    : n === "NotReadableError" ? "Otra app está usando la cámara. Ciérrala y toca Reintentar."
+      : "Mientras tanto, puedes recorrer la infografía en el demo.";
+  const box = $("[data-notice]");
+  box.querySelector("[data-notice-title]").textContent = camMessage(err).split(" · ")[0];
+  box.querySelector("[data-notice-text]").textContent = how;
+  box.hidden = false;
+  return startDemo();
+}
+$("[data-notice-ok]").addEventListener("click", () => { $("[data-notice]").hidden = true; });
+$("[data-notice-retry]").addEventListener("click", () => {
+  const q = new URLSearchParams(location.search); q.delete("demo");
+  location.replace(location.pathname + (q.size ? `?${q}` : ""));
+});
 async function startAR() {
+  if (!(await askCamera())) return;
   setAdaptive(true);
   setMode("ar");
   exitBtn.hidden = false;
@@ -787,9 +824,12 @@ async function startAR() {
   // cámara trasera a 1280×720 (~30 fps): equilibrio entre nitidez y fluidez. MindAR la pide sin resolución y los
   // navegadores entregan 640×480, donde el arte de líneas finas (sobre todo el rajo) casi no deja puntos.
   const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-  navigator.mediaDevices.getUserMedia = (c) =>
-    gum(c?.video ? { ...c, video: { ...(typeof c.video === "object" ? c.video : {}), facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } } : c)
+  navigator.mediaDevices.getUserMedia = (c) => {
+    // la primera vez, el stream que se pidió al tocar "Escanear" (ya con permiso); después (al reanudar), uno nuevo
+    if (c?.video && camStream?.getVideoTracks()[0]?.readyState === "live") { const s0 = camStream; camStream = null; return Promise.resolve(s0); }
+    return gum(c?.video ? { ...c, video: { ...(typeof c.video === "object" ? c.video : {}), ...CAM.video } } : c)
       .catch((err) => { report("camara", err, "getUserMedia"); throw err; }); // MindAR rechaza sin el motivo: se registra aquí
+  };
   try {
     await task("Abriendo la cámara…", () => mindar.start());
   } catch (err) {
