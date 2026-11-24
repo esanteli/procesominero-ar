@@ -226,7 +226,6 @@ $("[data-start-ar]").addEventListener("click", () => { if (arStarted) return; ar
 $("[data-start-demo]").disabled = false;
 $("[data-start-ar]").disabled = !canAR;
 note.textContent = canAR ? "" : "La cámara necesita HTTPS (o localhost). Abre la demo o publica la carpeta en un servidor seguro.";
-if (new URLSearchParams(location.search).has("demo")) startDemo();
 
 function setMode(mode) {
   document.body.dataset.mode = mode;
@@ -1507,3 +1506,6 @@ async function resumeCamera() {
   }
   resuming = false;
 }
+
+// ?demo abre el demo directo. Al final del módulo: startDemo usa constantes declaradas más arriba (homeBtn, la lista…)
+if (new URLSearchParams(location.search).has("demo")) startDemo();
