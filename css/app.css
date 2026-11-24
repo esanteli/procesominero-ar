@@ -1302,3 +1302,15 @@ body[data-mode="ar"] .seq { grid-template-columns: 48px 1fr auto; }
 [data-panel] { transition: opacity .3s ease; }
 body[data-mode="ar"] [data-lost-part] { opacity: .45; }
 [data-panel] .panel-view > *, [data-panel] .seq > * { transition: opacity .3s ease; }
+
+/* T4 · celular: chips que siguen fuera de la vista → degradado en ese borde (app.js pone data-more) */
+.chips[data-more="right"] { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent); }
+.chips[data-more="left"] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 40px); mask-image: linear-gradient(90deg, transparent, #000 40px); }
+.chips[data-more="both"] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(90deg, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+/* valores de los deslizadores: ancho fijo, alineados a la derecha y con cifras de ancho fijo (no saltan ni se cortan) */
+.ctl output { white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; overflow: visible; }
+/* lectura en AR: fondo propio más opaco que el panel translúcido → contraste AA (≥ 4,5:1) con cualquier imagen detrás */
+body[data-mode="ar"] .readout-row .readout { background: rgba(255, 255, 255, .8); border-radius: 10px; padding: 3px 8px; color: var(--pm-ink); }
+@media (max-width: 430px) {
+  .ctl, body[data-mode="ar"] .ctl { grid-template-columns: 96px minmax(0, 1fr) 88px; gap: 8px; }
+}

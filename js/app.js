@@ -413,6 +413,25 @@ let arCurrent = null, cssDirty = true;
 const painted = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 
+// ---------------------------------------------------------------- fila de equipos que no cabe (T4)
+// Si los chips se desplazan en horizontal, un degradado en el borde avisa que siguen (data-more: izquierda, derecha o
+// ambos). Al elegir un equipo, su chip se trae a la vista.
+for (const row of document.querySelectorAll(".panel-view .chips")) {
+  const sync = () => {
+    const over = row.scrollWidth > row.clientWidth + 2, l = row.scrollLeft > 2, r = row.scrollLeft < row.scrollWidth - row.clientWidth - 2;
+    const v = !over ? "" : l && r ? "both" : l ? "left" : r ? "right" : "";
+    if ((row.getAttribute("data-more") || "") !== v) v ? row.setAttribute("data-more", v) : row.removeAttribute("data-more");
+  };
+  row.addEventListener("scroll", sync, { passive: true });
+  new ResizeObserver(sync).observe(row);
+  setInterval(() => { if (row.offsetParent) sync(); }, 1000); // por si el panel pasó de oculto a visible sin cambiar de tamaño
+  new MutationObserver((list) => {
+    sync();
+    const on = list.map((m) => m.target).find((t) => t.hasAttribute?.("data-on") && t.parentElement === row);
+    if (on && row.scrollWidth > row.clientWidth + 2) on.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+  }).observe(row, { attributes: true, attributeFilter: ["data-on"], subtree: true });
+}
+
 // ---------------------------------------------------------------- siglas: botón "?" junto a la lectura de cada estación
 // Las abreviaturas comunes van escritas completas; los términos técnicos que conviene conservar (Ley, SAG, PLS…) se
 // explican aquí. Se lista sólo lo que aparece en esa estación (lectura, equipos y deslizadores); sin siglas, sin botón.
