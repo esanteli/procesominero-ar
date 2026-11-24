@@ -298,6 +298,21 @@ function showView(view, st) {
   }
 }
 
+// Lo que tapa el mapa del demo (en px, respecto de su caja): la barra superior siempre; el panel abajo (vertical) o la
+// columna a la derecha (horizontal en celular). Con los grupos laterales de la tablet (panel transparente, sin toques)
+// sólo se tapan las esquinas: no se descuenta (se acepta, como en el AR).
+function demoOccluded(stage) {
+  const ex = stage.getBoundingClientRect(), out = { top: 0, right: 0, bottom: 0, left: 0 };
+  const vis = (e) => e && !e.hidden && getComputedStyle(e).display !== "none" && e.getBoundingClientRect().width > 0;
+  const tb = [...document.querySelectorAll(".topbar > *")].filter(vis).map((e) => e.getBoundingClientRect().bottom);
+  if (tb.length) out.top = Math.max(0, Math.max(...tb) + 6 - ex.top);
+  if (vis(panel) && document.body.dataset.view !== "map") {
+    const r = panel.getBoundingClientRect(), cs = getComputedStyle(panel);
+    if (r.left > ex.left + ex.width * 0.4 && r.width < ex.width * 0.6) out.right = Math.max(0, ex.right - r.left);
+    else if (cs.pointerEvents !== "none") out.bottom = Math.max(0, ex.bottom - r.top);
+  }
+  return out;
+}
 async function startDemo() {
   setMode("demo");
   const stage = $("[data-explorer]");
@@ -308,7 +323,7 @@ async function startDemo() {
   const list = $("[data-station-list]");
   list.innerHTML = STATIONS.map((st) => `<button type="button" class="st-chip" role="listitem" data-id="${st.id}" data-tone="${st.tone}" data-status="${st.status}"><b>${st.n}</b><span>${st.name}</span>${st.status === "lista" ? '<i aria-label="animación lista"></i>' : ""}</button>`).join("");
   list.addEventListener("click", (e) => { const c = e.target.closest(".st-chip"); if (c) explorer.open(c.dataset.id); });
-  explorer = createExplorer({ stage, builtins: { chancador: chancadorStation }, onView: showView });
+  explorer = createExplorer({ stage, builtins: { chancador: chancadorStation }, onView: showView, occluded: () => demoOccluded(stage) });
   backBtn.addEventListener("click", () => explorer.back());
   $("[data-st-prev]").addEventListener("click", () => explorer.prev());
   $("[data-st-next]").addEventListener("click", () => explorer.next());

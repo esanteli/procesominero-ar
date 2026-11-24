@@ -1204,34 +1204,34 @@ body[data-mode="ar"] .seq { grid-template-columns: 48px 1fr auto; }
    El panel deja de ser una franja: lectura y equipos abajo a la izquierda (pulgar izquierdo), secuencia, deslizadores
    y Fijar/Ampliar abajo a la derecha (pulgar derecho). El centro queda libre para la escena. */
 @media (orientation: landscape) and (min-width: 700px) {
-  body[data-mode="ar"] .panel { width: 100%; margin: 0; padding: 0 12px calc(10px + var(--safe-b)); background: none; border-radius: 0;
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel { width: 100%; margin: 0; padding: 0 12px calc(10px + var(--safe-b)); background: none; border-radius: 0;
     box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
-  body[data-mode="ar"] .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) {
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) {
     grid-template-columns: minmax(250px, 30%) minmax(0, 1fr) minmax(330px, 36%);
     grid-template-areas: "read . ctl" "chips . seq"; column-gap: 12px; row-gap: 8px; align-items: end; }
-  body[data-mode="ar"] .panel-view:not(:has(> .controls)) { grid-template-areas: "read . seq" "chips . seq"; }
-  body[data-mode="ar"] .panel-view > * { pointer-events: auto; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view:not(:has(> .controls)) { grid-template-areas: "read . seq" "chips . seq"; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view > * { pointer-events: auto; }
   /* cada grupo es su propia tarjeta translúcida (entre ellas se ve la escena) */
-  body[data-mode="ar"] .panel-view > .readout-row, body[data-mode="ar"] .panel-view > .chips,
-  body[data-mode="ar"] .panel-view > .controls, body[data-mode="ar"] .panel-view > .seq {
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view > .readout-row, :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view > .chips,
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view > .controls, :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view > .seq {
     background: rgba(255, 255, 255, .62); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4);
     border-radius: 18px; box-shadow: inset 0 1px 0 #ffffffb3, 0 10px 28px -14px #0000004d; }
-  body[data-mode="ar"] .panel-view > .readout-row { grid-area: read; padding: 8px 12px; align-self: end; }
-  body[data-mode="ar"] .panel-view > .chips { grid-area: chips; flex-wrap: wrap; overflow: visible; padding: 8px; align-content: flex-end; }
-  body[data-mode="ar"] .panel-view > .controls { grid-area: ctl; gap: 4px; padding: 6px 12px; }
-  body[data-mode="ar"] .panel-view > .seq { grid-area: seq; padding: 8px 10px; }
-  body[data-mode="ar"] .ctl { grid-template-columns: 112px 1fr 70px; gap: 10px; }
-  body[data-mode="ar"] .meter { height: 26px; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view > .readout-row { grid-area: read; padding: 8px 12px; align-self: end; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view > .chips { grid-area: chips; flex-wrap: wrap; overflow: visible; padding: 8px; align-content: flex-end; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view > .controls { grid-area: ctl; gap: 4px; padding: 6px 12px; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view > .seq { grid-area: seq; padding: 8px 10px; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .ctl { grid-template-columns: 112px 1fr 70px; gap: 10px; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .meter { height: 26px; }
   /* secuencia: play + pasos arriba (cada paso, un blanco de ≥ 44 px), anterior/siguiente con Fijar y Ampliar abajo */
-  body[data-mode="ar"] .panel-view > .seq { grid-template-columns: 48px minmax(0, 1fr); grid-template-areas: "play body" "foot foot"; row-gap: 6px; }
-  body[data-mode="ar"] .seq > .seq-play { grid-area: play; }
-  body[data-mode="ar"] .seq > .seq-body { grid-area: body; }
-  body[data-mode="ar"] .seq > .seq-nav { grid-area: foot; justify-self: start; }
-  body[data-mode="ar"] .seq > .ar-actions { grid-area: foot; justify-self: end; margin: 0; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view > .seq { grid-template-columns: 48px minmax(0, 1fr); grid-template-areas: "play body" "foot foot"; row-gap: 6px; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .seq > .seq-play { grid-area: play; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .seq > .seq-body { grid-area: body; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .seq > .seq-nav { grid-area: foot; justify-self: start; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .seq > .ar-actions { grid-area: foot; justify-self: end; margin: 0; }
 }
 /* horizontal en tablets grandes: el grupo derecho pone deslizadores y secuencia lado a lado si caben */
 @media (orientation: landscape) and (min-width: 1280px) {
-  body[data-mode="ar"] .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) { grid-template-columns: minmax(260px, 28%) minmax(0, 1fr) minmax(360px, 34%); }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) { grid-template-columns: minmax(260px, 28%) minmax(0, 1fr) minmax(360px, 34%); }
 }
 
 /* el paso actual se lee entero: hasta dos líneas (antes se cortaba con "…") */
@@ -1324,15 +1324,15 @@ body[data-mode="ar"] .readout-row .readout { background: rgba(255, 255, 255, .8)
 /* T5 · AR en horizontal en celular (poca altura): los grupos laterales más angostos y los equipos en una sola fila que
    se desplaza (con degradado), para que todo quepa en la pantalla (antes se salía por abajo) */
 @media (orientation: landscape) and (max-height: 500px) and (min-width: 700px) {
-  body[data-mode="ar"] .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) {
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) {
     grid-template-columns: minmax(220px, 30%) minmax(0, 1fr) minmax(290px, 36%); row-gap: 6px; column-gap: 10px; }
-  body[data-mode="ar"] .panel-view > .chips { flex-wrap: nowrap; overflow-x: auto; padding: 6px; }
-  body[data-mode="ar"] .panel-view > .readout-row { padding: 6px 8px; }
-  body[data-mode="ar"] .panel-view > .controls { gap: 0; padding: 4px 10px; }
-  body[data-mode="ar"] .panel-view > .seq { padding: 6px 8px; row-gap: 4px; }
-  body[data-mode="ar"] .ctl { grid-template-columns: 92px minmax(0, 1fr) 76px; gap: 8px; font-size: 13px; }
-  body[data-mode="ar"] .readout { font-size: 13px; }
-  body[data-mode="ar"] .info { top: calc(56px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 70px); }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view > .chips { flex-wrap: nowrap; overflow-x: auto; padding: 6px; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view > .readout-row { padding: 6px 8px; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view > .controls { gap: 0; padding: 4px 10px; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view > .seq { padding: 6px 8px; row-gap: 4px; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .ctl { grid-template-columns: 92px minmax(0, 1fr) 76px; gap: 8px; font-size: 13px; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .readout { font-size: 13px; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .info { top: calc(56px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 70px); }
 }
 
 /* T7 · consejo antes de escanear, salida al demo tras buscar mucho rato y botón de la guía en la ayuda */
@@ -1365,18 +1365,24 @@ body[data-mode="ar"] .readout-row .readout { background: rgba(255, 255, 255, .8)
 /* T9 · horizontal en celular: una sola columna a la derecha (38 % del ancho) con desplazamiento vertical propio;
    la escena queda con el 62 % de la izquierda. Lo que se ubicaba según el alto del panel pasa a esa zona libre. */
 @media (orientation: landscape) and (max-height: 500px) and (min-width: 600px) {
-  body[data-mode="ar"] { --col-w: 38vw; }
-  body[data-mode="ar"] .panel { position: fixed; top: calc(56px + env(safe-area-inset-top, 0px)); right: 0; bottom: 0; width: var(--col-w);
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) { --col-w: 38vw; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel { position: fixed; top: calc(56px + env(safe-area-inset-top, 0px)); right: 0; bottom: 0; width: var(--col-w);
     margin: 0; padding: 0 calc(10px + env(safe-area-inset-right, 0px)) calc(8px + var(--safe-b)) 0; overflow-y: auto; overscroll-behavior: contain;
     touch-action: pan-y; pointer-events: auto; scrollbar-width: none; }
-  body[data-mode="ar"] .panel::-webkit-scrollbar { display: none; }
-  body[data-mode="ar"] .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) {
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel::-webkit-scrollbar { display: none; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) {
     grid-template-columns: minmax(0, 1fr); grid-template-areas: none; row-gap: 8px; align-items: stretch; }
-  body[data-mode="ar"] .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) > * { grid-area: auto; grid-column: 1; }
-  body[data-mode="ar"] .ctl { grid-template-columns: 84px minmax(0, 1fr) 72px; }
-  body[data-mode="ar"] .scan-hint { inset: 0 var(--col-w) 0 0; }
-  body[data-mode="ar"] .pin-layer { inset: 56px var(--col-w) 0 0; }
-  body[data-mode="ar"] .ar-toast { left: calc((100vw - var(--col-w)) / 2); bottom: 12px; }
-  body[data-mode="ar"] .info { right: calc(var(--col-w) + 10px); width: min(300px, 40vw); max-height: calc(100vh - 70px); }
-  body[data-mode="ar"] .info[data-side="left"] { left: 12px; right: auto; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view:not([data-panel-view="map"]):not([data-panel-view="station"]) > * { grid-area: auto; grid-column: 1; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .ctl { grid-template-columns: 84px minmax(0, 1fr) 72px; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .scan-hint { inset: 0 var(--col-w) 0 0; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .pin-layer { inset: 56px var(--col-w) 0 0; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .ar-toast { left: calc((100vw - var(--col-w)) / 2); bottom: 12px; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .info { right: calc(var(--col-w) + 10px); width: min(300px, 40vw); max-height: calc(100vh - 70px); }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .info[data-side="left"] { left: 12px; right: auto; }
+}
+
+/* T10 · demo en horizontal: el mapa ocupa la pantalla completa; la barra y los grupos laterales van encima
+   (el encuadre de cada estación descuenta lo que la tapa: app.js → createExplorer({ occluded })) */
+@media (orientation: landscape) and (min-width: 600px) {
+  body[data-mode="demo"] .explorer { inset: 0; }
 }

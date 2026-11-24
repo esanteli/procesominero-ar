@@ -18,7 +18,7 @@ const MAX_ZOOM = 2.2; // px de pantalla por px de la infografía (la imagen vien
  * @param {object} o.builtins      estaciones que viven en app.js (p. ej. chancador): { [name]: { enter(ctx) → {focus}, leave() } }
  * @param {(view:string, station?:object) => void} o.onView  avisa el cambio de vista ("map" | "station" | <builtin>)
  */
-export function createExplorer({ stage, builtins = {}, onView = () => {} }) {
+export function createExplorer({ stage, builtins = {}, onView = () => {}, occluded = () => ({}) }) {
   const world = $("[data-world]", stage);
   const spot = $("[data-spot]", stage);
   const hotspots = $("[data-hotspots]", stage);
@@ -41,11 +41,18 @@ export function createExplorer({ stage, builtins = {}, onView = () => {} }) {
   const box = () => boxC || (boxC = stage.getBoundingClientRect());
   new ResizeObserver(() => { boxC = null; }).observe(stage);
   addEventListener("resize", () => { boxC = null; });
+  // zona visible del mapa: la caja menos lo que la tapa encima (barra superior, panel o columna lateral: occluded()).
+  // El mapa ocupa la pantalla completa; las estaciones se encuadran en esta zona para que no queden tapadas.
+  function visible() {
+    const b = box(), o = occluded() || {};
+    const t = o.top || 0, r = o.right || 0, bo = o.bottom || 0, l = o.left || 0;
+    return { x: l, y: t, w: Math.max(120, b.width - l - r), h: Math.max(120, b.height - t - bo) };
+  }
   function fitRect([x, y, w, h], pad = 0.08, cap = MAX_ZOOM) {
-    const b = box();
+    const v = visible();
     // tope de zoom: más allá la imagen de la infografía se ve pixelada (una estación vectorial puede pedir más)
-    const s = Math.min(b.width / (w * (1 + 2 * pad)), b.height / (h * (1 + 2 * pad)), cap);
-    return { s, x: b.width / 2 - (x + w / 2) * s, y: b.height / 2 - (y + h / 2) * s };
+    const s = Math.min(v.w / (w * (1 + 2 * pad)), v.h / (h * (1 + 2 * pad)), cap);
+    return { s, x: v.x + v.w / 2 - (x + w / 2) * s, y: v.y + v.h / 2 - (y + h / 2) * s };
   }
   function fitAll() {
     const b = box();
