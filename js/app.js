@@ -823,6 +823,7 @@ async function startAR() {
   for (const H of HOSTS) {
     H.anchor.onTargetFound = () => {
       endLost();
+      pmTrack.found();
       if (host !== H) pose.ready = false;      // otro marcador: el filtro parte de cero
       host = H;
       syncUi();
@@ -834,6 +835,7 @@ async function startAR() {
       // (el piso, la mesa): se trata como pérdida, para que la lámina no quede congelada flotando sobre el entorno
       if (!poseUpdate(raw, performance.now())) { if (pose.rejected >= LOST_REJECTS) beginLost(); return; }
       endLost();
+      if (pmTrack.open || pmTrack.searchFrom) pmTrack.found();
       cssDirty = true;
       updateView();
     };
@@ -851,6 +853,7 @@ async function startAR() {
   };
   try {
     await task("Abriendo la cámara…", () => mindar.start());
+    pmTrack.start();
   } catch (err) {
     console.error(err);
     report("camara", err, "mindar.start");
@@ -895,9 +898,41 @@ function lockPanel() {
   if (lock) for (const el of parts) { el.inert = true; el.setAttribute("data-lost-part", ""); }
   if (lock) arCurrent.setActive(false); // la lectura se congela ya, no al terminar el desvanecido
 }
+// Seguimiento (T6): pérdidas del marcador, duración de cada una y parte de la sesión en "Buscando…" (desde que se abre
+// la cámara). En el HUD de ?debug; pmTrack.export() lo entrega como objeto (o JSON con copy(pmTrack.json())) para
+// comparar una sesión con otra.
+const pmTrack = (window.pmTrack = {
+  t0: 0, searchFrom: 0, searchMs: 0, losses: [], open: null,
+  start() { const t = performance.now(); this.t0 = t; this.searchFrom = t; },
+  search(on) {
+    if (!this.t0) return;
+    const t = performance.now();
+    if (on && !this.searchFrom) this.searchFrom = t;
+    if (!on && this.searchFrom) { this.searchMs += t - this.searchFrom; this.searchFrom = 0; }
+  },
+  lost() { if (this.t0 && !this.open) this.open = { at: performance.now() }; this.search(true); },
+  found() {
+    if (this.open) { this.losses.push({ desde_s: +((this.open.at - this.t0) / 1000).toFixed(1), duracion_s: +((performance.now() - this.open.at) / 1000).toFixed(2) }); this.open = null; }
+    this.search(false);
+  },
+  export() {
+    const t = performance.now(), ses = this.t0 ? t - this.t0 : 0, buscando = this.searchMs + (this.searchFrom ? t - this.searchFrom : 0);
+    const d = this.losses.map((l) => l.duracion_s);
+    return { sesion_s: +(ses / 1000).toFixed(1), perdidas: this.losses.length + (this.open ? 1 : 0), duraciones_s: d,
+      duracion_media_s: d.length ? +(d.reduce((a, b) => a + b, 0) / d.length).toFixed(2) : 0, duracion_max_s: d.length ? Math.max(...d) : 0,
+      buscando_pct: ses ? +(buscando / ses * 100).toFixed(1) : 0, perdida_abierta: !!this.open, detalle: this.losses };
+  },
+  json() { return JSON.stringify(this.export(), null, 1); },
+});
+window.pmHudExtra = () => {
+  if (!pmTrack.t0) return "";
+  const e = pmTrack.export(), last = e.duraciones_s.at(-1);
+  return `AR     pérdidas ${e.perdidas}${last != null ? ` · última ${last} s` : ""} · buscando ${e.buscando_pct} % de ${e.sesion_s} s`;
+};
 function beginLost() {
   if (lostSince) return;
   lostSince = performance.now();
+  pmTrack.lost();
   lockPanel();
   cssLayer.classList.add("ar-layer--out");
   hotLayer.hidden = true;

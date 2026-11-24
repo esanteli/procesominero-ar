@@ -445,14 +445,20 @@ La lámina es DOM real dentro de la escena (CSS3D), por eso los camiones se pued
 
 ## Rendimiento y publicación
 
-**Medir**
-- `?perf` (en cualquier modo): HUD con ms por cuadro (promedio y p95), ms de JS por cuadro y tareas largas. Desde la consola,
-  `pmPerf.reset()` y `pmPerf.snapshot()` miden un tramo. Ojo: un tab de automatización o en segundo plano limita
-  `requestAnimationFrame` a ~1 fps; medir en una ventana visible.
+**Medir y depurar** · una sola bandera: `?debug`
+- `?debug` (en cualquier modo): consola flotante (eruda) y HUD con ms por cuadro (promedio y p95), fps, ms de JS por
+  cuadro y tareas largas; en AR suma el seguimiento: pérdidas del marcador, duración de la última y % de la sesión en
+  "Buscando…". `?debug=hud`: sólo el HUD, sin la consola (para medir sin su costo). `?perf` sigue andando como alias.
+- Desde la consola: `pmPerf.reset()` / `pmPerf.snapshot()` miden un tramo de cuadros; `pmTrack.export()` entrega el
+  seguimiento de la sesión (sesion_s, perdidas, duraciones_s, duracion_media_s, duracion_max_s, buscando_pct, detalle)
+  y `copy(pmTrack.json())` lo copia para comparar una sesión con otra.
+- Ojo: un tab de automatización o en segundo plano limita `requestAnimationFrame` a ~1 fps; medir en una ventana visible.
+- Otras banderas de QA: `?calibrar` (flechas para ajustar el anclaje de la estación enfocada, ver `AR_NUDGE`),
+  `?nolayers` (apaga las capas de pintado, para comparar), `?maxdt=0.4` (deja avanzar la simulación en equipos muy
+  lentos), `?nosw` (sin service worker).
 - `bench.html`: las 10 láminas a la vez, animadas, en su lugar sobre la infografía (simula la vista general del AR sin cámara).
   Opciones: `?only=rajo,puerto`, `?static`, `?noposter`, `?fps=0` (sin el límite de 30), `?hz=60` (medir sin vsync), `?adapt`.
-- `?nolayers` apaga las capas de pintado (para comparar). Las aperturas dejan marcas `pm:<estación>:inicio|importada|montada|sombra|panel`
-  en el panel Performance de DevTools.
+- Las aperturas de estación dejan marcas `pm:<estación>:inicio|importada|montada|sombra|panel` en el panel Performance de DevTools.
 
 **Qué se hizo**
 - *Capas de pintado* (`js/layers.js`, en chancado secundario, pilas y puerto): lo quieto del SVG va en copias que se

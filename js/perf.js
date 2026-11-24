@@ -1,4 +1,4 @@
-// Medición de rendimiento: agrega ?perf (o ?debug) a la URL (o window.PM_PERF = true antes de cargar) para ver un HUD con
+// Medición de rendimiento: agrega ?debug (o ?debug=hud, sin la consola) a la URL (o window.PM_PERF = true antes de cargar) para ver un HUD con
 //   cuadro → ms entre cuadros (promedio y p95 del último segundo) y cuadros por segundo
 //   JS     → ms de JavaScript por cuadro: suma de lo que tardan los callbacks de requestAnimationFrame
 //   largas → tareas largas (> 50 ms, PerformanceObserver "longtask"): cuántas y la mayor
@@ -6,7 +6,8 @@
 // window.pmPerf.reset() / snapshot() sirven para medir un tramo desde la consola o desde un script.
 // Nota de método: un tab de automatización (o en segundo plano) limita rAF a ~1 fps: mide en una ventana visible.
 const Q = typeof location !== "undefined" ? new URLSearchParams(location.search) : new URLSearchParams();
-const ON = typeof window !== "undefined" && (window.PM_PERF || Q.has("perf") || Q.has("debug")); // ?debug también lo muestra (con la consola)
+// una sola bandera: ?debug (HUD + consola) o ?debug=hud (sólo el HUD). ?perf queda como alias de ?debug=hud.
+const ON = typeof window !== "undefined" && (window.PM_PERF || Q.has("debug") || Q.has("perf"));
 
 function install() {
   const raf0 = window.requestAnimationFrame.bind(window);
@@ -66,7 +67,9 @@ function install() {
     hud.textContent =
       `cuadro ${s.frame.toFixed(1)} ms  p95 ${s.p95.toFixed(1)}  ${s.fps.toFixed(0)} fps\n` +
       `JS     ${s.js.toFixed(2)} ms/cuadro\n` +
-      `largas ${recent.length} en 10 s${recent.length ? ` (máx ${Math.max(...recent.map((l) => l[1])).toFixed(0)} ms)` : ""} · total ${all.longTasks}`;
+      `largas ${recent.length} en 10 s${recent.length ? ` (máx ${Math.max(...recent.map((l) => l[1])).toFixed(0)} ms)` : ""} · total ${all.longTasks}` +
+      (window.pmHudExtra ? `
+${window.pmHudExtra()}` : ""); // p. ej. el seguimiento del AR (app.js)
   }, 500);
 }
 
