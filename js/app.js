@@ -977,7 +977,7 @@ function updateView() {
     const vw = Math.min(b, 1) - Math.max(a, -1), vh = Math.min(d, 1) - Math.max(c, -1);
     const on = !bad && vw > 0 && vh > 0;
     if (arCurrent) {                       // FOCUS: sólo la estación activa
-      if (S === arCurrent) show(S, on); else if (S.shown) fadeOut(S);
+      if (S === arCurrent) { show(S, on); focusCover = on ? (vw * vh) / 4 : 0; } else if (S.shown) fadeOut(S);
       continue;
     }
     show(S, on);
@@ -991,7 +991,21 @@ function updateView() {
   if (!arCurrent) {
     placeHotspots();
     if (best && !pinned) setFocus(best);
-  }
+  } else releaseFocus();
+}
+// Soltar el foco al alejarse (T2): si la estación enfocada llegó a estar cerca (≥ FOCUS_NEAR de la pantalla) y ahora
+// ocupa menos que FOCUS_OUT durante FOCUS_LEAVE_MS, se vuelve a la vista general. Si lo que se sigue pasa a ser el
+// marcador de la infografía completa, sin esperar. No se suelta si está fijada ni si se eligió tocándola desde lejos
+// (nunca hubo acercamiento). Las poses rechazadas no mueven la escena, así que no cuentan como alejarse.
+const FOCUS_NEAR = FOCUS_IN * 0.8, FOCUS_LEAVE_MS = 600;
+let focusCover = 0, focusMax = 0, farSince = 0;
+function releaseFocus() {
+  if (!arCurrent || pinned) { farSince = 0; return; }
+  focusMax = Math.max(focusMax, focusCover);
+  if (focusMax < FOCUS_NEAR || focusCover >= FOCUS_OUT) { farSince = 0; return; }
+  const now = performance.now();
+  farSince ||= now;
+  if (host?.i === 0 || now - farSince > FOCUS_LEAVE_MS) setFocus(null);
 }
 // la estación enfocada recibe toques, su panel, Fijar y Ampliar; las demás se apagan
 function setFocus(S) {
@@ -1006,6 +1020,7 @@ function setFocus(S) {
   }
   arCurrent = S;
   allowed = S ? new Set([0, S.idx]) : null;
+  focusCover = focusMax = farSince = 0;
   hideToast();
   shakySince = 0; toastShown = false;
   if (S) {
