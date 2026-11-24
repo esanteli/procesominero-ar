@@ -1424,3 +1424,7 @@ body[data-mode="demo"][data-view="map"] .st-menu { display: block; }
   .st-pop .map-title { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .st-pop { animation: none; } }
+
+/* T13 · demo: la infografía llena la pantalla (encuadre cover, js/explorer.js); sin esquinas redondeadas que dejen ver
+   el fondo cuando se arrastra hasta un borde */
+body[data-mode="demo"] .map-poster { border-radius: 0; }

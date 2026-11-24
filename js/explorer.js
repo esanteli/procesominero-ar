@@ -54,19 +54,22 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
     const s = Math.min(v.w / (w * (1 + 2 * pad)), v.h / (h * (1 + 2 * pad)), cap);
     return { s, x: v.x + v.w / 2 - (x + w / 2) * s, y: v.y + v.h / 2 - (y + h / 2) * s };
   }
-  function fitAll() {
-    const b = box();
-    let s = Math.min(b.width / POSTER.w, b.height / POSTER.h);
-    // en pantallas angostas la infografía completa queda muy chica: se encuadra por alto y se arrastra
-    if (s * POSTER.h < b.height * 0.55) s = Math.min((b.height * 0.92) / POSTER.h, (b.width * 2.6) / POSTER.w);
-    const x = s * POSTER.w > b.width ? 16 : (b.width - s * POSTER.w) / 2;
-    return { s, x, y: (b.height - s * POSTER.h) / 2 };
-  }
-  const minScale = () => Math.min(box().width / POSTER.w, box().height / POSTER.h) * 0.9;
+  // Encuadres de la vista general. "cover": la infografía llena toda la pantalla, centrada (es el encuadre inicial: no
+  // se ve fondo en ningún borde). "contain": la infografía completa (botón de encuadre). El fondo sólo aparece si se
+  // aleja por debajo de cover; el zoom mínimo es contain ×0,9, así la infografía nunca se pierde.
+  const coverScale = (b = box()) => Math.max(b.width / POSTER.w, b.height / POSTER.h);
+  const containScale = (b = box()) => Math.min(b.width / POSTER.w, b.height / POSTER.h);
+  const centered = (s) => { const b = box(); return { s, x: (b.width - s * POSTER.w) / 2, y: (b.height - s * POSTER.h) / 2 }; };
+  const fitAll = () => centered(coverScale());
+  const fitContain = () => centered(containScale());
+  const minScale = () => containScale() * 0.9;
+  let framing = "cover"; // encuadre de la vista general que se mantiene al rotar o cambiar el tamaño; null = el que dejó el usuario
+  const framed = () => (framing === "contain" ? fitContain() : fitAll());
+  // sin margen: mientras la infografía sea más grande que la pantalla, sus bordes no se pueden despegar del borde
   function bound(c) {
-    const b = box(), W = POSTER.w * c.s, H = POSTER.h * c.s, m = 60;
-    c.x = W <= b.width ? (b.width - W) / 2 : clamp(c.x, b.width - W - m, m);
-    c.y = H <= b.height ? (b.height - H) / 2 : clamp(c.y, b.height - H - m, m);
+    const b = box(), W = POSTER.w * c.s, H = POSTER.h * c.s;
+    c.x = W <= b.width ? (b.width - W) / 2 : clamp(c.x, b.width - W, 0);
+    c.y = H <= b.height ? (b.height - H) / 2 : clamp(c.y, b.height - H, 0);
     return c;
   }
   let aim = null; // destino del último vuelo (para no repetirlo en refit)
@@ -86,6 +89,7 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
     anim = requestAnimationFrame(step);
   }
   function zoomAt(factor, px, py) {
+    framing = null;
     const s = clamp(cam.s * factor, minScale(), MAX_ZOOM);
     const k = s / cam.s;
     cam = bound({ s, x: px - (px - cam.x) * k, y: py - (py - cam.y) * k });
@@ -128,7 +132,7 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
       const c0x = (P0[0][0] + P0[1][0]) / 2 - b.left, c0y = (P0[0][1] + P0[1][1]) / 2 - b.top;
       const s = clamp(drag.cam.s * (d / d0), minScale(), MAX_ZOOM), k = s / drag.cam.s;
       cam = bound({ s, x: cx - (c0x - drag.cam.x) * k, y: cy - (c0y - drag.cam.y) * k });
-      moved = true;
+      moved = true; framing = null;
     } else {
       const [x0, y0] = P0[0] || [e.clientX, e.clientY];
       const dx = e.clientX - x0, dy = e.clientY - y0;
@@ -138,6 +142,7 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
         try { stage.setPointerCapture(e.pointerId); } catch {}
       }
       if (!moved) return;
+      framing = null;
       cam = bound({ ...drag.cam, x: drag.cam.x + dx, y: drag.cam.y + dy });
     }
     apply();
@@ -162,7 +167,7 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
   });
   $("[data-zoom-in]", stage).addEventListener("click", () => { const b = box(); zoomAt(1.4, b.width / 2, b.height / 2); });
   $("[data-zoom-out]", stage).addEventListener("click", () => { const b = box(); zoomAt(1 / 1.4, b.width / 2, b.height / 2); });
-  $("[data-zoom-fit]", stage).addEventListener("click", () => flyTo(fitAll(), 500));
+  $("[data-zoom-fit]", stage).addEventListener("click", () => { framing = "contain"; flyTo(fitContain(), 500); });
 
   // ---------------------------------------------------------------- abrir / cerrar estaciones
   function showSpot(rect) {
@@ -193,7 +198,7 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
     const st = byId(id);
     if (!st) return close();
     if (current?.id === id) return;
-    if (!current) mapView = { ...cam };
+    if (!current) mapView = { ...cam, framing };
     leaveCurrent();
     current = st;
     stage.dataset.view = "station";
@@ -292,16 +297,34 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
     showSpot(null);
     hotspots.querySelectorAll(".hotspot").forEach((h) => h.removeAttribute("data-active"));
     onView("map");
-    flyTo(mapView ? bound({ ...mapView }) : fitAll(), 700);
+    // de vuelta al encuadre que tenía el mapa (si mientras tanto giró la pantalla, el mismo encuadre en la nueva)
+    framing = mapView ? mapView.framing : "cover";
+    flyTo(framing ? framed() : bound({ ...mapView, s: Math.max(mapView.s, minScale()) }), 700);
   }
   const go = (id) => { location.hash = id ? `#${id}` : ""; };
   const route = () => { const id = decodeURIComponent(location.hash.slice(1)); id ? open(id) : current && close(); };
   addEventListener("hashchange", route);
-  addEventListener("resize", () => {
+  // al rotar o cambiar el tamaño: una estación se vuelve a encuadrar; el mapa mantiene su encuadre (cover o contain) o,
+  // si el usuario lo movió, el mismo punto al centro y la misma escala (subida a cover si llenaba la pantalla)
+  // (también cuando el mapa vuelve a mostrarse después de girar en la pantalla de inicio: lo avisa el ResizeObserver)
+  let lastBox = box();
+  function onResize() {
+    boxC = null;
+    const prev = lastBox, b = box();
+    if (!b.width || !b.height || (b.width === prev.width && b.height === prev.height)) return; // oculto o sin cambio
+    lastBox = b;
     cancelAnimationFrame(anim);
-    if (current) { cam = fitRect(spot.hidden ? current.focus : spotRect(), 0.06); apply(); }
-    else { cam = bound(cam); apply(); }
-  });
+    if (current) { cam = fitRect(spot.hidden ? current.focus : spotRect(), 0.06); apply(); return; }
+    if (framing) { cam = framed(); apply(); return; }
+    if (!prev.width) { cam = framed(); apply(); return; }
+    const px = (prev.width / 2 - cam.x) / cam.s, py = (prev.height / 2 - cam.y) / cam.s;
+    let s = clamp(cam.s, minScale(), MAX_ZOOM);
+    if (cam.s >= coverScale(prev) * 0.999) s = Math.max(s, coverScale(b));
+    cam = bound({ s, x: b.width / 2 - px * s, y: b.height / 2 - py * s });
+    apply();
+  }
+  addEventListener("resize", onResize);
+  new ResizeObserver(onResize).observe(stage);
   const spotRect = () => [parseFloat(spot.style.left), parseFloat(spot.style.top), parseFloat(spot.style.width), parseFloat(spot.style.height)];
 
   // arranque
