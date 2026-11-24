@@ -1334,3 +1334,11 @@ body[data-mode="ar"] .readout-row .readout { background: rgba(255, 255, 255, .8)
   body[data-mode="ar"] .readout { font-size: 13px; }
   body[data-mode="ar"] .info { top: calc(56px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 70px); }
 }
+
+/* T7 · consejo antes de escanear, salida al demo tras buscar mucho rato y botón de la guía en la ayuda */
+.intro-tip { margin-top: 6px !important; }
+.scan-demo { pointer-events: auto; min-height: 44px; padding: 0 18px; border: 0; border-radius: 99px; background: #fff; color: var(--pm-orange);
+  font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 8px 22px -10px #0000008c; }
+.scan-demo[hidden] { display: none; }
+.gloss-guide { display: block; width: 100%; min-height: 44px; margin: 0 0 10px; border: 0; border-radius: 99px; background: #fff4ea; color: var(--pm-orange);
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }

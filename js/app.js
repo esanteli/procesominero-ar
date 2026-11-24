@@ -456,7 +456,7 @@ const GLOSARIO = [
 ];
 {
   const pop = document.createElement("div");
-  pop.className = "gloss"; pop.hidden = true; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Qué significan las siglas");
+  pop.className = "gloss"; pop.hidden = true; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Ayuda de la estación");
   document.body.appendChild(pop);
   const termsOf = (view) => {
     const t = [...view.querySelectorAll(".readout, .chip, .ctl-label")].map((e) => [...e.childNodes].map((n) => n.textContent).join(" ")).join(" · "); // "01 Rougher", no "01Rougher"
@@ -466,19 +466,21 @@ const GLOSARIO = [
   for (const row of document.querySelectorAll(".panel-view .readout-row")) {
     const view = row.closest(".panel-view"), btn = document.createElement("button");
     btn.type = "button"; btn.className = "gloss-btn"; btn.textContent = "?";
-    btn.setAttribute("aria-label", "Qué significan las siglas"); btn.setAttribute("aria-expanded", "false");
+    btn.setAttribute("aria-label", "Ayuda: siglas y guía de controles"); btn.setAttribute("aria-expanded", "false");
     row.appendChild(btn);
-    const sync = () => { btn.hidden = !termsOf(view).length; };
-    sync(); setInterval(() => { if (!view.hidden) sync(); }, 2000);
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       if (!pop.hidden && btn.getAttribute("aria-expanded") === "true") return close();
-      pop.innerHTML = `<dl>${termsOf(view).map(([, k, d]) => `<dt>${k}</dt><dd>${d}</dd>`).join("")}</dl>`;
+      const terms = termsOf(view);
+      pop.innerHTML = `<button type="button" class="gloss-guide">Ver la guía de controles</button>` +
+        (terms.length ? `<dl>${terms.map(([, k, d]) => `<dt>${k}</dt><dd>${d}</dd>`).join("")}</dl>` : "");
+      pop.querySelector(".gloss-guide").addEventListener("click", (ev) => { ev.stopPropagation(); close(); showGuide(view.dataset.panelView, true); });
       pop.hidden = false; btn.setAttribute("aria-expanded", "true");
       const r = btn.getBoundingClientRect(), w = Math.min(340, innerWidth - 24);
       pop.style.width = `${w}px`;
       pop.style.left = `${Math.max(12, Math.min(innerWidth - w - 12, r.left - 12))}px`;
       pop.style.bottom = `${innerHeight - r.top + 8}px`;
+      pop.style.maxHeight = `${Math.max(160, r.top - 8 - 64)}px`; // cabe entre la barra superior y el botón (se desplaza si no)
     });
   }
   document.addEventListener("click", (e) => { if (!pop.hidden && !e.target.closest(".gloss")) close(); });
@@ -486,7 +488,9 @@ const GLOSARIO = [
 }
 
 // ---------------------------------------------------------------- guía de controles (primera vez en cada estación)
-// 3 a 5 s, sobre los grupos del panel: equipos, deslizadores y secuencia. Un toque la salta; no vuelve a salir.
+// 3 a 5 s, sobre los grupos del panel: equipos, deslizadores y secuencia. Un toque la salta; no vuelve a salir sola
+// (se puede volver a ver desde el botón de ayuda «?» de la estación: showGuide(view, true)).
+let showGuide = () => {};
 {
   const el = document.createElement("div");
   el.className = "guide"; el.hidden = true;
@@ -494,9 +498,9 @@ const GLOSARIO = [
   let t = 0;
   const hide = () => { el.hidden = true; el.innerHTML = ""; clearTimeout(t); };
   const TIPS = [[".chips", "Toca un equipo para ver su ficha"], [".controls", "Desliza para mirar por dentro"], [".seq", "Sigue el recorrido paso a paso"]];
-  function show(view) {
+  function show(view, force = false) {
     const key = `pm-guia-${view}`;
-    if (store.get(key)) return;
+    if (store.get(key) && !force) return;
     const pv = document.querySelector(`[data-panel-view="${CSS.escape(view)}"]`);
     if (!pv || pv.hidden || !pv.offsetParent) return;
     store.set(key, "1");
@@ -511,6 +515,7 @@ const GLOSARIO = [
     el.hidden = false;
     clearTimeout(t); t = setTimeout(hide, 5000);
   }
+  showGuide = show;
   el.addEventListener("click", hide);
   document.addEventListener("pointerdown", (e) => { if (!el.hidden && !e.target.closest(".guide")) hide(); }, true);
   new MutationObserver(() => {
@@ -1212,7 +1217,42 @@ function placeActions(S) {
 // aviso: si el seguimiento se pierde o vibra un rato, se sugiere Fijar (una vez por estación enfocada)
 const toast = $("[data-toast]");
 let shakySince = 0, toastShown = false, toastTimer = 0;
+// T7b: tras SEARCH_DEMO_MS seguidos en "Buscando…" se ofrece el demo (no se fuerza). Pasar al demo no recarga:
+// se detienen la cámara y MindAR, se apaga la escena AR y se abre el explorador.
+const SEARCH_DEMO_MS = 12000;
+const scanDemo = $("[data-scan-demo]");
+function watchSearch() {
+  const long = document.body.dataset.mode === "ar" && pmTrack.searchFrom && !pinned && performance.now() - pmTrack.searchFrom > SEARCH_DEMO_MS;
+  if (scanDemo.hidden === !long) return;
+  scanDemo.hidden = !long;
+}
+scanDemo.addEventListener("click", arToDemo);
+function arToDemo() {
+  if (document.body.dataset.mode !== "ar") return;
+  try { mindar?.stop(); } catch {}
+  document.querySelectorAll("video").forEach((v) => v.srcObject?.getTracks?.().forEach((t) => t.stop()));
+  if (pinned) togglePin(false);
+  if (arCurrent) { arCurrent.unfocus?.(); arCurrent.el.classList.remove("is-focus"); arCurrent = null; }
+  for (const S of arStations) { S.objs.forEach((o) => (o.visible = false)); S.shown = false; S.setActive(false); }
+  $("#ar").hidden = true;
+  hotLayer.hidden = true;
+  $("[data-scan]").hidden = true;
+  scanDemo.hidden = true;
+  hideToast();
+  coach(false);
+  panel.removeAttribute("data-lost");
+  for (const el of panel.querySelectorAll("[data-lost-part]")) { el.inert = false; el.removeAttribute("data-lost-part"); }
+  // la lámina del chancado primario vuelve a ser la del demo (el AR la había preparado como objeto 3D)
+  plate.classList.remove("ar-plate", "is-focus");
+  plate.removeAttribute("style");
+  plate.style.pointerEvents = "";
+  delete plate.dataset.baked;
+  pmTrack.search(false);
+  setFps(0);
+  toDemo("Infografía · Proceso minero");
+}
 function watchShaky() {
+  watchSearch();
   if (!arCurrent || pinned || toastShown) { shakySince = 0; return; }
   const shaky = (lostSince && performance.now() - lostSince > 300) || (host && pose.jitter > JITTER_MAX);
   if (!shaky) { shakySince = 0; return; }

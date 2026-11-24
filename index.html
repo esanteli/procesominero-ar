@@ -546,6 +546,7 @@
         <button type="button" class="btn" data-start-demo disabled>Ver demo sin cámara</button>
       </div>
       <p class="intro-note" data-ar-note>Cargando…</p>
+      <p class="intro-note intro-tip">Funciona mejor con la <b>infografía impresa</b>, bien iluminada y sin reflejos. Escanear una foto en una pantalla puede fallar.</p>
     </div>
   </div>
 
@@ -598,6 +599,8 @@
   <div class="scan-hint" data-scan hidden>
     <div class="scan-frame"><i></i><i></i><i></i><i></i></div>
     <p>Apunta a la <b>infografía completa</b> o acércate a <b>una estación</b>, con su etiqueta naranja a la vista</p>
+    <!-- tras ~12 s seguidos buscando: una salida al demo, sin forzarla (app.js) -->
+    <button type="button" class="scan-demo" data-scan-demo hidden>¿No la encuentras? Ver el demo sin cámara</button>
   </div>
 
   <script>
