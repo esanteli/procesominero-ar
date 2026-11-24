@@ -95,18 +95,23 @@
       <div class="info-actions" data-info-actions></div>
     </aside>
 
-    <section class="panel" data-panel aria-label="Controles de la experiencia">
-      <!-- vista general: lista de estaciones -->
-      <div class="panel-view" data-panel-view="map" hidden>
-        <div class="map-head">
-          <div>
+    <!-- demo, vista general: la lista de estaciones es un menú flotante sobre el mapa (cerrado al entrar; no empuja el mapa) -->
+    <div class="st-menu" data-st-menu>
+      <div class="st-pop" id="st-pop" data-st-pop role="dialog" aria-label="Estaciones" hidden>
+        <div class="panel-view" data-panel-view="map" hidden>
+          <div class="map-head">
             <p class="map-kicker">Proceso minero · 10 estaciones</p>
             <h2 class="map-title">Toca una estación para explorarla</h2>
           </div>
+          <div class="station-list" data-station-list role="list"></div>
         </div>
-        <div class="station-list" data-station-list role="list"></div>
       </div>
+      <button type="button" class="st-fab" data-st-fab aria-expanded="false" aria-controls="st-pop">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-open" d="M5 7h14M5 12h14M5 17h14"/><path class="i-close" d="M6 6l12 12M18 6L6 18"/></svg><span>Estaciones</span>
+      </button>
+    </div>
 
+    <section class="panel" data-panel aria-label="Controles de la experiencia">
       <!-- estación sin animación todavía (vista preparada) -->
       <div class="panel-view" data-panel-view="station" hidden>
         <div class="st-head">

@@ -69,8 +69,10 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
     c.y = H <= b.height ? (b.height - H) / 2 : clamp(c.y, b.height - H - m, m);
     return c;
   }
+  let aim = null; // destino del último vuelo (para no repetirlo en refit)
   function flyTo(target, ms = 750, done) {
     cancelAnimationFrame(anim);
+    aim = { ...target };
     if (still.matches) { cam = { ...target }; apply(); done?.(); return; }
     const from = { ...cam }, t0 = performance.now();
     // zoom con interpolación logarítmica (se siente pareja al acercar y al alejar)
@@ -234,6 +236,7 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
     stationFocus = focus;
     onView(view, st);
     mk("panel");
+    aimRect = [focus, 0.06, MAX_ZOOM];
     flyTo(fitRect(focus, 0.06), 800);
   }
 
@@ -265,10 +268,18 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
   }
 
   // una estación puede acercar la cámara a una zona suya (p. ej. el equipo elegido); sin rect vuelve a su encuadre
-  let stationFocus = null;
+  let stationFocus = null, aimRect = null;
   function focusTo(rect, maxZoom = MAX_ZOOM) {
     if (!current || !stationFocus) return;
-    flyTo(fitRect(rect || stationFocus, rect ? 0.12 : 0.06, rect ? maxZoom : MAX_ZOOM), 650);
+    aimRect = [rect || stationFocus, rect ? 0.12 : 0.06, rect ? maxZoom : MAX_ZOOM];
+    flyTo(fitRect(...aimRect), 650);
+  }
+  // lo que tapa el mapa cambió (el panel creció o se achicó): se vuelve a encuadrar lo que se estaba mirando
+  function refit() {
+    if (!current || !aimRect) return;
+    const t = fitRect(...aimRect);
+    if (aim && Math.abs(t.s / aim.s - 1) < 0.01 && Math.abs(t.x - aim.x) < 2 && Math.abs(t.y - aim.y) < 2) return;
+    flyTo(t, 350);
   }
   function leaveCurrent() {
     mounted?.leave();
@@ -303,6 +314,7 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
   const idx = () => STATIONS.findIndex((s) => s.id === current?.id);
   return {
     open: go,
+    refit,
     back: () => go(null),
     next: () => go(STATIONS[(idx() + 1) % STATIONS.length].id),
     prev: () => go(STATIONS[(idx() - 1 + STATIONS.length) % STATIONS.length].id),

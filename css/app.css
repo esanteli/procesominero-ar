@@ -1386,3 +1386,41 @@ body[data-mode="ar"] .readout-row .readout { background: rgba(255, 255, 255, .8)
 @media (orientation: landscape) and (min-width: 600px) {
   body[data-mode="demo"] .explorer { inset: 0; }
 }
+
+/* ================================================================ T12 · demo: menú de estaciones flotante
+   El mapa ocupa toda la pantalla (la barra superior y el panel van encima; las estaciones se encuadran en lo que queda
+   libre: occluded() en app.js). En la vista general no hay panel inferior: la lista de estaciones es un menú que abre un
+   botón flotante abajo a la izquierda (los controles de zoom están abajo a la derecha). */
+body[data-mode="demo"] .explorer { inset: 0; }
+body[data-mode="demo"][data-view="map"] .panel { display: none; }
+.map-tools { right: calc(12px + env(safe-area-inset-right, 0px)); bottom: calc(12px + var(--safe-b)); }
+.st-menu { display: none; }
+body[data-mode="demo"][data-view="map"] .st-menu { display: block; }
+.st-fab { position: fixed; z-index: 6; left: calc(12px + env(safe-area-inset-left, 0px)); bottom: calc(12px + var(--safe-b));
+  min-height: 48px; display: inline-flex; align-items: center; gap: 8px; padding: 0 18px 0 14px; border: 0; border-radius: 99px; cursor: pointer;
+  font: 600 15px/1 var(--pm-sans); color: #fff; background: var(--pm-orange); box-shadow: 0 10px 24px -10px #7a3d14aa, 0 0 0 1px #ffffff55 inset; }
+.st-fab svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+.st-fab .i-close, .st-fab[aria-expanded="true"] .i-open { display: none; }
+.st-fab[aria-expanded="true"] .i-close { display: inline; }
+.st-fab[aria-expanded="true"] { color: var(--pm-orange); background: #fff; box-shadow: 0 10px 24px -10px #7a3d1488, 0 0 0 1.5px var(--pm-orange) inset; }
+.st-fab:focus-visible { outline: 3px solid var(--pm-orange); outline-offset: 3px; }
+/* el menú: sobre el botón, sin llegar a la barra superior ni a la columna de zoom (52 px a la derecha + 8 de aire) */
+.st-pop { position: fixed; z-index: 6; left: calc(12px + env(safe-area-inset-left, 0px)); bottom: calc(68px + var(--safe-b));
+  width: min(380px, calc(100vw - 72px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+  max-height: calc(100vh - 140px - env(safe-area-inset-top, 0px) - var(--safe-b));
+  max-height: calc(100dvh - 140px - env(safe-area-inset-top, 0px) - var(--safe-b));
+  overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: 12px; border-radius: 20px;
+  background: var(--pm-glass); backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow: 0 0 0 1px #ef78351f, 0 18px 40px -18px #7a3d1466; transform-origin: 0 100%; animation: st-pop-in .16s var(--pm-ease); }
+@keyframes st-pop-in { from { opacity: 0; transform: translateY(6px) scale(.97); } }
+.st-pop > .panel-view { gap: 10px; }
+.st-pop .map-head { padding: 0 4px; }
+.st-pop .map-title { font-size: 16px; }
+.st-pop .station-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; margin: 0; padding: 0; overflow: visible; }
+.st-pop .st-chip { min-height: 44px; border-radius: 14px; padding: 6px 10px 6px 6px; text-align: left; line-height: 1.15; }
+.st-pop .st-chip span { flex: 1; min-width: 0; }
+@media (orientation: landscape) and (max-height: 500px) {
+  .st-pop { width: min(640px, calc(100vw - 72px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); }
+  .st-pop .map-title { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .st-pop { animation: none; } }

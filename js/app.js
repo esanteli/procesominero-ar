@@ -195,6 +195,9 @@ const sizeHud = () => {
   document.documentElement.style.setProperty("--pin-s", Math.max(0.2, s).toFixed(3));
 };
 new ResizeObserver(sizeHud).observe(panel);
+// demo: el mapa ocupa la pantalla completa y el panel va encima; si el panel cambia de alto (Controles, otra estación),
+// la estación abierta se vuelve a encuadrar en lo que queda libre
+new ResizeObserver(() => { if (document.body.dataset.mode === "demo") explorer?.refit(); }).observe(panel);
 addEventListener("resize", sizeHud);
 
 // ---------------------------------------------------------------- posición de la lámina en la infografía
@@ -278,8 +281,30 @@ const chancadorStation = {
 
 const views = document.querySelectorAll("[data-panel-view]");
 const backBtn = $("[data-back]");
+// menú flotante de estaciones (vista general del demo): cerrado por defecto; se cierra al elegir una estación, al tocar
+// fuera de él o con Esc. Es una capa sobre el mapa: abrirlo o cerrarlo no cambia el tamaño del mapa ni lo mueve.
+const stMenu = $("[data-st-menu]"), stPop = $("[data-st-pop]"), stFab = $("[data-st-fab]");
+let swallowAt = 0; // el toque en el mapa que cierra el menú no abre ni arrastra nada
+function setMenu(open) {
+  stPop.hidden = !open;
+  stFab.setAttribute("aria-expanded", String(open));
+  stFab.querySelector("span").textContent = open ? "Cerrar" : "Estaciones";
+  stFab.setAttribute("aria-label", open ? "Cerrar la lista de estaciones" : "Abrir la lista de estaciones");
+}
+stFab.addEventListener("click", () => setMenu(stPop.hidden));
+addEventListener("pointerdown", (e) => {
+  if (stPop.hidden || stMenu.contains(e.target)) return;
+  setMenu(false);
+  if (e.target.closest("[data-explorer]")) { swallowAt = performance.now(); e.stopPropagation(); }
+}, true);
+addEventListener("click", (e) => {
+  if (performance.now() - swallowAt < 800 && e.target.closest("[data-explorer]")) { e.stopPropagation(); e.preventDefault(); }
+  swallowAt = 0;
+}, true);
+addEventListener("keydown", (e) => { if (e.key === "Escape" && !stPop.hidden) { setMenu(false); stFab.focus(); e.preventDefault(); } }, true);
 function showView(view, st) {
   document.body.dataset.view = view;
+  setMenu(false);
   views.forEach((v) => (v.hidden = v.dataset.panelView !== view));
   backBtn.hidden = document.body.dataset.mode !== "demo" || view === "map";
   document.querySelectorAll("[data-station-list] .st-chip").forEach((c) => c.toggleAttribute("data-on", c.dataset.id === st?.id));
@@ -321,6 +346,7 @@ homeBtn.addEventListener("click", goHome);
 function goHome() {
   if (document.body.dataset.mode !== "demo") return;
   explorer?.back(); // cierra la estación abierta (vía #)
+  setMenu(false);
   $("[data-explorer]").hidden = true;
   $("[data-notice]").hidden = true;
   homeBtn.hidden = true;
