@@ -219,8 +219,10 @@ const intro = $("[data-intro]");
 const note = $("[data-ar-note]");
 const canAR = window.isSecureContext && !!navigator.mediaDevices?.getUserMedia;
 // los botones vienen deshabilitados en el HTML: se activan recién cuando la app está lista para responder
-$("[data-start-demo]").addEventListener("click", startDemo, { once: true });
-$("[data-start-ar]").addEventListener("click", startAR, { once: true });
+// (el demo se puede abrir otra vez tras volver al inicio con su botón "Inicio"; el AR, una sola vez por carga)
+$("[data-start-demo]").addEventListener("click", () => { if (document.body.dataset.mode === "intro") startDemo(); });
+let arStarted = false;
+$("[data-start-ar]").addEventListener("click", () => { if (arStarted) return; arStarted = true; startAR(); });
 $("[data-start-demo]").disabled = false;
 $("[data-start-ar]").disabled = !canAR;
 note.textContent = canAR ? "" : "La cámara necesita HTTPS (o localhost). Abre la demo o publica la carpeta en un servidor seguro.";
@@ -313,10 +315,34 @@ function demoOccluded(stage) {
   }
   return out;
 }
+// T11: del demo a la pantalla inicial sin recargar: se cierra la estación abierta, se oculta el demo y vuelven los
+// botones del inicio (el demo queda armado: abrirlo de nuevo es instantáneo).
+const homeBtn = $("[data-home]");
+homeBtn.addEventListener("click", goHome);
+function goHome() {
+  if (document.body.dataset.mode !== "demo") return;
+  explorer?.back(); // cierra la estación abierta (vía #)
+  $("[data-explorer]").hidden = true;
+  $("[data-notice]").hidden = true;
+  homeBtn.hidden = true;
+  backBtn.hidden = true;
+  delete document.body.dataset.view;
+  document.body.dataset.mode = "intro";
+  intro.hidden = false;
+  const ar = $("[data-start-ar]");
+  ar.textContent = "Escanear infografía";
+  ar.disabled = !canAR || arStarted;
+  $("[data-start-demo]").disabled = false;
+  const q = new URLSearchParams(location.search);
+  if (q.has("demo")) { q.delete("demo"); history.replaceState(null, "", location.pathname + (q.size ? `?${q}` : "")); }
+  ui.status.textContent = "Proceso Minero AR";
+}
 async function startDemo() {
   setMode("demo");
+  homeBtn.hidden = false;
   const stage = $("[data-explorer]");
   stage.hidden = false;
+  if (explorer) { showView("map"); return; } // ya armado: se vuelve a mostrar
   const { STATIONS } = await import("./stations.js");
   const { createExplorer } = await import("./explorer.js");
   // lista de estaciones del panel

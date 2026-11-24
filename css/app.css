@@ -1086,7 +1086,7 @@ body[data-mode="ar"] .scan-hint p { backdrop-filter: blur(8px); -webkit-backdrop
 }
 
 /* escaneo: botón "Inicio" para salir; en pantallas angostas reemplaza al logo para que el estado se lea entero */
-@media (max-width: 520px) { body[data-mode="ar"] .brand { display: none; } }
+@media (max-width: 520px) { body[data-mode="ar"] .brand, body[data-mode="demo"] .brand { display: none; } }
 
 /* AR · precarga de las animaciones (entre el inicio y la cámara) */
 .preload { z-index: 12; }
