@@ -863,9 +863,19 @@ const lowpass = (cutoff, dt) => 1 / (1 + 1 / (2 * Math.PI * cutoff * dt));
 // Pérdida del marcador: la escena se desvanece de inmediato (LOST_FADE_MS) y al terminar se oculta y se pausan las
 // simulaciones (show(S, false) → setActive(false)). Si el marcador vuelve durante el desvanecido, se recupera sin
 // salto. La lámina fijada con el alfiler no está en esta capa: no se ve afectada.
+// Sin marcador, en foco (T3): el panel se atenúa y queda bloqueado (inert: no responde a toques ni teclado) pero sigue
+// en su lugar, con la lectura congelada en el último valor (la simulación está en pausa). La lámina fijada no se bloquea.
+function lockPanel() {
+  const lock = !!arCurrent && !pinned && (!host || !!lostSince);
+  if (panel.hasAttribute("data-lost") === lock) return;
+  panel.toggleAttribute("data-lost", lock);
+  panel.inert = lock;
+  if (lock) arCurrent.setActive(false); // la lectura se congela ya, no al terminar el desvanecido
+}
 function beginLost() {
   if (lostSince) return;
   lostSince = performance.now();
+  lockPanel();
   cssLayer.classList.add("ar-layer--out");
   hotLayer.hidden = true;
   clearTimeout(fadeTimer);
@@ -882,6 +892,9 @@ function endLost() {
   clearTimeout(fadeTimer);
   lostSince = 0;
   cssLayer.classList.remove("ar-layer--out");
+  const was = panel.hasAttribute("data-lost");
+  lockPanel();
+  if (was && arCurrent?.shown) arCurrent.setActive(true);
 }
 function poseUpdate(m, now) {
   if (!pose.p) {
@@ -1055,6 +1068,7 @@ const calib = new URLSearchParams(location.search).has("calibrar") ? (() => {
 let lastClockState = "";
 function syncUi() {
   calib?.show();
+  lockPanel();
   const tracking = !!host;
   const state = arCurrent ? "focus" : tracking ? "overview" : "scan";
   document.body.dataset.ar = state;
