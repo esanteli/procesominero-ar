@@ -865,11 +865,15 @@ const lowpass = (cutoff, dt) => 1 / (1 + 1 / (2 * Math.PI * cutoff * dt));
 // salto. La lámina fijada con el alfiler no está en esta capa: no se ve afectada.
 // Sin marcador, en foco (T3): el panel se atenúa y queda bloqueado (inert: no responde a toques ni teclado) pero sigue
 // en su lugar, con la lectura congelada en el último valor (la simulación está en pausa). La lámina fijada no se bloquea.
+// Fijar y Ampliar NO se bloquean: Fijar sirve justamente para cuando se pierde la infografía (y el aviso lo sugiere).
 function lockPanel() {
   const lock = !!arCurrent && !pinned && (!host || !!lostSince);
   if (panel.hasAttribute("data-lost") === lock) return;
   panel.toggleAttribute("data-lost", lock);
-  panel.inert = lock;
+  const view = panel.querySelector(".panel-view:not([hidden])");
+  const parts = view ? [...view.querySelectorAll(":scope > .readout-row, :scope > .chips, :scope > .controls, :scope > .seq > :not(.ar-actions)")] : [];
+  for (const el of panel.querySelectorAll("[data-lost-part]")) { el.inert = false; el.removeAttribute("data-lost-part"); }
+  if (lock) for (const el of parts) { el.inert = true; el.setAttribute("data-lost-part", ""); }
   if (lock) arCurrent.setActive(false); // la lectura se congela ya, no al terminar el desvanecido
 }
 function beginLost() {

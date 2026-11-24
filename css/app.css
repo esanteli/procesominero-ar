@@ -1300,4 +1300,5 @@ body[data-mode="ar"] .seq { grid-template-columns: 48px 1fr auto; }
 
 /* sin marcador, en foco (T3): el panel queda en su lugar, atenuado y sin responder (inert, app.js) */
 [data-panel] { transition: opacity .3s ease; }
-body[data-mode="ar"] [data-panel][data-lost] { opacity: .45; }
+body[data-mode="ar"] [data-lost-part] { opacity: .45; }
+[data-panel] .panel-view > *, [data-panel] .seq > * { transition: opacity .3s ease; }
