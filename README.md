@@ -408,12 +408,17 @@ ar-chancador/
 ├─ assets/chancador_primario.svg   SVG original de Illustrator, sin tocar (base de la escena)
 ├─ assets/caex/*.svg               sprites del CAEX (cargada, descargando, vacía, giro180)
 ├─ assets/picarrocas.svg           picarrocas articulado
-├─ assets/infografia.jpg           infografía completa a 2× (demo sin cámara)
+├─ assets/infografia.jpg           infografía completa a 2× (fuente de los marcadores; bench.html)
+├─ assets/procesominero_sin_ar.*   infografía nueva (SVG + JPG de Illustrator): fuente de las capas del demo
+├─ assets/infografia-capas/        el demo sin cámara en capas: base, una imagen por estación y por etiqueta
+├─ js/infografia-capas.js          posiciones de esas capas y líneas de flujo como vectores (generado)
+├─ js/infografia-viva.js           entrada animada, efecto al tocar, ambiente y modo quiosco del demo (PARAMS)
 ├─ assets/target-chancado.png      recorte de la infografía usado como marcador
 ├─ assets/targets.mind             marcadores compilados para MindAR (0 chancado, 1 rajo, 2 mina, 3 secundario, 4 pilas, 5 molienda, 6 flotación, 7 SX-EW, 8 fundición, 9 puerto)
 ├─ tools/compilar-marcador.html    compila nuevos recortes a targets.mind en el navegador
 ├─ tools/generar-giro-caex.mjs     exporta los fotogramas del giro como SVG (npm run giro)
 ├─ tools/extraer-rajo.py           .ai del rajo → js/stations/rajo-geo.js
+├─ tools/capas-infografia.mjs      procesominero_sin_ar.svg/.jpg → assets/infografia-capas/ + js/infografia-capas.js
 └─ vendor/                    three 0.160 + MindAR 1.2.5 (autohospedados, sin CDN)
 ```
 
