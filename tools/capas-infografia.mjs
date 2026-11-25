@@ -91,11 +91,30 @@ const plan = await page.evaluate(({ ZONES, CAPTIONS, FLOW }) => {
     tag(el, "base");
   };
   visit(document.querySelector("svg"));
+  // Piezas de la base que en el SVG se pintan encima de una estación (p. ej. el muro blanco del talud delante de las
+  // patas del chancado primario): se renderizan también en la capa de la estación, en su orden, recortadas a la
+  // silueta de la estación. Si no, al poner la estación sobre la base asoma lo que el dibujo tapaba.
+  const order = [...groups];
+  const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+  const occ = {};
+  for (const z of ZONES) {
+    const mine = [];
+    order.forEach(([el, k], i) => {
+      if (k === `st:${z.id}`) { mine.push(el.getBoundingClientRect()); return; }
+      if (k !== "base" || !mine.length) return;
+      const cs = getComputedStyle(el);
+      if (cs.fill === "none" || cs.fillOpacity === "0") return; // sólo lo que tapa (rellenos y contornos dibujados como relleno)
+      const r = el.getBoundingClientRect();
+      if (!mine.some((m) => hit(m, r))) return;
+      el.dataset.occ = `${el.dataset.occ || ""} ${z.id}`.trim();
+      occ[z.id] = (occ[z.id] || 0) + 1;
+    });
+  }
   const count = {};
   for (const k of groups.values()) count[k] = (count[k] || 0) + 1;
-  return { count };
+  return { count, occ };
 }, { ZONES, CAPTIONS, FLOW });
-console.log("piezas por capa", plan.count);
+console.log("piezas por capa", plan.count, "piezas de la base que tapan una estación", plan.occ);
 
 // ---------------------------------------------------------------- líneas de flujo y puntos como vectores
 const vectors = await page.evaluate(() => {
@@ -125,8 +144,11 @@ console.log(`líneas ${vectors.lines.length}, puntos ${vectors.dots.length}`);
 if (args.has("--dump")) { console.log(JSON.stringify(vectors.lines.map((l) => ({ a: l.a, b: l.b, len: l.len, stroke: l.stroke, dash: l.dash })), null, 0)); }
 
 // ---------------------------------------------------------------- render de cada capa
-const show = (key) => page.evaluate((key) => {
-  for (const el of document.querySelectorAll("[data-capa]")) el.style.display = el.dataset.capa === key ? "" : "none";
+const show = (key, occ = null) => page.evaluate((key, occ) => {
+  for (const el of document.querySelectorAll("[data-capa]")) {
+    const on = el.dataset.capa === key || (occ && (el.dataset.occ || "").split(" ").includes(occ));
+    el.style.display = on ? "" : "none";
+  }
   // caja de lo visible
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const el of document.querySelectorAll(`[data-capa="${key}"]`)) {
@@ -135,7 +157,7 @@ const show = (key) => page.evaluate((key) => {
     x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top); x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom);
   }
   return [x0, y0, x1, y1];
-}, key);
+}, key, occ);
 const clipOf = ([x0, y0, x1, y1], pad = 6) => {
   const x = Math.max(0, Math.floor(x0 - pad)), y = Math.max(0, Math.floor(y0 - pad));
   return { x, y, width: Math.min(W, Math.ceil(x1 + pad)) - x, height: Math.min(H, Math.ceil(y1 + pad)) - y };
@@ -159,7 +181,15 @@ for (const z of ZONES) {
   const box = await show(`st:${z.id}`);
   if (Number.isFinite(box[0])) {
     const clip = clipOf(box);
-    const png = await page.screenshot({ type: "png", omitBackground: true, clip });
+    let png = await page.screenshot({ type: "png", omitBackground: true, clip });
+    if (plan.occ[z.id]) {
+      // con las piezas que la tapan, recortado a la silueta de la estación sola (engrosada 1-2 px por el antialias)
+      const fp = await sharp(png).extractChannel(3).blur(1.2).threshold(4).raw().toBuffer();
+      await show(`st:${z.id}`, z.id);
+      const { data, info } = await sharp(await page.screenshot({ type: "png", omitBackground: true, clip })).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      for (let i = 0; i < fp.length; i++) data[i * 4 + 3] = (data[i * 4 + 3] * fp[i]) / 255;
+      png = await sharp(data, { raw: info }).png().toBuffer();
+    }
     const f = path.join(OUT, `st-${z.id}.webp`);
     await sharp(png).webp({ quality: 88, alphaQuality: 90, effort: 6 }).toFile(f);
     manifest.stations[z.id] = { src: `st-${z.id}.webp`, rect: [clip.x, clip.y, clip.width, clip.height] };
