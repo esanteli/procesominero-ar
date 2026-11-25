@@ -243,6 +243,7 @@ const CROP = { x: 580 * 2, y: 60 * 2, k: 1.5 / 2 };
 const PRINT_ON_POSTER = [CROP.x + STATION.target.print[0] / CROP.k, CROP.y + STATION.target.print[1] / CROP.k];
 const PLATE_W_ON_POSTER = (STATION.scale * STATION.target.w) / CROP.k;
 let explorer = null;
+let art = null; // infografía viva (js/infografia-viva.js): entrada, ambiente, efecto al tocar y modo quiosco
 
 const chancadorStation = {
   // precarga en reposo (js/explorer.js): hornea su silueta y sombra antes de la primera apertura (~100 ms con la CPU ×4)
@@ -348,6 +349,7 @@ function goHome() {
   explorer?.back(); // cierra la estación abierta (vía #)
   setMenu(false);
   $("[data-explorer]").hidden = true;
+  art?.setActive(false);
   $("[data-notice]").hidden = true;
   homeBtn.hidden = true;
   backBtn.hidden = true;
@@ -367,14 +369,23 @@ async function startDemo() {
   homeBtn.hidden = false;
   const stage = $("[data-explorer]");
   stage.hidden = false;
-  if (explorer) { showView("map"); return; } // ya armado: se vuelve a mostrar
+  if (explorer) { showView("map"); art?.setActive(true); return; } // ya armado: se vuelve a mostrar (y repite la entrada)
   const { STATIONS } = await import("./stations.js");
   const { createExplorer } = await import("./explorer.js");
+  const viva = await import("./infografia-viva.js");
   // lista de estaciones del panel
   const list = $("[data-station-list]");
   list.innerHTML = STATIONS.map((st) => `<button type="button" class="st-chip" role="listitem" data-id="${st.id}" data-tone="${st.tone}" data-status="${st.status}"><b>${st.n}</b><span>${st.name}</span>${st.status === "lista" ? '<i aria-label="animación lista"></i>' : ""}</button>`).join("");
   list.addEventListener("click", (e) => { const c = e.target.closest(".st-chip"); if (c) explorer.open(c.dataset.id); });
-  explorer = createExplorer({ stage, builtins: { chancador: chancadorStation }, onView: showView, occluded: () => demoOccluded(stage) });
+  explorer = createExplorer({ stage, builtins: { chancador: chancadorStation }, onView: (v, st) => { showView(v, st); art?.setView(v); },
+    occluded: () => demoOccluded(stage), labelRect: viva.labelRect, shift: viva.SHIFT });
+  // modo quiosco: sin interacción por un rato, de vuelta a la vista general y la entrada otra vez
+  art = viva.createLiveArt({ stage, world: stage.querySelector("[data-world]"), onIdle: () => {
+    if (document.body.dataset.mode !== "demo") return;
+    setMenu(false);
+    explorer.reset();
+    art.replay();
+  } });
   backBtn.addEventListener("click", () => explorer.back());
   $("[data-st-prev]").addEventListener("click", () => explorer.prev());
   $("[data-st-next]").addEventListener("click", () => explorer.next());

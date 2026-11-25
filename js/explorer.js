@@ -18,7 +18,9 @@ const MAX_ZOOM = 2.2; // px de pantalla por px de la infografía (la imagen vien
  * @param {object} o.builtins      estaciones que viven en app.js (p. ej. chancador): { [name]: { enter(ctx) → {focus}, leave() } }
  * @param {(view:string, station?:object) => void} o.onView  avisa el cambio de vista ("map" | "station" | <builtin>)
  */
-export function createExplorer({ stage, builtins = {}, onView = () => {}, occluded = () => ({}) }) {
+// labelRect(st): zona tocable de la etiqueta de cada estación (por defecto st.label). shift: { [id]: [dx, dy] } estaciones
+// que el arte del mapa dibuja desplazadas respecto de stations.js: su módulo y sus encuadres se mueven igual.
+export function createExplorer({ stage, builtins = {}, onView = () => {}, occluded = () => ({}), labelRect = (st) => st.label, shift = {} }) {
   const world = $("[data-world]", stage);
   const spot = $("[data-spot]", stage);
   const hotspots = $("[data-hotspots]", stage);
@@ -34,7 +36,14 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
   let mapView = null;      // cámara del mapa para volver a ella
 
   // ---------------------------------------------------------------- cámara
-  const apply = () => { world.style.transform = `translate(${cam.x.toFixed(2)}px, ${cam.y.toFixed(2)}px) scale(${cam.s.toFixed(5)})`; };
+  // --inv: px del mapa por px de pantalla (los botones de las estaciones miden al menos 48 × 48 px en pantalla). Se
+  // actualiza al terminar el movimiento, no en cada cuadro (cambia el tamaño de los botones: no se recalcula mientras vuela)
+  let invT = 0;
+  const setInv = () => world.style.setProperty("--inv", (1 / cam.s).toFixed(4));
+  const apply = () => {
+    world.style.transform = `translate(${cam.x.toFixed(2)}px, ${cam.y.toFixed(2)}px) scale(${cam.s.toFixed(5)})`;
+    clearTimeout(invT); invT = setTimeout(setInv, 150);
+  };
   // caja del mapa: se mide sólo cuando cambia de tamaño (medirla justo después de cambiar el panel obligaba a recalcular
   // todo el layout en el acto, al abrir una estación)
   let boxC = null;
@@ -63,8 +72,11 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
   const fitAll = () => centered(coverScale());
   const fitContain = () => centered(containScale());
   const minScale = () => containScale() * 0.9;
-  let framing = "cover"; // encuadre de la vista general que se mantiene al rotar o cambiar el tamaño; null = el que dejó el usuario
-  const framed = () => (framing === "contain" ? fitContain() : fitAll());
+  // "auto" (el inicial): cover, salvo en pantallas grandes donde la infografía completa ya se lee (etiquetas de ~90 px o
+  // más: contain ≥ 0,3) — ahí se ve todo el proceso (el fondo del arte es blanco: no se nota borde).
+  const autoContain = () => containScale() >= 0.3;
+  let framing = "auto"; // encuadre de la vista general que se mantiene al rotar o cambiar el tamaño; null = el que dejó el usuario
+  const framed = () => (framing === "contain" || (framing === "auto" && autoContain()) ? fitContain() : fitAll());
   // sin margen: mientras la infografía sea más grande que la pantalla, sus bordes no se pueden despegar del borde
   function bound(c) {
     const b = box(), W = POSTER.w * c.s, H = POSTER.h * c.s;
@@ -98,14 +110,15 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
 
   // ---------------------------------------------------------------- puntos de la infografía
   for (const st of STATIONS) {
-    const [x, y, w, h] = st.label;
+    const [x, y, w, h] = labelRect(st);
     const b = document.createElement("button");
     b.type = "button";
     b.className = "hotspot";
     b.dataset.station = st.id;
     b.dataset.tone = st.tone;
     b.dataset.status = st.status;
-    b.style.cssText = `left:${x - 14}px;top:${y - 14}px;width:${w + 28}px;height:${h + 28}px`;
+    // centro y tamaño de la etiqueta (+14 px de aire): el CSS lo agranda a 48 px de pantalla si el zoom lo achica
+    b.style.cssText = `--cx:${x + w / 2};--cy:${y + h / 2};--w:${w + 28};--h:${h + 28}`;
     b.setAttribute("aria-label", `Estación ${st.n}: ${st.name}${st.status === "lista" ? "" : " (en desarrollo)"}`);
     b.innerHTML = `<i class="hotspot-ring"></i><span class="hotspot-tip">${st.n} · ${st.name}</span>`;
     hotspots.appendChild(b);
@@ -159,9 +172,10 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
     const b = box();
     zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - b.left, e.clientY - b.top);
   }, { passive: false });
-  // un toque (sin arrastre) sobre una etiqueta abre la estación
-  hotspots.addEventListener("click", (e) => {
-    const h = e.target.closest(".hotspot");
+  // un toque (sin arrastre) sobre una etiqueta o el dibujo de una estación (.art-st, js/infografia-viva.js) la abre
+  world.addEventListener("click", (e) => {
+    const h = e.target.closest(".hotspot, .art-st");
+    if (current) return;
     if (!h || moved) return;
     go(h.dataset.station);
   });
@@ -201,6 +215,10 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
     if (!current) mapView = { ...cam, framing };
     leaveCurrent();
     current = st;
+    // estación desplazada en el arte del mapa: su lámina y sus encuadres (en px de stations.js) se mueven igual
+    const d = shift[st.id];
+    moveBy = (r) => (d && r ? [r[0] + d[0], r[1] + d[1], r[2], r[3]] : r);
+    layer.style.transform = d ? `translate(${d[0]}px, ${d[1]}px)` : "";
     stage.dataset.view = "station";
     const spotEl = hotspots.querySelector(`.hotspot[data-station="${CSS.escape(id)}"]`);
     hotspots.querySelectorAll(".hotspot").forEach((h) => h.toggleAttribute("data-active", h === spotEl));
@@ -237,6 +255,7 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
       } catch (err) { console.error(err); }
       spotEl?.removeAttribute("data-loading");
     }
+    focus = moveBy(focus);
     showSpot(focus);
     stationFocus = focus;
     onView(view, st);
@@ -273,9 +292,10 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
   }
 
   // una estación puede acercar la cámara a una zona suya (p. ej. el equipo elegido); sin rect vuelve a su encuadre
-  let stationFocus = null, aimRect = null;
+  let stationFocus = null, aimRect = null, moveBy = (r) => r;
   function focusTo(rect, maxZoom = MAX_ZOOM) {
     if (!current || !stationFocus) return;
+    rect = moveBy(rect);
     aimRect = [rect || stationFocus, rect ? 0.12 : 0.06, rect ? maxZoom : MAX_ZOOM];
     flyTo(fitRect(...aimRect), 650);
   }
@@ -293,12 +313,14 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
   function close() {
     leaveCurrent();
     current = null;
+    layer.style.transform = "";
+    moveBy = (r) => r;
     delete stage.dataset.view;
     showSpot(null);
     hotspots.querySelectorAll(".hotspot").forEach((h) => h.removeAttribute("data-active"));
     onView("map");
     // de vuelta al encuadre que tenía el mapa (si mientras tanto giró la pantalla, el mismo encuadre en la nueva)
-    framing = mapView ? mapView.framing : "cover";
+    framing = mapView ? mapView.framing : "auto";
     flyTo(framing ? framed() : bound({ ...mapView, s: Math.max(mapView.s, minScale()) }), 700);
   }
   const go = (id) => { location.hash = id ? `#${id}` : ""; };
@@ -314,7 +336,7 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
     if (!b.width || !b.height || (b.width === prev.width && b.height === prev.height)) return; // oculto o sin cambio
     lastBox = b;
     cancelAnimationFrame(anim);
-    if (current) { cam = fitRect(spot.hidden ? current.focus : spotRect(), 0.06); apply(); return; }
+    if (current) { cam = fitRect(spot.hidden ? moveBy(current.focus) : spotRect(), 0.06); apply(); return; }
     if (framing) { cam = framed(); apply(); return; }
     if (!prev.width) { cam = framed(); apply(); return; }
     const px = (prev.width / 2 - cam.x) / cam.s, py = (prev.height / 2 - cam.y) / cam.s;
@@ -328,16 +350,24 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
   const spotRect = () => [parseFloat(spot.style.left), parseFloat(spot.style.top), parseFloat(spot.style.width), parseFloat(spot.style.height)];
 
   // arranque
-  cam = fitAll();
+  cam = framed();
   apply();
+  setInv();
   onView("map");
   queueMicrotask(route); // la URL puede traer una estación (#rajo): se abre cuando el explorador ya existe
-  setTimeout(() => STATIONS.forEach((st) => st.module && queuePrebuild(st)), 1500); // precarga en reposo
+  // precarga en reposo: después de la entrada animada del mapa (js/infografia-viva.js, ~3,5 s), para no competir con ella
+  setTimeout(() => STATIONS.forEach((st) => st.module && queuePrebuild(st)), 4500);
 
   const idx = () => STATIONS.findIndex((s) => s.id === current?.id);
   return {
     open: go,
     refit,
+    /** vuelve a la vista general en su encuadre inicial, cerrando la estación abierta (modo quiosco) */
+    reset() {
+      if (current) { mapView = null; go(null); return; }
+      framing = "auto";
+      flyTo(framed(), 700);
+    },
     back: () => go(null),
     next: () => go(STATIONS[(idx() + 1) % STATIONS.length].id),
     prev: () => go(STATIONS[(idx() - 1 + STATIONS.length) % STATIONS.length].id),

@@ -1428,3 +1428,49 @@ body[data-mode="demo"][data-view="map"] .st-menu { display: block; }
 /* T13 · demo: la infografía llena la pantalla (encuadre cover, js/explorer.js); sin esquinas redondeadas que dejen ver
    el fondo cuando se arrastra hasta un borde */
 body[data-mode="demo"] .map-poster { border-radius: 0; }
+
+/* ================================================================ T14 · infografía viva (js/infografia-viva.js)
+   Capas del arte nuevo (assets/infografia-capas/) sobre el mapa del demo. Ajustes rápidos:
+     --art-hover-scale   cuánto crece una estación al pasar el mouse o presionarla
+     --art-hover-ms      duración de ese crecimiento y del brillo
+   (tiempos de la entrada, partículas, polvo y modo quiosco: PARAMS en js/infografia-viva.js) */
+.explorer { --art-hover-scale: 1.06; --art-hover-ms: 280ms; }
+body[data-mode="demo"] .explorer { background: #fff; } /* el arte es blanco: al alejarse no se ve un borde */
+.map-art { position: absolute; pointer-events: none; }
+.map-art > * { position: absolute; }
+.map-art[data-pre] > * { opacity: 0; }
+.art-base, .art-flow, .art-run, .art-fx { left: 0; top: 0; width: 100%; height: 100%; }
+.art-base { display: block; user-select: none; -webkit-user-drag: none; }
+.art-flow { overflow: visible; }
+.art-dot { transform-box: fill-box; transform-origin: center; }
+.art-st, .art-lb { transform-origin: 50% 55%; transition: transform var(--art-hover-ms) cubic-bezier(.2, .8, .2, 1); }
+.art-st img, .art-lb img { position: relative; display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+.art-st { pointer-events: auto; cursor: pointer; }
+.explorer[data-view="station"] .art-st { pointer-events: none; }
+.art-st[data-hot], .art-lb[data-hot] { transform: scale(var(--art-hover-scale)); }
+/* brillo: un halo cálido detrás del dibujo (sólo opacidad; un filtro de sombra repintaría en cada cuadro) */
+.art-glow { position: absolute; inset: -14%; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity var(--art-hover-ms) ease;
+  background: radial-gradient(closest-side, rgba(255, 182, 85, .5), rgba(255, 182, 85, .16) 60%, rgba(255, 182, 85, 0)); }
+.art-st[data-hot] .art-glow { opacity: 1; }
+/* ambiente: partículas por las líneas y polvo del rajo (se apagan mientras se mira una estación) */
+.art-run, .art-fx { transition: opacity .4s ease; }
+.explorer[data-view="station"] :is(.art-run, .art-fx) { opacity: 0; }
+.art-run i, .art-fx i { position: absolute; left: 0; top: 0; border-radius: 50%; pointer-events: none; opacity: 0; }
+.art-run i { --d: max(var(--size, 11px), calc(5px * var(--inv, 1))); width: var(--d); height: var(--d); margin: calc(var(--d) / -2);
+  background: radial-gradient(circle, currentColor 0 36%, transparent 72%); }
+.art-fx i { background: radial-gradient(closest-side, rgba(196, 168, 140, .55), rgba(196, 168, 140, .2) 60%, rgba(196, 168, 140, 0)); }
+/* botón de cada estación: la etiqueta + 14 px, y nunca menos de 48 × 48 px en pantalla (--inv = px del mapa por px) */
+.explorer .hotspot { --bw: max(calc(var(--w) * 1px), calc(48px * var(--inv, 1))); --bh: max(calc(var(--h) * 1px), calc(48px * var(--inv, 1)));
+  left: calc(var(--cx) * 1px); top: calc(var(--cy) * 1px); width: var(--bw); height: var(--bh); margin: calc(var(--bh) / -2) 0 0 calc(var(--bw) / -2); }
+/* el anillo de cada estación late con transform y opacidad (antes con box-shadow, que repinta en cada cuadro) */
+.hotspot-ring { animation: none; box-shadow: none; }
+.hotspot-ring::after { content: ""; position: absolute; inset: -5px; border-radius: inherit; border: 4px solid #ef7835; pointer-events: none;
+  opacity: 0; animation: pm-ring-pulse 2.6s ease-out infinite; }
+.hotspot[data-tone="amarillo"] .hotspot-ring::after { border-color: #f0b030; }
+@keyframes pm-ring-pulse { 0% { opacity: .55; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(1.1); } }
+.explorer[data-intro] .hotspot-ring::after { animation: none; }
+.explorer[data-art-paused] .hotspot-ring::after { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .hotspot-ring::after { animation: none; }
+  .art-st[data-hot], .art-lb[data-hot] { transform: none; }
+}
