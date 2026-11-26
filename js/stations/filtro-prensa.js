@@ -38,7 +38,7 @@ export function pressPhase(u) {
  * @param {{e:number,n0:number,n1:number,z0:number,z1:number,we:number,N:number}} o.P
  * @param {ReturnType<typeof pressPhase>} o.pr
  * @param {number} o.fl      reloj para goteo y aire
- * @param {string} o.cls     prefijo de clases (…-plate, …-press-leg, …-press-head, …-press-rail, …-cake, …-drip, …-air)
+ * @param {string} o.cls     prefijo de clases (…-slab, …-press-leg, …-press-head, …-press-rail, …-cake, …-drip, …-air)
  * @param {string} o.fill    color del contenido de las placas
  * @param {number} o.cakeZ   altura donde cae el queque
  * @param {number} [o.dripZ] altura donde cae el agua filtrada
@@ -57,9 +57,9 @@ export function filterPressSvg({ W, P, pr, fl, cls, fill, cakeZ, dripZ = 1, unde
   g += box(W, e0 - 1, e1 + 1, P.n1 - 3, P.n1, P.z0 - 1, P.z1 + 1, c("press-head"));
   for (let k = P.N - 1; k >= 0; k--) {
     const n = nAt(k);
-    g += poly([W(e0, n, P.z0), W(e1, n, P.z0), W(e1, n, P.z1), W(e0, n, P.z1)], c("plate"));
-    g += poly([W(e1, n - 1.6, P.z0), W(e1, n, P.z0), W(e1, n, P.z1), W(e1, n - 1.6, P.z1)], `${c("plate")} ${c("plate")}--edge`);
-    if (pr.fill > 0 && pr.ph !== "descarga") g += poly([W(e0 + 1.2, n - 0.05, P.z0 + 1.2), W(e1 - 1.2, n - 0.05, P.z0 + 1.2), W(e1 - 1.2, n - 0.05, lerp(P.z0 + 1.2, P.z1 - 1.2, pr.fill)), W(e0 + 1.2, n - 0.05, lerp(P.z0 + 1.2, P.z1 - 1.2, pr.fill))], c("plate-fill"), ` style="fill:${fill}"`);
+    g += poly([W(e0, n, P.z0), W(e1, n, P.z0), W(e1, n, P.z1), W(e0, n, P.z1)], c("slab"));
+    g += poly([W(e1, n - 1.6, P.z0), W(e1, n, P.z0), W(e1, n, P.z1), W(e1, n - 1.6, P.z1)], `${c("slab")} ${c("slab")}--edge`);
+    if (pr.fill > 0 && pr.ph !== "descarga") g += poly([W(e0 + 1.2, n - 0.05, P.z0 + 1.2), W(e1 - 1.2, n - 0.05, P.z0 + 1.2), W(e1 - 1.2, n - 0.05, lerp(P.z0 + 1.2, P.z1 - 1.2, pr.fill)), W(e0 + 1.2, n - 0.05, lerp(P.z0 + 1.2, P.z1 - 1.2, pr.fill))], c("slab-fill"), ` style="fill:${fill}"`);
   }
   g += box(W, e0 - 1, e1 + 1, P.n0 - 1, P.n0 + 2, P.z0 - 1, P.z1 + 1, c("press-head"));
   // queque que cae de la placa que se separa

@@ -962,9 +962,9 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
 .pu-wall-in { fill: #fbf5ef; stroke: var(--ln); stroke-width: .55; stroke-linejoin: round; }
 .pu-wall-in--end { fill: #f6ece2; }
 .pu-pilaster { stroke: #f0b77d; stroke-width: .55; }
-.pu-plate { fill: #c3ccd3; stroke: #6f7b84; stroke-width: .35; stroke-linejoin: round; }
-.pu-plate--edge { fill: #c9d1d7; }
-.pu-plate-fill { opacity: .9; }
+.pu-slab { fill: #c3ccd3; stroke: #6f7b84; stroke-width: .35; stroke-linejoin: round; }
+.pu-slab--edge { fill: #c9d1d7; }
+.pu-slab-fill { opacity: .9; }
 .pu-press-rail { fill: #fbe8d6; stroke: var(--ln); stroke-width: .4; }
 .pu-cake { fill: var(--conc); stroke: #2d2b23; stroke-width: .3; }
 .pu-drip { fill: #5fa8cf; }
@@ -1505,9 +1505,9 @@ body[data-mode="demo"] .explorer { background: #fff; } /* el arte es blanco: al 
 .fx-press-leg, .fx-press-head, .fl-pump, .fl-pumphead, .fl-truck, .fl-truck-cab { fill: #fff; stroke: #ef8c22; stroke-width: .55; stroke-linejoin: round; }
 .fx-press-head--side, .fl-pump--side, .fl-pumphead--side, .fl-truck--side, .fl-truck-cab--side { fill: #fbe8d6; }
 .fx-press-rail { fill: #fbe8d6; stroke: #ef8c22; stroke-width: .4; }
-.fx-plate { fill: #c3ccd3; stroke: #6f7b84; stroke-width: .35; stroke-linejoin: round; }
-.fx-plate--edge { fill: #c9d1d7; }
-.fx-plate-fill { opacity: .9; }
+.fx-slab { fill: #c3ccd3; stroke: #6f7b84; stroke-width: .35; stroke-linejoin: round; }
+.fx-slab--edge { fill: #c9d1d7; }
+.fx-slab-fill { opacity: .9; }
 .fx-cake, .fl-cake { fill: #4b5a52; stroke: #2d2b23; stroke-width: .3; stroke-linejoin: round; }
 .fl-cake--side { fill: #3c473f; }
 .fx-drip { fill: #5fa8cf; }
