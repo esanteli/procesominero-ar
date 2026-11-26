@@ -463,11 +463,16 @@
           <div class="meter" data-fl-meter title="Recuperación de cobre"><span></span></div>
           <output class="readout" data-fl-readout aria-live="polite">—</output>
         </div>
-        <div class="chips" role="group" aria-label="Equipos: toca uno para ver su descripción y su detalle">
+        <div class="chips" role="group" aria-label="Equipos: toca uno para ver su descripción; Rutas muestra ambos destinos">
+          <button type="button" class="route-switch" role="switch" aria-checked="false" data-fl-filter><span class="route-knob" aria-hidden="true"></span><span>Filtrar en planta</span><kbd aria-hidden="true">F</kbd></button>
           <button type="button" class="chip" data-fl-chip="rougher"><span>01</span>Rougher</button>
           <button type="button" class="chip" data-fl-chip="limpieza"><span>02</span>Limpieza</button>
           <button type="button" class="chip" data-fl-chip="concentrado"><span>03</span>Espesador de concentrado</button>
           <button type="button" class="chip" data-fl-chip="relaves"><span>04</span>Espesador de relaves</button>
+          <button type="button" class="chip" data-fl-chip="estanque"><span>05</span>Estanque agitado</button>
+          <button type="button" class="chip" data-fl-chip="bombas"><span>06</span>Casa de bombas</button>
+          <button type="button" class="chip" data-fl-chip="filtro"><span>07</span>Filtro prensa</button>
+          <button type="button" class="chip" data-fl-rutas aria-pressed="false"><span>R</span>Rutas</button>
         </div>
         <div class="controls controls--3">
           <label class="ctl">
@@ -484,6 +489,11 @@
             <span class="ctl-label">Flujo de aire</span>
             <input type="range" min="0.6" max="1.6" value="1" step="0.1" data-fl-air aria-label="Flujo de aire a las celdas, veces el nominal">
             <output data-fl-air-out>1,0×</output>
+          </label>
+          <label class="ctl ctl--window">
+            <span class="ctl-label">% de sólidos</span>
+            <input type="range" min="45" max="72" value="65" step="1" data-fl-uf aria-label="Porcentaje de sólidos de la descarga del espesador de concentrado (referencial); ventana de transporte 55 a 68 %">
+            <output data-fl-uf-out>65 %</output>
           </label>
         </div>
         <div class="seq" role="group" aria-label="Sigue una partícula de sulfuro por la flotación">

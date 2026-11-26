@@ -1211,6 +1211,13 @@ function setFocus(S) {
   syncUi();
   if (host && pose.ready) updateView();
 }
+// enlaces entre estaciones desde una lámina (p. ej. los destinos de Flotación): en el demo, la estación por su hash;
+// en AR, se enfoca esa estación
+addEventListener("pm:goto", (e) => {
+  if (document.body.dataset.mode === "ar") { const S = arStations.find((x) => x.id === e.detail); if (S) setFocus(S); return; }
+  location.hash = `#${e.detail}`;
+});
+
 // estado de la interfaz: vista general / enfoque / buscando
 // ?calibrar: flechas para mover la lámina enfocada de a 1 px de la infografía y ver cuánto (para AR_NUDGE)
 const calib = new URLSearchParams(location.search).has("calibrar") ? (() => {

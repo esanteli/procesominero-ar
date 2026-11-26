@@ -9,16 +9,21 @@
 // pulpa y pasa de celda en celda por los cajones con válvula dardo hasta salir como relave. El concentrado rougher se
 // limpia en la fila de atrás (celdas de limpieza), sube de ley y llega al espesador de concentrado: entra por la canaleta
 // del puente al pozo de alimentación, el floculante junta las partículas en flóculos que decantan, las rastras arrastran
-// el lodo al cono y sale espesado (~65 % sólidos) hacia los filtros; el agua clara rebalsa por la canaleta perimetral y
-// se recupera. El relave rougher va al segundo espesador (relaves) con el mismo mecanismo.
+// el lodo al cono y sale espesado hacia un estanque agitado; el agua clara rebalsa por la canaleta perimetral y se
+// recupera. El relave rougher va al segundo espesador (relaves) con el mismo mecanismo.
 //
-// Lógica de la skill anatomy: un modelo (flujo de aire → recuperación y ley) manda y el dibujo lo sigue; "sigue una
-// partícula de sulfuro" en 6 pasos; selección de equipos con foco, ficha y detalle; cortes con deslizador en una celda y
-// en el espesador de concentrado.
+// Desde el estanque el concentrado sale por una de dos rutas (interruptor «Filtrar en planta», ver flotacion-rutas.js):
+// A, bombas de pistón y concentraducto al puerto; B, filtro prensa, pila de queque y camión a la fundición.
+//
+// Lógica de la skill anatomy: un modelo (flujo de aire → recuperación y ley; % de sólidos de la descarga) manda y el
+// dibujo lo sigue; "sigue una partícula de sulfuro" en 7 pasos por ruta con state(t, ruta) puro; selección de equipos con
+// foco y ficha; zoom sobre el dibujo (cortes de una celda y del espesador, edificios que se abren) con llamadas ancladas.
 //
 // Geometría: la lámina vive en px de la infografía. Cada dibujo se coloca con su registro (error medio < 0,4 px) y las
 // capas vivas se dibujan en las unidades del dibujo que les corresponde (isometría 0,866 / 0,5).
 import { nextTick, cancelTick } from "../clock.js";
+import * as R from "./flotacion-rutas.js";
+const { pulpColor } = R;
 const NS = "http://www.w3.org/2000/svg";
 const U = (f) => new URL(`../../assets/flotacion/${f}`, import.meta.url).href;
 const clamp = (v, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
@@ -76,47 +81,80 @@ const PL = { feed: polyline(PIPES.feed), conc: polyline(PIPES.conc), bridge1: po
 
 // ---------------------------------------------------------------- modelo
 const AIR_MIN = 0.6, AIR_MAX = 1.6;
-const model = (air) => ({ air, R: 70 + 22 * (1 - Math.exp(-2.2 * air)), G: 34 - 8 * air, uf: 65, feedSol: 25, entrain: clamp((air - 0.6) / 1.0) });
+export const UF_MIN = 45, UF_MAX = 72, UF_NOM = 65;                     // % de sólidos en la descarga (referencial)
+export const UF_WIN = [55, 68];                                          // ventana de transporte por concentraducto
+export const inWindow = (uf) => uf >= UF_WIN[0] - 0.5 && uf <= UF_WIN[1] + 0.5;
+export const solidsWarning = (uf) => (uf < 55 ? "pulpa diluida: viaja más agua y puede decantar si baja la velocidad" : uf > 70 ? "pulpa muy viscosa: exige mucha más presión de bombeo" : "");
+const model = (air, uf = UF_NOM) => ({ air, R: 70 + 22 * (1 - Math.exp(-2.2 * air)), G: 34 - 8 * air, uf, feedSol: 25, entrain: clamp((air - 0.6) / 1.0), win: inWindow(uf), cycle: R.cycleFactor(uf) });
 const OMEGA_ROTOR = 7, OMEGA_RAKE = (Math.PI * 2) / 28;                 // rad/s (visual; las rastras reales dan ~1 vuelta cada 10–20 min)
 
-// recorrido de la partícula de sulfuro
-const TOUR = (() => {
-  const T = [];
-  const seg = (kind, dur, data = {}) => T.push({ kind, dur, ...data });
-  seg("pipe", PL.feed.len / 22, { p: "feed" }); seg("cell", 1.2, { row: "r", i: 0, phase: "in" });          // 1
-  seg("cell", 6, { row: "r", i: 0, phase: "rise" });                                                          // 2
-  seg("cell", 4.5, { row: "r", i: 0, phase: "froth" });                                                       // 3
-  seg("bank", 7, { row: "l" });                                                                               // 4
-  seg("pipe", PL.bridge1.len / 12, { p: "bridge1" }); seg("well", 2.2);                                     // 5
-  seg("settle", 7);                                                                                           // 6
-  let t = 0; for (const s of T) { s.t0 = t; t += s.dur; s.t1 = t; }
-  return { T, period: Math.round(t * 10) / 10 };
-})();
-export const PERIOD = TOUR.period;
-const tAt = (i) => TOUR.T[i].t0;
-export const STEPS = [
-  { n: 1, id: "rougher", label: "La pulpa de molienda entra a la primera celda", t0: 0 },
-  { n: 2, id: "rougher", label: "El rotor reparte el aire y el sulfuro se pega a una burbuja", t0: tAt(2) },
-  { n: 3, id: "rougher", label: "La burbuja sube a la espuma y rebalsa; la ganga sigue al relave", t0: tAt(3) },
-  { n: 4, id: "limpieza", label: "Las celdas de limpieza suben la ley del concentrado", t0: tAt(4) },
-  { n: 5, id: "concentrado", label: "El concentrado entra al espesador con floculante", t0: tAt(5) },
-  { n: 6, id: "concentrado", label: "Las rastras lo llevan al cono y sale espeso a filtros", t0: tAt(7) },
-].map((s, i, a) => ({ ...s, t1: i + 1 < a.length ? a[i + 1].t0 : PERIOD }));
-const stepAt = (t) => STEPS.find((s) => t >= s.t0 && t < s.t1) || STEPS[STEPS.length - 1];
+// ---------------------------------------------------------------- secuencia "sigue una partícula" (state(t, ruta) puro)
+// Cada paso: llegada (ARRIVE s: se ilumina el equipo y el resto baja a ~35 %), acción (tramos) y pausa (HOLD s con el
+// resultado a la vista). `cut`: qué se abre solo en ese paso (el equipo por dentro).
+const ARRIVE = 0.5, HOLD = 1.2;
+const COMMON = [
+  { id: "rougher", lit: ["rougher"], cut: "cell", label: "La pulpa de molienda entra a la primera celda", act: [["pipe", PL.feed.len / 22], ["in", 1.2]] },
+  { id: "rougher", lit: ["rougher"], cut: "cell", label: "El rotor reparte el aire y el sulfuro se pega a una burbuja", act: [["rise", 6]] },
+  { id: "rougher", lit: ["rougher"], cut: "cell", label: "La burbuja sube a la espuma y rebalsa; la ganga sigue al relave", act: [["froth", 4.5]] },
+  { id: "limpieza", lit: ["limpieza"], label: "Las celdas de limpieza suben la ley del concentrado", act: [["bank", 7]] },
+  { id: "concentrado", lit: ["concentrado"], cut: "th", label: "El concentrado entra al espesador con floculante", act: [["bridge", PL.bridge1.len / 12], ["well", 2.2], ["settle", 4]] },
+];
+const ENDS = {
+  A: [
+    { id: "bombas", lit: ["concentrado", "estanque", "bombas"], cut: "bombas", label: "Las bombas de pistón impulsan la pulpa espesa", act: [["under", 2.5], ["toPumps", 1.5], ["pump", 3.5]] },
+    { id: "bombas", lit: ["bombas"], label: "El concentraducto la lleva al puerto", act: [["duct", 5]] },
+  ],
+  B: [
+    { id: "filtro", lit: ["concentrado", "estanque", "filtro"], cut: "galpon", label: "El filtro prensa le saca el agua y el filtrado vuelve al espesador", act: [["under", 2.5], ["toFilter", 2], ["press", 7], ["filtrate", 3.5]] },
+    { id: "filtro", lit: ["filtro"], cut: "galpon", label: "El queque se acopia y sale en camión a la fundición", act: [["cake", 3], ["truck", 4.5]] },
+  ],
+};
+function build(list) {
+  let t = 0;
+  return list.map((q, i) => {
+    const t0 = t, ta = t0 + ARRIVE; let x = ta;
+    const stages = q.act.map(([k, d]) => { const r = { k, a: x, b: x + d }; x += d; return r; });
+    t = x + HOLD;
+    return { n: i + 1, id: q.id, lit: q.lit, label: q.label, cut: q.cut || null, t0, ta, th: x, t1: t, stages };
+  });
+}
+export const ROUTES = { A: build([...COMMON, ...ENDS.A]), B: build([...COMMON, ...ENDS.B]) };
+export const periodOf = (ruta) => ROUTES[ruta][ROUTES[ruta].length - 1].t1;
+const stepAt = (t, ruta) => { const P = periodOf(ruta); t = ((t % P) + P) % P; return ROUTES[ruta].find((s) => t >= s.t0 && t < s.t1) || ROUTES[ruta][ROUTES[ruta].length - 1]; };
+/** estado de la secuencia en el tiempo t de la ruta: paso, fase, tramo y avance, y cuánto está abierto cada equipo */
+export function state(t, ruta = "A") {
+  const P = periodOf(ruta); t = ((t % P) + P) % P;
+  const step = stepAt(t, ruta), first = step.stages[0], last = step.stages[step.stages.length - 1];
+  let phase = "act", sg = first, u = 0;
+  if (t < step.ta) phase = "arrive";
+  else if (t >= step.th) { phase = "hold"; sg = last; u = 1; }
+  else { sg = step.stages.find((r) => t < r.b) || last; u = clamp((t - sg.a) / (sg.b - sg.a)); }
+  const prev = ROUTES[ruta][(step.n + ROUTES[ruta].length - 2) % ROUTES[ruta].length], k = smooth((t - step.t0) / ARRIVE);
+  const openOf = (key) => (step.cut === key ? (prev.cut === key ? 1 : k) : prev.cut === key ? 1 - k : 0);
+  return { t, ruta, step, phase, stage: sg.k, u, arrive: k, open: { cell: openOf("cell"), th: openOf("th"), bombas: openOf("bombas"), galpon: openOf("galpon") } };
+}
 
 // ---------------------------------------------------------------- fichas
+const dest = (ruta) => (ruta === "B" ? "filtros" : "concentraducto");
 const EQUIP = {
   rougher: { kicker: "Flotación primaria", title: "Celdas rougher", text: "Celdas en serie: el rotor gira dentro del estator, aspira el aire del eje hueco y lo reparte en burbujas finas. Los sulfuros, hidrofóbicos por el colector, se pegan a las burbujas y suben a la espuma, que rebalsa a la canaleta. La ganga sigue en la pulpa de celda en celda (cajones con válvula dardo) hasta el relave.",
     specs: (m) => [`Recuperación ~${Math.round(m.R)} %`, `Aire ${fdec(m.air, 1)}× nominal`, "Espumante: burbujas de 1–2 mm"] },
   limpieza: { kicker: "Flotación de limpieza", title: "Celdas de limpieza", text: "Reciben el concentrado rougher (normalmente remolido) y lo vuelven a flotar con menos aire y espuma más alta: la ganga arrastrada se lava y vuelve atrás, y el concentrado sube de ley.",
     specs: (m) => [`Ley del concentrado ~${Math.round(m.G)} % Cu`, "Colas → vuelven al circuito", "Espuma más profunda"] },
-  concentrado: { kicker: "Separación sólido-líquido", title: "Espesador de concentrado", text: "La pulpa entra por la canaleta del puente al pozo de alimentación, donde se mezcla con floculante. Los flóculos decantan (agua clara arriba, zona de sedimentación y zona de compresión abajo), las rastras los llevan al cono y la descarga sale espesa hacia los filtros. El agua clara rebalsa por la canaleta perimetral y se recupera.",
-    specs: (m) => [`Alimentación ~${m.feedSol} % sólidos`, `Descarga ~${m.uf} % sólidos → filtros`, "Rebalse: agua recuperada"] },
+  concentrado: { kicker: "Separación sólido-líquido", title: "Espesador de concentrado",
+    text: (m, ruta) => `La pulpa entra por la canaleta del puente al pozo de alimentación, donde se mezcla con floculante. Los flóculos decantan, las rastras los llevan al cono y la descarga sale espesa hacia el estanque agitado. ${ruta === "B" ? "De ahí va al filtro prensa, y el agua filtrada vuelve a este espesador." : "De ahí las bombas de pistón la impulsan por el concentraducto al puerto."} El agua clara rebalsa por la canaleta perimetral y se recupera.`,
+    specs: (m, ruta) => [`Alimentación ~${m.feedSol} % de sólidos`, `Descarga ~${Math.round(m.uf)} % de sólidos → ${dest(ruta)}`, ruta === "B" ? "Recibe el filtrado" : "Rebalse: agua recuperada"] },
   relaves: { kicker: "Recuperación de agua", title: "Espesador de relaves", text: "Mismo principio que el de concentrado, con el relave de las celdas rougher: recupera el agua para la planta y entrega un relave espesado que se bombea al tranque.",
     specs: () => ["Descarga → tranque de relaves", "Rebalse → agua de proceso", "Floculante en el pozo"] },
+  estanque: { kicker: "Almacenamiento de pulpa", title: "Estanque agitado de concentrado", text: "Recibe la descarga del espesador. El agitador mantiene los sólidos en suspensión para que no decanten, y da un volumen de reserva que empareja el flujo antes de bombear o filtrar.",
+    specs: (m, ruta) => [`Pulpa ~${Math.round(m.uf)} % de sólidos`, "Agitación continua", ruta === "B" ? "Alimenta al filtro prensa" : "Alimenta a las bombas de pistón"] },
+  bombas: { kicker: "Transporte de pulpa", title: "Casa de bombas del concentraducto", text: "Bombas de pistón de desplazamiento positivo: entregan un caudal casi constante contra la alta presión que exige mover pulpa espesa por muchos kilómetros de concentraducto.",
+    specs: (m, ruta) => [ruta === "A" ? (m.win ? "Bombeando al puerto" : "Detenidas: fuera de la ventana de transporte") : "En espera (ruta a filtros)", `Ventana ${UF_WIN[0]}–${UF_WIN[1]} % de sólidos`, "Bombas de pistón"] },
+  filtro: { kicker: "Filtrado", title: "Filtro prensa", text: "La pulpa entra a las cámaras entre placas con telas; se presiona y se sopla aire, el agua filtrada vuelve al espesador y al abrir las placas, una por una, cae el queque a la pila de acopio.",
+    specs: (m, ruta) => ["Queque ~8–9 % de humedad", `Ciclo ${fdec(m.cycle, 1)}× el nominal (más agua, más largo)`, ruta === "B" ? "Llenado · prensado · soplado · descarga · cierre" : "En espera (ruta al concentraducto)"] },
 };
-const ORDER = ["rougher", "limpieza", "concentrado", "relaves"];
-
+const ORDER = ["rougher", "limpieza", "concentrado", "relaves", "estanque", "bombas", "filtro"];
+const KEY_BUILDING = { bombas: "bombas", filtro: "galpon" };
 // ---------------------------------------------------------------- utilidades SVG
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent?.appendChild(e); return e; };
 // reescribe una capa del dibujo sólo si su marcado cambió (muchas salen idénticas cuadro a cuadro: fondo, rieles…)
@@ -177,9 +215,10 @@ function thWindowSvg(t, open, s, conc) {
   const rim = []; for (let i = 0; i <= n; i++) rim.push(thP(t, lerp(thA, thB, i / n), d0)); for (let i = 0; i <= n; i++) rim.push(thP(t, lerp(thB, thA, i / n), d1));
   const win = D(rim, true, f2);
   const band = (a, b) => { const top = [], bot = []; for (let i = 0; i <= n; i++) { const th = lerp(thA - 0.05, thB + 0.05, i / n); top.push(thP(t, th, a)); bot.push(thP(t, th, b)); } return D([...top, ...bot.reverse()], true, f2); };
-  const zc = 1.18 + 2.6, zs = zc + 3.2;
+  // el lecho sube y se oscurece con más % de sólidos en la descarga
+  const zc = 1.18 + 2.6, zs = zc + lerp(4.4, 1.8, clamp((s.uf - 45) / 27));
   let g = `<clipPath id="fl-tw"><path d="${win}"/></clipPath><g clip-path="url(#fl-tw)">`;
-  g += `<path class="fl-void" d="${band(-1, 1.18)}"/><path class="fl-z-clear" d="${band(1.18, zc)}"/><path class="fl-z-settle${conc ? "" : " fl-z-tails"}" d="${band(zc, zs)}"/><path class="fl-z-bed${conc ? "" : " fl-z-tails"}" d="${band(zs, t.wall + 1)}"/>`;
+  g += `<path class="fl-void" d="${band(-1, 1.18)}"/><path class="fl-z-clear" d="${band(1.18, zc)}"/><path class="fl-z-settle${conc ? "" : " fl-z-tails"}" d="${band(zc, zs)}"/><path class="fl-z-bed${conc ? "" : " fl-z-tails"}" d="${band(zs, t.wall + 1)}"${conc ? ` style="fill:${pulpColor(s.uf)}"` : ""}/>`;
   for (let j = 0; j < 46; j++) { const ph = (s.flow * 0.09 + hash(j * 3.7)) % 1, th = lerp(thA, thB, hash(j * 2.1)), dd = lerp(1.6, zs + 0.4, ph);
     g += circ(thP(t, th, dd), 0.16 + ph * 0.2, conc ? "fl-floc" : "fl-floc fl-floc--tails", 1 - smooth((ph - 0.85) / 0.15)); }
   // la rastra raspa el fondo: pasa por el corte cada media vuelta
@@ -189,98 +228,25 @@ function thWindowSvg(t, open, s, conc) {
   return g;
 }
 
-// ---------------------------------------------------------------- detalle A: celda de flotación en corte (2D)
-function cellSectionSvg(box, s, m) {
-  const [bx, by, bw, bh] = box, cx = bx + bw * 0.46, top = by + 34, bot = by + bh - 10, hw = Math.min(bw * 0.3, 62), froth = top + 14;
-  let g = "";
-  // estanque, canaletas perimetrales (rebalse) y cajón de salida con válvula dardo
-  g += `<path class="fl-a-tank" d="M${f1(cx - hw)} ${f1(top)}V${f1(bot - 8)}Q${f1(cx - hw)} ${f1(bot)} ${f1(cx - hw + 8)} ${f1(bot)}H${f1(cx + hw - 8)}Q${f1(cx + hw)} ${f1(bot)} ${f1(cx + hw)} ${f1(bot - 8)}V${f1(top)}"/>`;
-  g += `<path class="fl-a-pulp" d="M${f1(cx - hw + 1)} ${f1(froth)}V${f1(bot - 8)}Q${f1(cx - hw + 1)} ${f1(bot - 1)} ${f1(cx - hw + 8)} ${f1(bot - 1)}H${f1(cx + hw - 8)}Q${f1(cx + hw - 1)} ${f1(bot - 1)} ${f1(cx + hw - 1)} ${f1(bot - 8)}V${f1(froth)}Z"/>`;
-  g += `<rect class="fl-a-frothz" x="${f1(cx - hw + 1)}" y="${f1(top - 4)}" width="${f1(hw * 2 - 2)}" height="${f1(froth - top + 4)}"/>`;
-  for (const sgn of [-1, 1]) { const x = cx + sgn * hw; g += `<path class="fl-a-launder" d="M${f1(x)} ${f1(top - 4)}V${f1(top + 8)}H${f1(x + sgn * 9)}V${f1(top - 6)}"/>`; }
-  g += `<path class="fl-a-box" d="M${f1(cx + hw)} ${f1(bot - 26)}H${f1(cx + hw + 14)}V${f1(bot)}H${f1(cx + hw)}"/><path class="fl-a-dart" d="M${f1(cx + hw + 7)} ${f1(top + 10)}V${f1(bot - 12)}M${f1(cx + hw + 4)} ${f1(bot - 12)}L${f1(cx + hw + 7)} ${f1(bot - 7)}L${f1(cx + hw + 10)} ${f1(bot - 12)}Z"/>`;
-  // alimentación (izquierda, abajo)
-  g += `<path class="fl-a-feed" d="M${f1(bx + 4)} ${f1(bot - 20)}H${f1(cx - hw)}"/>`;
-  // cono de espuma, eje hueco, motor y reductor, rotor/estator
-  g += `<path class="fl-a-cone" d="M${f1(cx - 18)} ${f1(top - 3)}L${f1(cx - 4)} ${f1(froth + 4)}H${f1(cx + 4)}L${f1(cx + 18)} ${f1(top - 3)}Z"/>`;
-  g += `<rect class="fl-a-beam" x="${f1(cx - hw - 12)}" y="${f1(top - 13)}" width="${f1(hw * 2 + 24)}" height="4"/>`;
-  g += `<rect class="fl-a-motor" x="${f1(cx - 6)}" y="${f1(by + 15)}" width="12" height="9" rx="1.5"/><rect class="fl-a-motor" x="${f1(cx - 4)}" y="${f1(by + 24)}" width="8" height="5"/>`;
-  g += `<path class="fl-a-air" d="M${f1(cx - 26)} ${f1(top - 13)}V${f1(by + 19)}H${f1(cx - 6)}"/>`;
-  const rz = bot - 16;
-  g += `<path class="fl-a-shaft" d="M${f1(cx - 1.6)} ${f1(by + 29)}V${f1(rz)}H${f1(cx + 1.6)}V${f1(by + 29)}"/>`;
-  g += `<path class="fl-a-stator" d="M${f1(cx - 17)} ${f1(rz - 7)}V${f1(rz + 7)}M${f1(cx + 17)} ${f1(rz - 7)}V${f1(rz + 7)}M${f1(cx - 17)} ${f1(rz + 7)}H${f1(cx + 17)}"/>`;
-  for (let i = 0; i < 6; i++) { const th = s.rot + (i / 6) * Math.PI * 2, x = cx + Math.cos(th) * 12, wv = Math.abs(Math.sin(th)) * 1.4 + 0.4; if (Math.sin(th) < -0.2) continue; g += `<rect class="fl-a-rotor" x="${f1(x - wv)}" y="${f1(rz - 6)}" width="${f1(wv * 2)}" height="12"/>`; }
-  g += `<rect class="fl-a-hub" x="${f1(cx - 3)}" y="${f1(rz - 6)}" width="6" height="12"/>`;
-  // aire que baja por el eje
-  for (let j = 0; j < 5; j++) { const ph = (s.flow * 0.8 + j / 5) % 1; const y = lerp(by + 29, rz - 4, ph); g += circ([cx, y], 0.7, "fl-a-airb"); }
-  // burbujas del rotor: suben, algunas con sulfuro pegado
-  const nb = Math.round(30 + 20 * (m.air - 1));
-  for (let j = 0; j < nb; j++) {
-    const ph = (s.flow * (0.22 + 0.08 * hash(j)) + hash(j * 3.9)) % 1, side = hash(j * 1.3) < 0.5 ? -1 : 1, x0 = cx + side * 14, x = clamp(x0 + side * ph * (hw - 20) * hash(j * 6.6) + Math.sin(ph * 9 + j) * 2, cx - hw + 3, cx + hw - 3);
-    const y = lerp(rz, froth + 1, Math.min(1, ph * 1.1)), r = 1.0 + ph * 0.8, loaded = hash(j * 2.7) < m.R / 140;
-    g += circ([x, y], r, "fl-a-bub"); if (loaded && ph > 0.12) g += circ([x + r * 0.6, y + r * 0.6], 0.7, "fl-a-sulf");
-  }
-  // ganga: circula y sale por el cajón (relave)
-  for (let j = 0; j < 16; j++) { const ph = (s.flow * 0.14 + hash(j * 8.3)) % 1, a = ph * Math.PI * 2 + j; let p = [cx + Math.cos(a) * (hw - 10) * hash(j * 2), lerp(froth + 6, bot - 4, (Math.sin(a) + 1) / 2)];
-    if (j % 4 === 0) { const u = ph; p = [lerp(cx + hw - 6, cx + hw + 7, u), lerp(bot - 6, bot - 3, u)]; }
-    g += circ(p, 0.8, "fl-a-gangue"); }
-  // espuma: burbujas apretadas que avanzan hacia los bordes y caen a las canaletas
-  for (let j = 0; j < 30; j++) { const ph = (s.flow * 0.12 + hash(j * 4.4)) % 1, side = j % 2 ? 1 : -1, x = cx + side * lerp(6, hw + 5, ph), y = lerp(froth - 2, top - 2, hash(j * 5.1)) + (ph > 0.88 ? (ph - 0.88) * 90 : 0);
-    g += circ([x, y], 1.3 + hash(j) * 0.7, "fl-a-frothb"); if (hash(j * 7) < 0.7 - 0.25 * m.entrain) g += circ([x + 0.5, y + 0.5], 0.55, "fl-a-sulf"); else g += circ([x + 0.5, y + 0.5], 0.5, "fl-a-gangue"); }
-  return { svg: g, pts: { motor: [cx + 6, by + 19], air: [cx - 26, by + 22], rotor: [cx + 12, rz], bub: [cx - 22, lerp(rz, froth, 0.5)], froth: [cx - hw * 0.5, froth - 6], launder: [cx + hw + 5, top + 2], dart: [cx + hw + 10, bot - 10], feed: [bx + 10, bot - 20], cone: [cx + 12, top + 2] } };
-}
-
-// ---------------------------------------------------------------- detalle B: espesador en corte (2D)
-function thickSectionSvg(box, s, m, conc) {
-  const [bx, by, bw, bh] = box, cx = bx + bw * 0.45, rim = by + 40, R = Math.min(bw * 0.38, 92), wallB = rim + 50, apex = wallB + 24;
-  const zc = rim + 18, zs = rim + 36;                                    // fin del agua clara · tope del lecho
-  let g = "";
-  const tank = [[cx - R, rim], [cx - R, wallB], [cx - 8, apex], [cx + 8, apex], [cx + R, wallB], [cx + R, rim]];
-  const inside = (y) => { const half = y <= wallB ? R : lerp(R, 8, (y - wallB) / (apex - wallB)); return [cx - half, cx + half]; };
-  const bandP = (y0, y1) => { const pts = []; const ys = [y0]; if (y0 < wallB && y1 > wallB) ys.push(wallB); ys.push(y1); for (const y of ys) pts.push([inside(y)[0], y]); for (const y of ys.slice().reverse()) pts.push([inside(y)[1], y]); return pts; };
-  g += `<path class="fl-b-clear" d="${D(bandP(rim + 2, zc))}"/><path class="fl-b-settle${conc ? "" : " fl-b-tails"}" d="${D(bandP(zc, zs))}"/><path class="fl-b-bed${conc ? "" : " fl-b-tails"}" d="${D(bandP(zs, apex))}"/>`;
-  g += `<path class="fl-b-tank" d="${D(tank, false)}"/>`;
-  // canaleta de rebalse perimetral (derecha) con el agua que sale
-  g += `<path class="fl-b-launder" d="M${f1(cx + R)} ${f1(rim - 2)}V${f1(rim + 6)}H${f1(cx + R + 9)}V${f1(rim - 4)}"/>`;
-  for (let j = 0; j < 6; j++) { const ph = (s.flow * 0.6 + j / 6) % 1; g += circ([lerp(cx + R * 0.4, cx + R + 4, ph), rim + 1 + (ph > 0.85 ? (ph - 0.85) * 30 : 0)], 0.9, "fl-b-water"); }
-  // descarga: cono → bomba → filtros
-  g += `<path class="fl-b-under" d="M${f1(cx)} ${f1(apex)}V${f1(apex + 6)}H${f1(cx + 34)}"/><circle class="fl-b-pump" cx="${f1(cx + 38)}" cy="${f1(apex + 6)}" r="4"/><path class="fl-b-under" d="M${f1(cx + 42)} ${f1(apex + 6)}H${f1(bx + bw - 6)}"/>`;
-  for (let j = 0; j < 7; j++) { const ph = (s.flow * 0.35 + j / 7) % 1; const L1 = 6, L2 = 34, L3 = bx + bw - 6 - (cx + 42); const tot = L1 + L2 + L3, d = ph * tot; const p = d < L1 ? [cx, apex + d] : d < L1 + L2 ? [cx + d - L1, apex + 6] : [cx + 42 + (d - L1 - L2), apex + 6]; g += circ(p, 1.1, conc ? "fl-b-mud" : "fl-b-mud fl-b-mud--tails"); }
-  // puente, accionamiento central, eje de torque y rastras (el brazo se acorta al girar: vista en corte)
-  g += `<rect class="fl-b-bridge" x="${f1(cx - R - 6)}" y="${f1(rim - 14)}" width="${f1(R * 2 + 12)}" height="5"/>`;
-  g += `<rect class="fl-b-drive" x="${f1(cx - 7)}" y="${f1(rim - 22)}" width="14" height="8" rx="1.5"/>`;
-  g += `<path class="fl-b-shaft" d="M${f1(cx)} ${f1(rim - 14)}V${f1(apex - 4)}"/>`;
-  for (let i = 0; i < 2; i++) { const c = Math.cos(s.rake + i * Math.PI), L = (R - 8) * c, y0 = apex - 6, y1 = lerp(apex - 6, wallB - 2, Math.abs(c));
-    const x1 = cx + L; g += `<path class="fl-b-arm" d="M${f1(cx)} ${f1(y0)}L${f1(x1)} ${f1(y1)}"/>`;
-    for (let k = 1; k <= 4; k++) { const u = k / 4.5, x = cx + L * u, y = lerp(y0, y1, u); g += `<path class="fl-b-blade" d="M${f1(x)} ${f1(y)}l${f1(Math.sign(L) * 2)} ${f1(3)}"/>`; } }
-  // pozo de alimentación con la alimentación y el floculante
-  g += `<path class="fl-b-well" d="M${f1(cx - 14)} ${f1(rim - 6)}V${f1(rim + 9)}M${f1(cx + 14)} ${f1(rim - 6)}V${f1(rim + 9)}"/>`;
-  g += `<path class="fl-b-feed" d="M${f1(bx + 4)} ${f1(rim - 7)}H${f1(cx - 14)}"/>`;
-  for (let j = 0; j < 6; j++) { const ph = (s.flow * 0.5 + j / 6) % 1; g += circ([lerp(bx + 6, cx - 15, ph), rim - 7], 1, conc ? "fl-b-mud" : "fl-b-mud fl-b-mud--tails"); }
-  g += `<path class="fl-b-floc" d="M${f1(cx - 4)} ${f1(by + 15)}V${f1(rim - 6)}"/>`;
-  for (let j = 0; j < 4; j++) { const ph = (s.flow * 0.9 + j / 4) % 1; g += circ([cx - 4, lerp(by + 16, rim - 6, ph)], 0.7, "fl-b-flocd"); }
-  // flóculos que salen del pozo y decantan
-  for (let j = 0; j < 34; j++) { const ph = (s.flow * 0.12 + hash(j * 3.1)) % 1, side = hash(j * 1.7) < 0.5 ? -1 : 1, spread = (12 + ph * (R - 20)) * hash(j * 5.3);
-    const y = lerp(rim + 8, zs + 2, ph), x = cx + side * (6 + spread); g += circ([x, y], 0.6 + ph * 1.1, conc ? "fl-b-mud" : "fl-b-mud fl-b-mud--tails", 1 - smooth((ph - 0.85) / 0.15) * 0.6); }
-  return { svg: g, pts: { well: [cx + 14, rim + 2], floc: [cx - 4, by + 18], clear: [cx - R * 0.7, rim + 7], settle: [cx - R * 0.55, (zc + zs) / 2], bed: [cx - R * 0.6, zs + 5], rake: (() => { const c = Math.cos(s.rake), L = (R - 8) * c, y1 = lerp(apex - 6, wallB - 2, Math.abs(c)); return [cx + L * 0.55, lerp(apex - 6, y1, 0.55)]; })(), launder: [cx + R + 5, rim], under: [bx + bw - 10, apex + 6] } };
-}
-
 // ---------------------------------------------------------------- lámina
 export async function createFlotacion() {
   const root = document.createElement("div");
   root.className = "fl-plate";
   root.style.cssText = `position:absolute;left:${VIEW[0]}px;top:${VIEW[1]}px;width:${VIEW[2]}px;height:${VIEW[3]}px`;
   const svg = el("svg", { viewBox: VIEW.join(" "), class: "fl-svg", role: "group", tabindex: "0",
-    "aria-label": "Celdas de flotación: el aire se reparte en burbujas, los sulfuros suben a la espuma y rebalsan como concentrado; el espesador lo hace decantar y recupera el agua. Espacio pausa; coma y punto cambian de paso; 1 a 4 eligen un equipo." }, root);
+    "aria-label": "Celdas de flotación: el aire se reparte en burbujas, los sulfuros suben a la espuma y rebalsan como concentrado; el espesador lo hace decantar y desde un estanque agitado sale al puerto o a los filtros. Espacio pausa; coma y punto cambian de paso; 1 a 7 eligen un equipo; F filtra en planta; R muestra ambas rutas." }, root);
   const defs = el("defs", {}, svg);
   const { SIL } = await import("./flotacion-geo.js");
-  el("path", { d: SIL, class: "fl-sil" }, svg);
-  async function loadArt(file, pre, R, cls) {
+  const bridgeEl = el("path", { d: R.BRIDGE, class: "fl-sil" }, svg);     // base bajo las cañerías al galpón
+  const silEl = el("path", { d: SIL, class: "fl-sil" }, svg);
+  // ¿el punto está sobre lo impreso? (para que ninguna llamada se salga)
+  const printedAt = (x, y) => { const q = svg.createSVGPoint(); q.x = x; q.y = y; return silEl.isPointInFill(q) || bridgeEl.isPointInFill(q); };
+  async function loadArt(file, pre, Rg, cls) {
     const text = (await (await fetch(U(file))).text()).replace(/\bcls-(\d+)/g, `${pre}cls-$1`).replace(/(id="|url\(#)(clippath[-\d]*)/g, `$1${pre}$2`).replace(/\sid="(?!fl)[^"]*"/g, (m0) => (m0.includes("clippath") ? m0 : ""));
     const doc = new DOMParser().parseFromString(text, "image/svg+xml").documentElement;
     doc.querySelectorAll("metadata, title, desc").forEach((n) => n.remove());
     const st = doc.querySelector("style"); if (st) { el("style", {}, defs).textContent = st.textContent; st.remove(); }
-    const g = el("g", { class: cls, transform: `translate(${R.tx} ${R.ty}) scale(${R.s})` }, svg);
+    const g = el("g", { class: cls, transform: `translate(${Rg.tx} ${Rg.ty}) scale(${Rg.s})` }, svg);
     [...doc.children].forEach((n) => { if (n.tagName === "defs") [...n.children].forEach((c) => defs.appendChild(document.importNode(c, true))); else g.appendChild(document.importNode(n, true)); });
     return g;
   }
@@ -292,6 +258,35 @@ export async function createFlotacion() {
   const pipeBack = el("g", { class: "fl-pipes" }, svg);
   const celdas = await loadArt("celdas.svg", "flc-", CE, "fl-celdas");
   const esp = await loadArt("espesadoras.svg", "fle-", ES, "fl-esp");
+
+  // ---- edificios y estanques de zona.svg: interiores, techo que sube y muros bajo la altura de corte
+  const zr = deep(zona, [0, 0, 0]);                                       // grupo con las piezas de la planta
+  const zk = kids(zr);
+  const toZ = ([x, y]) => [(x - ZO.tx) / ZO.s, (y - ZO.ty) / ZO.s];
+  // lo impreso (silueta de zona.svg y la base al galpón), en las unidades de zona
+  const printed = el("clipPath", { id: "fl-printed", clipPathUnits: "userSpaceOnUse" }, defs);
+  for (const d of [SIL, R.BRIDGE]) el("path", { d, transform: `scale(${1 / ZO.s}) translate(${-ZO.tx} ${-ZO.ty})` }, printed);
+  const infoG = (parent, before) => { const g = el("g", { transform: `scale(${1 / ZO.s}) translate(${-ZO.tx} ${-ZO.ty})` }); parent.insertBefore(g, before); return g; }; // dibuja en px de infografía dentro de zona
+  // concentraducto: entre la plataforma y los equipos del fondo (que lo tapan donde pasa por detrás)
+  const ductG = infoG(zr, zk[1]);
+  const pipeSvg = (d) => `<path class="fl-pipe-o" d="${d}"/><path class="fl-pipe-w" d="${d}"/>`;
+  const mkBuilding = (id, roofEls, wallEls, parent, beforeInt, cfg, W) => {
+    const interior = el("g", { "data-eq": id, class: "fl-int" }); parent.insertBefore(interior, beforeInt);
+    const intG = el("g", { transform: `scale(${1 / ZO.s}) translate(${-ZO.tx} ${-ZO.ty})` }, interior);
+    const cp = el("path", {}, el("clipPath", { id: `fl-cut-${id}`, clipPathUnits: "userSpaceOnUse" }, defs));
+    wallEls.forEach((w) => { w.setAttribute("clip-path", `url(#fl-cut-${id})`); w.setAttribute("data-eq", id); });
+    const keep = el("g", { "clip-path": "url(#fl-printed)" }); roofEls[0].before(keep);
+    const roof = el("g", { "data-eq": id, class: "fl-roof" }, keep); roofEls.forEach((r) => roof.appendChild(r));
+    return { id, interior: intG, cp, roof, cfg, W, shown: 0, target: 0 };
+  };
+  const shed = zk[R.ZONA_SHED.g[0]], sk = kids(shed);
+  const buildings = {
+    galpon: mkBuilding("filtro", R.ZONA_SHED.roof.map((i) => sk[i]), R.ZONA_SHED.wall.map((i) => sk[i]), shed, shed.firstChild, R.SHED, R.Ws),
+    bombas: mkBuilding("bombas", R.ZONA_PUMPH.roof.map((i) => zk[i]), R.ZONA_PUMPH.wall.map((i) => zk[i]), zr, zk[3], R.PUMPH, R.Wp),
+  };
+  kids(zk[1]).forEach((n) => n.setAttribute("data-eq", "estanque"));      // los dos estanques con agitador
+  const agitG = infoG(zr, zk[2]); agitG.setAttribute("data-eq", "estanque"); agitG.classList.add("fl-agitators");
+
   // equipos
   const rows = { r: [deep(celdas, [0, 0, 1]), deep(celdas, [0, 0, 3])], l: [deep(celdas, [0, 0, 0]), deep(celdas, [0, 0, 2])] };
   rows.r.forEach((n) => n.setAttribute("data-eq", "rougher")); rows.l.forEach((n) => n.setAttribute("data-eq", "limpieza"));
@@ -309,6 +304,20 @@ export async function createFlotacion() {
   const pipeG = { feed: el("g", { class: "fl-pipe", "data-eq": "rougher" }, pipeBack) };
   const flow = {};
   for (const [k, g] of Object.entries(pipeG)) { el("path", { d: PL[k].d, class: "fl-pipe-o" }, g); el("path", { d: PL[k].d, class: "fl-pipe-w" }, g); flow[k] = el("path", { d: PL[k].d, class: `fl-flow fl-flow--${k}` }, g); }
+
+  // ---- rutas del concentrado: cañerías con soportes (delante de la plataforma, detrás de celdas y espesadores)
+  const RT = {};
+  for (const key of ["under", "toPumps", "toFilter", "filtrate", "duct"]) {
+    const P = R.polyline(R.PIPES[key]);
+    const host = key === "duct" ? ductG : pipeBack;
+    const g = el("g", { class: "fl-route", "data-route": R.ROUTE_OF[key], "data-pipe": key }, host);
+    g.innerHTML = (key === "duct" ? "" : R.supportsSvg(key)) + pipeSvg(P.d) + `<path class="fl-rflow${key === "filtrate" ? " fl-rflow--water" : ""}" d="${P.d}"/>`;
+    RT[key] = { g, P, flow: g.querySelector(".fl-rflow") };
+  }
+  // punta de flecha del concentraducto (hacia el puerto)
+  { const [a, b] = R.PIPES.duct, d = [b[0] - a[0], b[1] - a[1]], l = Math.hypot(...d), u = [d[0] / l, d[1] / l], n = [-u[1], u[0]], tip = add(b, [u[0] * 5, u[1] * 5]);
+    el("path", { class: "fl-arrow", d: D([tip, add(b, [n[0] * 3.4, n[1] * 3.4]), add(b, [-n[0] * 3.4, -n[1] * 3.4])]) }, RT.duct.g); }
+
   const topG = el("g", { class: "fl-top" }, svg);
   // alimentación por la canaleta del puente: dentro de cada espesador (en sus unidades), sobre el puente
   thG.forEach((g, i) => { flow[`bridge${i + 1}`] = el("path", { d: D(TH[i].feed, false, f2), class: `fl-flow fl-flow--local fl-flow--${i ? "tails" : "conc"}` }, g); });
@@ -319,35 +328,33 @@ export async function createFlotacion() {
   let thFront = -1;
   const setFront = (i) => { if (i === thFront) return; thFront = i; espW.forEach((w, j) => (j === i ? celdas.after(w) : celdas.before(w))); };
   const lab = el("g", { class: "fl-labels" }, topG);
-  const L = (p, t, a = "start") => { el("text", { x: f1(p[0]), y: f1(p[1]), class: "fl-small", "text-anchor": a }, lab).textContent = t; };
+  const L = (p, t, a = "start") => { const e = el("text", { x: f1(p[0]), y: f1(p[1]), class: "fl-small", "text-anchor": a }, lab); e.textContent = t; return e; };
   L(add(PIPES.feed[0], [-2, 9]), "desde molienda", "start");
-  L(toP(ES, add(TH[0].rim, [14, 37])), "descarga → filtros", "start");
+  const underLab = L(toP(ES, add(TH[0].rim, [14, 37])), "descarga → concentraducto", "start");
   L(toP(ES, add(TH[1].rim, [14, 37])), "descarga → tranque", "start");
+
+  // destinos: etiquetas enlazadas a la estación (puerto, fundición)
+  const destG = el("g", { class: "fl-dests" }, svg);
+  const mkDest = (route, goto, text, p) => {
+    const w = text.length * 3.5 + 12, g = el("g", { class: "fl-dest", "data-route": route, role: "link", tabindex: "0", "aria-label": `${text.replace("→", "hacia")}: abrir la estación`, transform: `translate(${p[0]} ${p[1]})` }, destG);
+    el("rect", { x: -w / 2, y: -6, width: w, height: 12, rx: 6, class: "fl-dest-pill" }, g);
+    el("text", { x: 0, y: 2.4, class: "fl-dest-text", "text-anchor": "middle" }, g).textContent = text;
+    const go = (e) => { e.stopPropagation(); dispatchEvent(new CustomEvent("pm:goto", { detail: goto })); };
+    g.addEventListener("click", go);
+    g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(e); } });
+    return g;
+  };
+  const dests = { A: mkDest("A", "puerto", "concentraducto → Puerto", [2993, 738]), B: mkDest("B", "fundicion", "camión → Fundición", [2816, 816]) };
 
   // partícula que se sigue
   const tourG = el("g", { class: "fl-tour" }, svg);
   const tourRing = el("circle", { r: 5, class: "fl-tour-ring" }, tourG), tourDot = el("circle", { r: 1.9, class: "fl-tour-dot" }, tourG);
   const tourPulse = el("circle", { r: 8, class: "fl-tour-pulse" }, svg);
 
-  // detalles
-  const CAL = {
-    A: { box: [2880, 1010, 230, 150], at: toP(CE, cellP(CELLS.r[0], Math.PI / 4, 9)) },
-    B: { box: [3335, 705, 256, 152], at: toP(ES, thP(TH[0], Math.PI / 4, 6)) },
-  };
-  const calG = el("g", { class: "fl-callouts" }, svg);
-  for (const [key, C] of Object.entries(CAL)) {
-    const [x, y, w, h] = C.box, g = el("g", { class: "fl-callout" }, calG);
-    C.lead = el("path", { class: "fl-lead" }, g); el("circle", { r: 2.2, class: "fl-lead-dot", cx: f1(C.at[0]), cy: f1(C.at[1]) }, g);
-    el("rect", { x, y, width: w, height: h, rx: 7, class: "fl-card" }, g);
-    const clip = el("clipPath", { id: `fl-cal-${key}` }, defs); el("rect", { x: x + 0.6, y: y + 13, width: w - 1.2, height: h - 13.6, rx: 6 }, clip);
-    C.body = el("g", { "clip-path": `url(#fl-cal-${key})` }, g); C.title = el("text", { x: x + 8, y: y + 9.5, class: "fl-cal-title" }, g); C.labels = el("g", {}, g); C.g = g;
-    const e = key === "A" ? [x + w * 0.35, y] : [x, y + h * 0.7];
-    C.lead.setAttribute("d", `M${f1(e[0])} ${f1(e[1])}C${f1(e[0] + (key === "A" ? 0 : -40))} ${f1(e[1] - (key === "A" ? 40 : 0))} ${f1(C.at[0])} ${f1(C.at[1] + (key === "A" ? 40 : -10))} ${f1(C.at[0])} ${f1(C.at[1])}`);
-  }
-
   // etiquetas de foco
   const tagsG = el("g", { class: "fl-tags" }, svg);
-  const TAGS = { rougher: ["Celdas rougher", toP(CE, add(CELLS.r[1], [15.7, 5]))], limpieza: ["Celdas de limpieza", toP(CE, add(CELLS.l[2], [15.7, -2]))], concentrado: ["Espesador de concentrado", toP(ES, add(TH[0].o, [32, 2]))], relaves: ["Espesador de relaves", toP(ES, add(TH[1].o, [40, 4]))] };
+  const TAGS = { rougher: ["Celdas rougher", toP(CE, add(CELLS.r[1], [15.7, 5]))], limpieza: ["Celdas de limpieza", toP(CE, add(CELLS.l[2], [15.7, -2]))], concentrado: ["Espesador de concentrado", [3157, 823]], relaves: ["Espesador de relaves", toP(ES, add(TH[1].o, [40, 4]))],
+    estanque: ["Estanque agitado", [2958, 770]], bombas: ["Casa de bombas", [3082, 780]], filtro: ["Filtro prensa", [2888, 804]] };   // píldoras dentro de lo impreso (?qa=silueta)
   const tagEls = {};
   for (const [id, [label, p]] of Object.entries(TAGS)) {
     const g = el("g", { class: "fl-tag", transform: `translate(${f1(p[0])} ${f1(p[1])})` }, tagsG);
@@ -355,64 +362,209 @@ export async function createFlotacion() {
     const ww = label.length * 3.7 + 12; el("rect", { x: -ww / 2, y: -23, width: ww, height: 11, rx: 5.5, class: "fl-tag-pill" }, g);
     el("text", { x: 0, y: -15.6, class: "fl-tag-text", "text-anchor": "middle" }, g).textContent = label; tagEls[id] = g;
   }
+  // zoom sobre el dibujo: llamadas ancladas al dibujo ampliado
+  const zoomG = el("g", { class: "fl-zoom", "aria-hidden": "true" }, svg);
+
+  // ?qa=silueta: en rojo todo lo vivo que se pinte fuera de lo impreso (silueta de zona.svg + la base al galpón)
+  const QA = typeof location !== "undefined" && new URLSearchParams(location.search).get("qa") === "silueta";
+  if (QA) {
+    const liveEls = [pipeBack, ductG, agitG, buildings.galpon.interior.parentNode, buildings.bombas.interior.parentNode, cellWin, ...winTh, topG, destG, tourG, tourPulse, tagsG, zoomG];
+    liveEls.forEach((n, i) => (n.id = `fl-qa-${i}`));
+    const mask = el("mask", { id: "fl-qa-out", maskUnits: "userSpaceOnUse", x: 0, y: 0, width: 6000, height: 3000 }, defs);
+    el("rect", { x: 0, y: 0, width: 6000, height: 3000, fill: "#fff" }, mask); el("path", { d: SIL, fill: "#000" }, mask); el("path", { d: R.BRIDGE, fill: "#000" }, mask);
+    const red = el("filter", { id: "fl-qa-red", x: "-5%", y: "-5%", width: "110%", height: "110%" }, defs);
+    el("feFlood", { "flood-color": "#ff0033", result: "c" }, red); el("feComposite", { in: "c", in2: "SourceAlpha", operator: "in" }, red);
+    const qa = el("g", { class: "fl-qa", "pointer-events": "none" }, svg);
+    const out = el("g", { mask: "url(#fl-qa-out)", filter: "url(#fl-qa-red)", class: "fl-qa-out" }, qa);
+    // <use> de los vivos: los que están dentro de zona o de los espesadores se repiten con su transformación
+    liveEls.forEach((n) => { const m = n.parentNode.getCTM && svg.getCTM() ? null : null; const u = el("use", { href: `#${n.id}` }, out); u.dataset.src = n.id; });
+    el("path", { d: SIL, fill: "none", stroke: "#00b7ff", "stroke-width": 1.2, "vector-effect": "non-scaling-stroke" }, qa);
+    el("path", { d: R.BRIDGE, fill: "none", stroke: "#e600e6", "stroke-width": 1.2, "vector-effect": "non-scaling-stroke" }, qa);
+    // las transformaciones de los grupos padres no viajan con <use>: se copian una vez en el DOM ya armado
+    root.__qaFix = () => out.querySelectorAll("use").forEach((u) => { const n = svg.querySelector(`#${u.dataset.src}`); const a = n?.parentNode?.getCTM?.(), b = svg.getCTM(); if (a && b) { const m = b.inverse().multiply(a); u.setAttribute("transform", `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`); } });
+    root.dataset.qa = "silueta";
+  }
 
   // unidades para el foco
   const units = new Map();
-  const classify = (n, inh) => { if (["defs", "style", "clipPath"].includes(n.tagName) || n.classList?.contains("fl-win")) return; const eq = n.dataset?.eq || inh;
+  const classify = (n, inh) => { if (["defs", "style", "clipPath"].includes(n.tagName) || n.classList?.contains("fl-win") || n.classList?.contains("fl-route")) return; const eq = n.dataset?.eq || inh;
     if (n.querySelector?.("[data-eq]")) [...n.children].forEach((c) => classify(c, eq)); else units.set(n, eq || ""); };
   [zona, pipeBack, celdas, ...espW, topG].forEach((n) => classify(n, ""));
 
   // ------------------------------------------------------------ estado
   const still = matchMedia("(prefers-reduced-motion: reduce)");
-  const S = { t: 0, rot: 0, rake: 0, flow: 0, air: 1, cell: 0, th: 0 };
-  const shown = { cell: 0, th: 0 };
-  let selected = null, playing = !still.matches, active = false, raf = 0, last = 0, sliderDetail = null;
-  if (still.matches) S.t = STEPS[1].t0 + 2;
-  function step(dt) { S.rot += OMEGA_ROTOR * dt; S.rake += OMEGA_RAKE * dt; S.flow += dt; S.t = (S.t + dt) % PERIOD; }
-  const tourAt = (t) => { for (const s of TOUR.T) if (t >= s.t0 && t < s.t1) return { s, u: (t - s.t0) / s.dur }; const s = TOUR.T[TOUR.T.length - 1]; return { s, u: 1 }; };
-  const live = () => ({ t: S.t, m: model(S.air), step: stepAt(S.t), tour: tourAt(S.t) });
-  const detailNow = () => selected ? (["rougher", "limpieza"].includes(selected) ? "A" : "B") : sliderDetail;
+  const S = { t: 0, rot: 0, rake: 0, flow: 0, air: 1, cell: 0, th: 0, uf: UF_NOM, ruta: "A", rutas: false, press: 0, pile: 0.5, truck: 0, stroke: 0, agit: 0 };
+  const shown = { cell: 0, th: 0, uf: UF_NOM, bombas: 0, galpon: 0 };
+  let selected = null, playing = !still.matches, active = false, raf = 0, last = 0, lastLit = null;
+  const steps = () => ROUTES[S.ruta];
+  if (still.matches) S.t = steps()[1].t0 + 2;
+  function step(dt) {
+    S.rot += OMEGA_ROTOR * dt; S.rake += OMEGA_RAKE * dt; S.flow += dt; S.t = (S.t + dt) % periodOf(S.ruta);
+    // ruta A: las bombas sólo empujan dentro de la ventana; ruta B: el ciclo del filtro se alarga con más agua
+    const m = model(S.air, shown.uf);
+    if (S.ruta === "A" && m.win) S.stroke += dt * 4.2;
+    S.agit += dt * 2.4;
+    if (S.ruta === "B") { S.press += dt / m.cycle; const k = mod(S.press, R.PRESS_CYCLE * 3) / (R.PRESS_CYCLE * 3); S.truck = k; }
+  }
+  const mod = (a, b) => ((a % b) + b) % b;
+  const live = () => {
+    const q = state(S.t, S.ruta), m = model(S.air, shown.uf);
+    return { t: S.t, m, step: q.step, seq: q, tour: { kind: q.stage, u: q.u }, ruta: S.ruta };
+  };
+  const openOf = (key, seq) => Math.max(seq.open[key], selected && KEY_BUILDING[selected] === key ? 1 : 0);
+
+  // ---- zoom sobre el dibujo (cortes de la celda y del espesador): sigue al deslizador
+  const ZR = { A: [2930, 836, 96, 66], B: [3086, 822, 176, 80], bombas: [3040, 748, 110, 96], filtro: [2760, 790, 160, 112] };
+  const OVER = VIEW.slice();
+  let zoomMode = "viewBox", onZoom = null, zoomKey = null, lastZoom = "", vb = VIEW.slice();
+  const mixRect = (a, b, u) => { const w = Math.exp(lerp(Math.log(a[2]), Math.log(b[2]), u)), h = Math.exp(lerp(Math.log(a[3]), Math.log(b[3]), u));
+    return [lerp(a[0] + a[2] / 2, b[0] + b[2] / 2, u) - w / 2, lerp(a[1] + a[3] / 2, b[1] + b[3] / 2, u) - h / 2, w, h]; };
+  const fitAspect = ([x, y, w, h]) => { const a = VIEW[2] / VIEW[3]; return w / h > a ? [x, y - (w / a - h) / 2, w, w / a] : [x - (h * a - w) / 2, y, h * a, h]; };
+  function applyZoom() {
+    const z = zoomKey === "A" ? shown.cell : zoomKey === "B" ? shown.th : 0, sig = `${zoomKey}|${z.toFixed(4)}`;
+    if (sig === lastZoom) return z;
+    lastZoom = sig;
+    if (zoomMode === "camera") onZoom?.(z > 0.001 ? mixRect(OVER, ZR[zoomKey], z) : null, z);
+    else {
+      vb = z > 0.001 ? mixRect(VIEW, fitAspect(ZR[zoomKey]), z) : VIEW.slice();
+      svg.setAttribute("viewBox", vb.map((v) => v.toFixed(2)).join(" "));
+      svg.style.overflow = z > 0.001 ? "hidden" : "";
+    }
+    return z;
+  }
+  function viewNow() {
+    if (zoomMode === "camera") { const m = svg.getScreenCTM(); if (m && m.a) return { r: [-m.e / m.a, -m.f / m.d, innerWidth / m.a, innerHeight / m.d], u: 1 / m.a }; }
+    const v = svg.viewBox.baseVal, r = v && v.width ? [v.x, v.y, v.width, v.height] : vb, w = svg.getBoundingClientRect().width;
+    return { r, u: w > 1 ? r[2] / w : 1 };
+  }
+  // llamadas: [lado, punto, texto]; lado 0 = columna izquierda, 1 = derecha
+  function callouts(list, cols, op) {
+    const o = op.toFixed(3); if (zoomG.style.opacity !== o) zoomG.style.opacity = o;
+    if (op <= 0.001 || !list.length) { setHTML(zoomG, ""); return; }
+    const { r: vr, u } = viewNow(), fs = 11.5 * u, out = [];
+    for (const side of [0, 1]) {
+      const col = list.filter((l) => l[0] === side).sort((a, b) => a[1][1] - b[1][1]);
+      const tw = Math.max(0, ...col.map((l) => l[2].length)) * 6.3 * u + 6 * u;
+      const x = side ? Math.min(cols[1], vr[0] + vr[2] - tw) : Math.max(cols[0], vr[0] + tw);
+      let y = vr[1] + fs * 0.4;
+      for (const [, p, text] of col) {
+        y = Math.min(Math.max(p[1] + fs * 0.35, y + fs * 1.6), vr[1] + vr[3] - fs * 0.6);
+        // el texto se corre hacia adentro hasta quedar entero sobre lo impreso
+        const w = text.length * 5.8 * u + 4 * u, dir = side ? -1 : 1, along = Array.from({ length: 9 }, (_, k) => k / 8);
+        let tx = x;
+        for (let i = 0; i < 80; i++) { if (along.every((k) => { const q = tx - dir * w * k; return printedAt(q, y - fs * 0.8) && printedAt(q, y + fs * 0.2); })) break; tx += dir * 2 * u; }
+        const ex2 = side ? tx - 3 * u : tx + 3 * u;
+        out.push(`<path class="fl-zl-lead" stroke-width="${f2(u)}" d="M${f2(p[0])} ${f2(p[1])}L${f2(ex2)} ${f2(y - fs * 0.35)}"/>`, `<circle class="fl-zl-dot" cx="${f2(p[0])}" cy="${f2(p[1])}" r="${f2(2.4 * u)}"/>`,
+          `<text class="fl-zl-text" x="${f2(tx)}" y="${f2(y)}" font-size="${f2(fs)}" stroke-width="${f2(3 * u)}" text-anchor="${side ? "start" : "end"}">${text}</text>`);
+      }
+    }
+    setHTML(zoomG, out.join(""));
+  }
+  function drawCallouts(s, z) {
+    if (zoomKey === "A" && z > 0.001 && !selected) {
+      const T = CELLS.r[0], P = (th, h, r) => toP(CE, cellP(T, th, h, r));
+      callouts([[0, P(0, CELL.H - 1, 0), "Aire por el eje hueco"], [0, P(Math.PI * 0.95, 12, 5.5), "Burbuja + sulfuro"], [0, P(Math.PI * 0.9, 5, 7), "Ganga en la pulpa"],
+        [1, P(Math.PI / 4 - 0.55, CELL.H - 2, 9), "Espuma → canaleta"], [1, P(Math.PI / 4, 3, 3), "Rotor y estator"]], [2960, 2996], smooth((z - 0.55) / 0.35));
+    } else if (zoomKey === "B" && z > 0.001 && !selected) {
+      const t = TH[0], P = (th, d, r) => toP(ES, thP(t, th, d, r)), zc = 3.78, zs = zc + lerp(4.4, 1.8, clamp((s.m.uf - 45) / 27));
+      callouts([[0, P(Math.PI / 4 + 0.35, 2.4), "Agua clara"], [0, P(Math.PI / 4 + 0.3, (zc + zs) / 2), "Sedimentación"], [0, P(Math.PI / 4 + 0.25, zs + 1.6), "Compresión"],
+        [1, P(Math.PI / 4 - 0.3, 2.2), "Floculante y flóculos"], [1, P(Math.PI / 4 - 0.25, t.wall - 1.2), "Rastras"], [1, P(Math.PI / 4, t.wall + 0.5), `Descarga ~${Math.round(s.m.uf)} % de sólidos`]], [3140, 3206], smooth((z - 0.55) / 0.35));
+    } else if (selected === "bombas" && shown.bombas > 0.3) {
+      callouts([[0, R.Wp(-24, 8, 7), "Cabezal con válvulas"], [0, R.Wp(-24, 19, 6), "Émbolo"], [0, R.Wp(-9, 29, 9), "Bomba de pistón"], [1, R.Wp(-24, 38, 4), "Impulsión → concentraducto"], [1, R.Wp(-4, 5, 3), "Succión del estanque"]], [3058, 3118], smooth((shown.bombas - 0.5) / 0.4));
+    } else if (selected === "filtro" && shown.galpon > 0.3) {
+      const P = R.PRESS;
+      callouts([[0, R.Ws(P.e + 4.5, 50, P.z1), "Cabezal móvil"], [0, R.Ws(P.e + 4.5, 30, 23), "Placas con telas"], [0, R.Ws(-66, 22, 8), "Camión"], [1, R.Ws(-30, 44, 5), "Pila de queque"], [1, R.Ws(P.e + 5, 12, 6), "Agua filtrada"]], [2812, 2856], smooth((shown.galpon - 0.5) / 0.4));
+    } else { setHTML(zoomG, ""); if (zoomG.style.opacity !== "0") zoomG.style.opacity = "0"; }
+  }
 
   function draw() {
-    const s = live(), m = s.m, fl = S.flow, sc = { rot: S.rot, rake: S.rake, flow: fl };
-    // celdas: ventana en la primera rougher
-    setHTML(cellWin, shown.cell > 0.005 ? cellWindowSvg(CELLS.r[0], shown.cell, sc, m) : "");
+    const s = live(), m = s.m, fl = S.flow, sc = { rot: S.rot, rake: S.rake, flow: fl, uf: m.uf }, seq = s.seq, ruta = S.ruta;
+    // celdas: ventana en la primera rougher (deslizador o paso 1–3)
+    const cellOpen = Math.max(shown.cell, seq.open.cell * (selected && selected !== "rougher" ? 0 : 1));
+    setHTML(cellWin, cellOpen > 0.005 ? cellWindowSvg(CELLS.r[0], cellOpen, sc, m) : "");
+    const thOpen = Math.max(shown.th, seq.open.th * (selected && selected !== "concentrado" ? 0 : 1));
     // espesadores: rastras, canaleta perimetral, pozo; ventana en el de concentrado
     TH.forEach((t, i) => { setHTML(rakeL[i], rakesSvg(t, S.rake + i * 0.7)); setHTML(launL[i], launderSvg(t, fl)); setHTML(wellL[i], wellSvg(t, fl));
-      setHTML(winTh[i], i === 0 && shown.th > 0.005 ? thWindowSvg(t, shown.th, sc, true) : ""); });
+      setHTML(winTh[i], i === 0 && thOpen > 0.005 ? thWindowSvg(t, thOpen, sc, true) : ""); });
     for (const [k, p] of Object.entries(flow)) p.style.strokeDashoffset = k.startsWith("bridge") ? f2((-fl * 3) % 3.5) : f1((-fl * 10) % 7);
-    setFront(selected === "concentrado" || (!selected && sliderDetail === "B") ? 0 : selected === "relaves" ? 1 : -1);
-    // detalles
-    const det = detailNow();
-    for (const key of ["A", "B"]) { const C = CAL[key], on = det === key; C.g.style.display = on ? "" : "none"; if (!on) continue;
-      const [bx, by, bw, bh] = C.box;
-      if (key === "A") { const r = cellSectionSvg(C.box, sc, m); C.title.textContent = selected === "limpieza" ? "Detalle · Celda de limpieza en corte" : "Detalle · Celda de flotación en corte"; setHTML(C.body, r.svg);
-        setHTML(C.labels, lbl(r.pts.motor, [bx + bw - 7, by + 22], "Motor y reductor", "end") + lbl(r.pts.air, [bx + 7, by + 22], "Aire → eje hueco", "start") + lbl(r.pts.cone, [bx + bw - 7, by + 34], "Cono de espuma", "end") +
-          lbl(r.pts.froth, [bx + 7, by + 40], `Espuma → canaleta · ${Math.round(m.G)} % Cu`, "start") + lbl(r.pts.bub, [bx + 7, by + bh - 34], "Burbuja + sulfuro", "start") + lbl(r.pts.feed, [bx + 7, by + bh - 24], "Alimentación", "start") +
-          lbl(r.pts.rotor, [bx + bw - 7, by + bh - 22], "Rotor y estator", "end") + lbl(r.pts.dart, [bx + bw - 7, by + bh - 8], "Ganga → válvula dardo → relave", "end")); }
-      else { const conc = selected !== "relaves", r = thickSectionSvg(C.box, sc, m, conc); C.title.textContent = conc ? "Detalle · Espesador de concentrado en corte" : "Detalle · Espesador de relaves en corte"; setHTML(C.body, r.svg);
-        setHTML(C.labels, lbl(r.pts.floc, [bx + bw * 0.62, by + 22], "Floculante", "start") + lbl(r.pts.well, [bx + bw - 7, by + 34], "Pozo de alimentación", "end") + lbl(r.pts.launder, [bx + bw - 7, by + 50], "Rebalse: agua clara", "end") +
-          lbl(r.pts.clear, [bx + 7, by + 62], "Agua clara", "start") + lbl(r.pts.settle, [bx + 7, by + 84], "Sedimentación", "start") + lbl(r.pts.bed, [bx + 7, by + bh - 34], "Compresión", "start") +
-          lbl(r.pts.rake, [bx + bw * 0.3, by + bh - 6], "Rastras", "middle") + lbl(r.pts.under, [bx + bw - 7, by + bh - 6], conc ? `~${m.uf} % sólidos → filtros` : "→ tranque", "end")); } }
+    setFront(selected === "concentrado" || (!selected && (zoomKey === "B" && shown.th > 0.05 || seq.step.id === "concentrado")) ? 0 : selected === "relaves" ? 1 : -1);
+
+    // agitadores
+    setHTML(agitG, R.TANKS.map((_, i) => R.agitatorSvg(i, S.agit, m.uf, 0.75)).join(""));
+    // edificios: techo que sube, muros bajo el corte e interior
+    for (const key of ["bombas", "galpon"]) {
+      const b = buildings[key], sv = shown[key];
+      const zc = lerp(b.cfg.H, -8, smooth(sv));
+      b.cp.setAttribute("d", D(R.cutPoly(b.W, b.cfg, -8, zc).map(toZ), true, f2));
+      b.roof.setAttribute("transform", `translate(0 ${f2(-R.ROOF_LIFT * smooth(sv) / ZO.s)})`);
+      b.roof.style.opacity = f2(1 - smooth(sv * 1.6));
+    }
+    const b = buildings;
+    if (shown.bombas > 0.01) setHTML(b.bombas.interior, R.hallSvg(R.Wp, R.PUMPH) + R.pumpHouseSvg({ stroke: S.stroke, flow: m.win && ruta === "A" ? fl : 0, uf: m.uf })); else setHTML(b.bombas.interior, "");
+    if (shown.galpon > 0.01) {
+      // en los pasos 6 y 7 de la ruta B el ciclo lo marca la secuencia; fuera de ellos, el reloj del filtro
+      let pr, pile = 0.55 + 0.35 * S.truck, truck = { go: clamp((S.truck - 0.62) / 0.38), load: clamp(S.truck / 0.55) };
+      if (ruta === "B" && seq.step.n === 6) pr = R.pressPhase(seq.stage === "press" ? seq.u * (R.PRESS_CYCLE - 0.01) : seq.stage === "filtrate" ? 12.9 : 0.1);
+      else if (ruta === "B" && seq.step.n === 7) { pr = R.pressPhase(seq.stage === "cake" ? 8.6 + seq.u * 3.6 : 12.9); const u = seq.stage === "cake" ? 0 : seq.u; pile = seq.stage === "cake" ? 0.3 + 0.7 * seq.u : 1 - 0.55 * clamp(u / 0.5); truck = { load: seq.stage === "truck" ? clamp(u / 0.5) : 0, go: seq.stage === "truck" ? clamp((u - 0.5) / 0.5) : 0 }; }
+      else if (ruta === "B") pr = R.pressPhase(S.press);
+      else pr = R.pressPhase(0.1);
+      setHTML(b.galpon.interior, R.hallSvg(R.Ws, R.SHED) + R.shedSvg({ pr, fl, uf: m.uf, pile, truck }));
+    } else setHTML(b.galpon.interior, "");
+
+    // rutas: la activa con partículas; la otra punteada y apagada; con «Rutas», ambas
+    const offA = !m.win;
+    for (const [key, r] of Object.entries(RT)) {
+      const ro = R.ROUTE_OF[key], on = ro.includes(ruta), show = on || S.rutas;
+      const moving = show && !(ro === "A" && offA) && (S.ruta === "A" || ro.includes("B") || S.rutas);
+      r.g.toggleAttribute("data-off", !show);
+      r.g.toggleAttribute("data-stop", show && ro === "A" && offA);
+      r.flow.style.display = moving ? "" : "none";
+      r.flow.style.strokeDashoffset = f1((-fl * (key === "filtrate" ? 9 : 12)) % 8);
+      if (key !== "filtrate") r.flow.style.stroke = pulpColor(m.uf);
+    }
+    dests.A.toggleAttribute("data-on", ruta === "A" || S.rutas); dests.B.toggleAttribute("data-on", ruta === "B" || S.rutas);
+    underLab.textContent = `descarga → ${ruta === "B" ? "filtros" : "concentraducto"}`;
+    underLab.style.fill = pulpColor(clamp(m.uf, 52, 72));
+
+    // zoom y llamadas
+    const z = applyZoom();
+    drawCallouts(s, z);
+    const tz = (1 - smooth(z * 2.5)).toFixed(3); if (tagsG.style.opacity !== tz) tagsG.style.opacity = tz;
+
     drawTour(s);
-    for (const id of ORDER) tagEls[id].toggleAttribute("data-on", selected === id);
+    // foco del paso: se ilumina el equipo y el resto baja a ~35 % (si no hay un equipo elegido)
+    const lit = selected ? null : z > 0.3 ? [zoomKey === "A" ? "rougher" : "concentrado"] : seq.step.lit, litKey = lit ? lit.join() : "";
+    if (litKey !== lastLit) { lastLit = litKey; units.forEach((eq, u) => u.classList.toggle("fl-stepdim", !!lit && !lit.includes(eq))); }
+    for (const id of ORDER) tagEls[id].toggleAttribute("data-on", selected ? selected === id : !!lit && lit.includes(id));
+    root.__qaFix?.();
     listeners.forEach((fn) => fn(s, api));
   }
   function drawTour(s) {
-    const { s: sg, u } = s.tour; let tp = null, inside = null;
-    if (sg.kind === "pipe") tp = PL[sg.p].at(u * PL[sg.p].len);
-    else if (sg.kind === "cell") { const T = CELLS[sg.row][sg.i];
-      if (shown.cell > 0.3 && sg.phase !== "in") { const z = sg.phase === "rise" ? lerp(2.5, CELL.H - 4, u) : CELL.H - 3 + u; tp = toP(CE, cellP(T, Math.PI * 1.25, z, sg.phase === "rise" ? 3 + u * 2 : 5)); }
-      else inside = toP(CE, cellP(T, Math.PI * 1.25, sg.phase === "in" ? 3 : sg.phase === "rise" ? lerp(3, CELL.H - 4, u) : CELL.H - 2, 2)); }
-    else if (sg.kind === "bank") { const k = Math.min(3, Math.floor(u * 4)); inside = toP(CE, cellP(CELLS.l[k], Math.PI * 1.25, CELL.H - 3, 2)); }
-    else if (sg.kind === "well") inside = toP(ES, add(TH[0].water, [0, 1.6]));
-    else if (sg.kind === "settle") { const th = Math.PI * 1.25; inside = toP(ES, thP(TH[0], th, 4 + u * 6, TH[0].rW * (0.5 - u * 0.45))); }
-    if (tp) { for (const n of [tourRing, tourDot]) { n.setAttribute("cx", f1(tp[0])); n.setAttribute("cy", f1(tp[1] - 1)); n.style.opacity = 1; } }
+    const { kind: k, u } = s.tour, seq = s.seq; let tp = null, inside = null, color = "";
+    const T = CELLS.r[0];
+    const open = (key) => shown[key] > 0.5;
+    if (seq.phase === "arrive") { /* en la llegada la partícula espera donde empieza el paso */ }
+    if (k === "pipe") tp = PL.feed.at(u * PL.feed.len);
+    else if (k === "in" || k === "rise" || k === "froth") {
+      const z = k === "in" ? 3 : k === "rise" ? lerp(2.5, CELL.H - 4, u) : CELL.H - 3 + u;
+      if (Math.max(shown.cell, seq.open.cell) > 0.3 && k !== "in") tp = toP(CE, cellP(T, Math.PI * 1.25, z, k === "rise" ? 3 + u * 2 : 5)); else inside = toP(CE, cellP(T, Math.PI * 1.25, z, 2)); }
+    else if (k === "bank") { const j = Math.min(3, Math.floor(u * 4)); inside = toP(CE, cellP(CELLS.l[j], Math.PI * 1.25, CELL.H - 3, 2)); }
+    else if (k === "bridge") tp = PL.bridge1.at(u * PL.bridge1.len);
+    else if (k === "well") inside = toP(ES, add(TH[0].water, [0, 1.6]));
+    else if (k === "settle") { const th = Math.PI * 1.25; inside = toP(ES, thP(TH[0], th, 4 + u * 6, TH[0].rW * (0.5 - u * 0.45))); }
+    else if (k === "under" || k === "toPumps" || k === "toFilter" || k === "filtrate" || k === "duct") {
+      const r = RT[k === "duct" ? "duct" : k]; tp = r.P.at(u * r.P.len); color = k === "filtrate" ? "#6fb6dc" : pulpColor(s.m.uf);
+      if (k === "duct" && u > 0.98) tp = r.P.at(r.P.len);
+    } else if (k === "pump") { if (open("bombas")) tp = R.Wp(lerp(-2, -28, u), u < 0.5 ? 5 : 38, 4); else inside = R.Wp(-16, 24, 20); }
+    else if (k === "press") { if (open("galpon")) tp = R.Ws(R.PRESS.e + 5, lerp(8, 54, u), 22); else inside = R.Ws(-34, 30, 28); }
+    else if (k === "cake") { if (open("galpon")) tp = R.Ws(R.PRESS.e, 30, lerp(R.PRESS.z0, 6, u)); else inside = R.Ws(-34, 30, 28); }
+    else if (k === "truck") { if (open("galpon")) tp = R.Ws(lerp(-62, -86, smooth((u - 0.5) / 0.5)), 22, 13); else inside = R.Ws(-60, 22, 20); }
+    if (S.ruta === "A" && !s.m.win && ["pump", "duct", "toPumps"].includes(k)) { tp = k === "toPumps" ? RT.toPumps.P.at(0) : null; inside = null; }
+    if (tp) { for (const n of [tourRing, tourDot]) { n.setAttribute("cx", f1(tp[0])); n.setAttribute("cy", f1(tp[1] - 1)); n.style.opacity = 1; } tourDot.style.fill = color; }
     else { tourRing.style.opacity = 0; tourDot.style.opacity = 0; }
     if (inside) { const ph = (performance.now() / 900) % 1; tourPulse.setAttribute("cx", f1(inside[0])); tourPulse.setAttribute("cy", f1(inside[1])); tourPulse.setAttribute("r", f1(4 + ph * 9)); tourPulse.style.opacity = (0.9 * (1 - ph)).toFixed(2); }
     else tourPulse.style.opacity = 0;
   }
-  const lbl = (p, q, text, anchor) => `<path class="fl-cal-lead" d="M${f1(p[0])} ${f1(p[1])}L${f1(q[0])} ${f1(q[1] + 2)}"/><circle class="fl-cal-dot" cx="${f1(p[0])}" cy="${f1(p[1])}" r="1.3"/><text class="fl-cal-text" x="${f1(q[0])}" y="${f1(q[1])}" text-anchor="${anchor}">${text}</text>`;
 
   // ------------------------------------------------------------ reloj
   const listeners = new Set();
@@ -420,43 +572,63 @@ export async function createFlotacion() {
     const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
     if (playing) step(dt);
     const k = 1 - Math.exp(-dt * 6);
-    for (const key of ["cell", "th"]) { shown[key] += (S[key] - shown[key]) * k; if (Math.abs(S[key] - shown[key]) < 0.002) shown[key] = S[key]; }
+    const seq = state(S.t, S.ruta);
+    const target = { cell: S.cell, th: S.th, uf: S.uf, bombas: openOf("bombas", seq), galpon: openOf("galpon", seq) };
+    for (const key of Object.keys(target)) { shown[key] += (target[key] - shown[key]) * k; if (Math.abs(target[key] - shown[key]) < (key === "uf" ? 0.05 : 0.002)) shown[key] = target[key]; }
     draw(); raf = active ? nextTick(frame) : 0;
   }
+  // quieto (movimiento reducido o saltos): los valores seguidos van directo a su destino
+  const settle = () => { const seq = state(S.t, S.ruta); shown.bombas = openOf("bombas", seq); shown.galpon = openOf("galpon", seq); };
   const kick = () => { if (active && !raf) { last = performance.now(); raf = nextTick(frame); } };
+  const redraw = (jump) => { if (still.matches || jump || !playing) settle(); draw(); };
   const api = {
-    el: root, svg, PERIOD, STEPS,
-    get selected() { return selected; }, get playing() { return playing; }, get detail() { return detailNow(); },
-    get cell() { return S.cell; }, get th() { return S.th; }, get air() { return S.air; },
+    el: root, svg,
+    get STEPS() { return steps(); }, get PERIOD() { return periodOf(S.ruta); },
+    get selected() { return selected; }, get playing() { return playing; }, get ruta() { return S.ruta; }, get rutas() { return S.rutas; },
+    get cell() { return S.cell; }, get th() { return S.th; }, get air() { return S.air; }, get uf() { return S.uf; },
     live, on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     setActive(v) { active = v; if (v) kick(); else { cancelTick(raf); raf = 0; } },
     play() { playing = true; kick(); }, pause() { playing = false; }, togglePlay() { playing ? api.pause() : api.play(); },
-    seek(v) { S.t = ((v % PERIOD) + PERIOD) % PERIOD; draw(); },
-    goStep(n) { api.seek(STEPS[clamp(n, 1, STEPS.length) - 1].t0 + 0.01); },
-    nextStep() { api.goStep((stepAt(S.t).n % STEPS.length) + 1); },
-    prevStep() { const st = stepAt(S.t); api.goStep(S.t - st.t0 > 1.2 ? st.n : ((st.n + STEPS.length - 2) % STEPS.length) + 1); },
-    setCell(v, instant) { S.cell = clamp(v); if (instant || still.matches) shown.cell = S.cell; sliderDetail = S.cell > 0 ? "A" : S.th > 0 ? "B" : null; draw(); },
-    setTh(v, instant) { S.th = clamp(v); if (instant || still.matches) shown.th = S.th; sliderDetail = S.th > 0 ? "B" : S.cell > 0 ? "A" : null; draw(); },
-    setAir(v) { S.air = clamp(v, AIR_MIN, AIR_MAX); draw(); },
-    select(id) { selected = id && EQUIP[id] ? id : null; root.toggleAttribute("data-sel", !!selected); units.forEach((eq, u) => u.classList.toggle("fl-dim", !!selected && eq !== selected)); draw(); },
+    seek(v) { const P = periodOf(S.ruta); S.t = ((v % P) + P) % P; redraw(); },
+    goStep(n) { api.seek(steps()[clamp(n, 1, steps().length) - 1].t0 + 0.01); },
+    nextStep() { api.goStep((stepAt(S.t, S.ruta).n % steps().length) + 1); },
+    prevStep() { const st = stepAt(S.t, S.ruta); api.goStep(S.t - st.t0 > 1.2 ? st.n : ((st.n + steps().length - 2) % steps().length) + 1); },
+    setRuta(r) { if (r === S.ruta) return; const n = stepAt(S.t, S.ruta).n; S.ruta = r === "B" ? "B" : "A"; S.t = steps()[n - 1].t0 + 0.01; lastLit = null; redraw(); },
+    setRutas(v) { S.rutas = !!v; redraw(); },
+    setCell(v, instant) { S.cell = clamp(v); if (instant || still.matches) shown.cell = S.cell; zoomKey = S.cell > 0 || S.th === 0 ? "A" : "B"; redraw(); },
+    setTh(v, instant) { S.th = clamp(v); if (instant || still.matches) shown.th = S.th; zoomKey = S.th > 0 || S.cell === 0 ? "B" : "A"; redraw(); },
+    setAir(v) { S.air = clamp(v, AIR_MIN, AIR_MAX); redraw(); },
+    setUf(v, instant) { S.uf = clamp(v, UF_MIN, UF_MAX); if (instant || still.matches) shown.uf = S.uf; redraw(); },
+    setZoomMode(mode, fn = null) { zoomMode = mode; onZoom = fn; lastZoom = ""; if (mode === "camera" && vb[2] !== VIEW[2]) { vb = VIEW.slice(); svg.setAttribute("viewBox", VIEW.join(" ")); } draw(); },
+    get zoom() { return { key: zoomKey, viewBox: vb.slice() }; },
+    rects: ZR,
+    select(id) { selected = id && EQUIP[id] ? id : null; root.toggleAttribute("data-sel", !!selected); units.forEach((eq, u) => u.classList.toggle("fl-dim", !!selected && eq !== selected)); lastLit = null; redraw(); },
     destroy() { api.setActive(false); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); api.select(g ? (selected === g.dataset.eq ? null : g.dataset.eq) : null); });
   const onVis = () => { if (document.hidden) { cancelTick(raf); raf = 0; } else kick(); };
   document.addEventListener("visibilitychange", onVis);
+  settle();
   draw();
   return api;
 }
 
 // ---------------------------------------------------------------- panel (HUD)
-export function bindPanel(fx, { onEscape, onFocus } = {}) {
+export function bindPanel(fx, { onEscape } = {}) {
   const $ = (q) => document.querySelector(q);
   const playBtn = $("[data-fl-play]"), stepsBox = $("[data-fl-steps]");
-  stepsBox.innerHTML = ""; stepsBox.style.setProperty("--n", fx.STEPS.length);
-  const stepBtns = fx.STEPS.map((s) => { const b = document.createElement("button"); b.type = "button"; b.className = "seq-step"; b.dataset.step = s.n; b.setAttribute("aria-label", `Paso ${s.n}: ${s.label}`); b.innerHTML = "<i></i>";
-    b.addEventListener("click", () => fx.goStep(s.n)); stepsBox.appendChild(b); return b; });
+  let stepBtns = [], stepsKey = "";
+  const buildSteps = () => {
+    stepsBox.innerHTML = ""; stepsBox.style.setProperty("--n", fx.STEPS.length);
+    stepBtns = fx.STEPS.map((s) => { const b = document.createElement("button"); b.type = "button"; b.className = "seq-step"; b.dataset.step = s.n; b.setAttribute("aria-label", `Paso ${s.n}: ${s.label}`); b.innerHTML = "<i></i>";
+      b.addEventListener("click", () => fx.goStep(s.n)); stepsBox.appendChild(b); return b; });
+    stepsKey = fx.ruta;
+    $("[data-fl-step-n]").dataset.total = fx.STEPS.length;
+  };
+  buildSteps();
   const info = $("[data-info]"), meter = $("[data-fl-meter]"), readout = $("[data-fl-readout]");
   const cellS = $("[data-fl-cell]"), cellO = $("[data-fl-cell-out]"), thS = $("[data-fl-th]"), thO = $("[data-fl-th-out]"), airS = $("[data-fl-air]"), airO = $("[data-fl-air-out]");
+  const ufS = $("[data-fl-uf]"), ufO = $("[data-fl-uf-out]"), sw = $("[data-fl-filter]"), rutasBtn = $("[data-fl-rutas]");
   let lastStep = 0, lastText = "", lastInfo = "";
   const off = []; const on = (node, ev, fn, opt) => { node.addEventListener(ev, fn, opt); off.push(() => node.removeEventListener(ev, fn, opt)); };
   const chips = [...document.querySelectorAll("[data-fl-chip]")]; // fijos en el panel: se buscan una vez, no en cada cuadro
@@ -464,40 +636,53 @@ export function bindPanel(fx, { onEscape, onFocus } = {}) {
     const id = fx.selected;
     chips.forEach((c) => c.toggleAttribute("data-on", c.dataset.flChip === id));
     if (!id) { if (info.dataset.owner === "fl") info.hidden = true; return; }
-    const e = EQUIP[id], specs = e.specs(s.m), sig = id + specs.join("|");
+    const e = EQUIP[id], specs = e.specs(s.m, s.ruta), text = typeof e.text === "function" ? e.text(s.m, s.ruta) : e.text, sig = id + specs.join("|") + text;
     if (sig === lastInfo && !info.hidden) return;
     lastInfo = sig; info.dataset.owner = "fl";
-    $("[data-info-kicker]").textContent = e.kicker; $("[data-info-title]").textContent = e.title; $("[data-info-text]").textContent = e.text;
+    $("[data-info-kicker]").textContent = e.kicker; $("[data-info-title]").textContent = e.title; $("[data-info-text]").textContent = text;
     $("[data-info-specs]").innerHTML = specs.map((x) => `<li>${x}</li>`).join(""); $("[data-info-actions]").innerHTML = ""; info.hidden = false;
   }
+  const syncRoute = () => { sw.setAttribute("aria-checked", String(fx.ruta === "B")); rutasBtn.setAttribute("aria-pressed", String(fx.rutas)); rutasBtn.toggleAttribute("data-on", fx.rutas); };
   off.push(fx.on((s) => {
+    if (stepsKey !== fx.ruta) { buildSteps(); lastStep = 0; syncRoute(); }
     const st = s.step;
     if (st.n !== lastStep) { $("[data-fl-step-n]").textContent = st.n; $("[data-fl-step-label]").textContent = st.label;
       stepBtns.forEach((b) => { const k = Number(b.dataset.step); b.toggleAttribute("data-done", k < st.n); b.toggleAttribute("data-current", k === st.n); }); lastStep = st.n; }
     stepBtns[st.n - 1].style.setProperty("--p", clamp((s.t - st.t0) / (st.t1 - st.t0)).toFixed(3));
     meter.style.setProperty("--fill", (s.m.R / 100).toFixed(3));
-    const text = `Recuperación ${Math.round(s.m.R)} % · Ley ${Math.round(s.m.G)} % Cu · Descarga ${s.m.uf} %`;
+    const uf = Math.round(s.m.uf), warn = solidsWarning(uf);
+    const route = s.ruta === "B" ? `filtro ${fdec(s.m.cycle, 1)}× · queque ~8–9 %` : s.m.win ? "concentraducto en ventana" : "fuera de la ventana de transporte";
+    const text = `Recuperación ${Math.round(s.m.R)} % · Ley ${Math.round(s.m.G)} % Cu · ${uf} % de sólidos · ${route}${warn ? ` · ${warn}` : ""}`;
+    readout.toggleAttribute("data-warn", !!warn || (s.ruta === "A" && !s.m.win));
     if (text !== lastText) { readout.textContent = text; lastText = text; }
     playBtn.setAttribute("aria-pressed", String(fx.playing)); playBtn.setAttribute("aria-label", fx.playing ? "Pausar" : "Reproducir");
     renderInfo(s);
   }));
-  const sync = () => { cellS.value = Math.round(fx.cell * 100); cellO.textContent = `${cellS.value} %`; thS.value = Math.round(fx.th * 100); thO.textContent = `${thS.value} %`; airS.value = fx.air; airO.textContent = `${fdec(fx.air, 1)}×`; };
-  on(cellS, "input", () => { fx.setCell(cellS.value / 100); cellO.textContent = `${cellS.value} %`; onFocus?.("A", cellS.value > 0 || fx.th > 0); });
-  on(thS, "input", () => { fx.setTh(thS.value / 100); thO.textContent = `${thS.value} %`; onFocus?.("B", thS.value > 0 || fx.cell > 0); });
+  const sync = () => { cellS.value = Math.round(fx.cell * 100); cellO.textContent = `${cellS.value} %`; thS.value = Math.round(fx.th * 100); thO.textContent = `${thS.value} %`; airS.value = fx.air; airO.textContent = `${fdec(fx.air, 1)}×`; ufS.value = fx.uf; ufO.textContent = `${fx.uf} %`; syncRoute(); };
+  const toggleRoute = () => { fx.setRuta(fx.ruta === "A" ? "B" : "A"); syncRoute(); };
+  const toggleRutas = () => { fx.setRutas(!fx.rutas); syncRoute(); };
+  on(cellS, "input", () => { fx.setCell(cellS.value / 100); cellO.textContent = `${cellS.value} %`; });
+  on(thS, "input", () => { fx.setTh(thS.value / 100); thO.textContent = `${thS.value} %`; });
   on(airS, "input", () => { fx.setAir(Number(airS.value)); airO.textContent = `${fdec(Number(airS.value), 1)}×`; });
+  on(ufS, "input", () => { fx.setUf(Number(ufS.value)); ufO.textContent = `${ufS.value} %`; });
+  on(sw, "click", toggleRoute);
+  on(rutasBtn, "click", toggleRutas);
   on(playBtn, "click", () => fx.togglePlay());
   on($("[data-fl-prev]"), "click", () => fx.prevStep()); on($("[data-fl-next]"), "click", () => fx.nextStep());
   document.querySelectorAll("[data-fl-chip]").forEach((c) => on(c, "click", () => fx.select(fx.selected === c.dataset.flChip ? null : c.dataset.flChip)));
   on($("[data-info-close]"), "click", () => { if (info.dataset.owner === "fl") fx.select(null); });
   on(window, "keydown", (e) => {
-    if (document.body.dataset.view !== "flotacion" || e.target.closest?.("input, [data-intro]")) return;
+    if (document.body.dataset.view !== "flotacion" || e.target.closest?.("input, [data-intro], .fl-dest")) return;
+    const k = e.key.toLowerCase();
     if (e.key === " " && !e.target.closest("button")) fx.togglePlay();
     else if (e.key === ",") fx.prevStep(); else if (e.key === ".") fx.nextStep();
-    else if (/^[1-4]$/.test(e.key)) { const id = ORDER[Number(e.key) - 1]; fx.select(fx.selected === id ? null : id); }
-    else if (e.key === "ArrowRight") { fx.setCell(fx.cell + 0.1); sync(); onFocus?.("A", fx.cell > 0); }
-    else if (e.key === "ArrowLeft") { fx.setCell(fx.cell - 0.1); sync(); onFocus?.("A", fx.cell > 0); }
-    else if (e.key === "ArrowUp") { fx.setTh(fx.th + 0.1); sync(); onFocus?.("B", fx.th > 0); }
-    else if (e.key === "ArrowDown") { fx.setTh(fx.th - 0.1); sync(); onFocus?.("B", fx.th > 0); }
+    else if (/^[1-7]$/.test(e.key)) { const id = ORDER[Number(e.key) - 1]; fx.select(fx.selected === id ? null : id); }
+    else if (k === "f" && !e.ctrlKey && !e.metaKey) toggleRoute();
+    else if (k === "r" && !e.ctrlKey && !e.metaKey) toggleRutas();
+    else if (e.key === "ArrowRight") { fx.setCell(fx.cell + 0.1); sync(); }
+    else if (e.key === "ArrowLeft") { fx.setCell(fx.cell - 0.1); sync(); }
+    else if (e.key === "ArrowUp") { fx.setTh(fx.th + 0.1); sync(); }
+    else if (e.key === "ArrowDown") { fx.setTh(fx.th - 0.1); sync(); }
     else if (e.key === "Escape") { if (fx.selected) fx.select(null); else onEscape?.(); }
     else return;
     e.preventDefault(); e.stopImmediatePropagation();
@@ -507,7 +692,8 @@ export function bindPanel(fx, { onEscape, onFocus } = {}) {
 }
 
 // ---------------------------------------------------------------- explorador (demo sin cámara)
-const ZOOM = { rougher: [2870, 800, 260, 370], limpieza: [2930, 770, 280, 300], concentrado: [3095, 700, 500, 270], relaves: [3160, 700, 440, 380], A: [2870, 820, 250, 350], B: [3095, 700, 500, 250] };
+const ZOOM = { rougher: [2870, 800, 260, 370], limpieza: [2930, 770, 280, 300], concentrado: [3095, 700, 500, 270], relaves: [3160, 700, 440, 380], estanque: [2880, 735, 130, 230], bombas: [3030, 740, 130, 220], filtro: [2756, 785, 170, 250] }; // alto extra abajo: la ficha tapa esa zona
+const ZOOM_CAP = 12;
 // lámina armada de antemano, en reposo, mientras se mira la infografía (js/explorer.js): abrir sólo la inserta
 let prebuilt = null;
 export function prebuild() { return (prebuilt ||= createFlotacion().catch(() => (prebuilt = null))); }
@@ -516,10 +702,17 @@ export async function mount({ layer, focus }) {
   prebuilt = null;
   if (fx.el.parentNode !== layer) layer.appendChild(fx.el); // la precarga pudo dejarla ya puesta (estacionada)
   requestAnimationFrame(() => fx.el.setAttribute("data-in", ""));
-  let focused = null;
+  // cámara: el equipo elegido manda; si no, el zoom sobre el dibujo de los deslizadores; si no, el encuadre
+  let focused = null, zoomRect = null, zoomK = 0, lastSel = null;
   const want = (z, cap) => { const k = z ? JSON.stringify(z) : ""; if (k !== focused) { focused = k; focus?.(z, cap); } };
-  const unbind = bindPanel(fx, { onEscape: () => { location.hash = ""; }, onFocus: (which, on) => want(on ? ZOOM[which] : null, 3.2) });
-  const unzoom = fx.on(() => { if (fx.selected) want(ZOOM[fx.selected], 3); else if (fx.detail) want(ZOOM[fx.detail], 3.2); else want(null); });
+  const toZoom = (ms) => { focused = "zoom"; focus?.(zoomRect, ZOOM_CAP, ms, lerp(0.06, 0.03, zoomK)); };
+  fx.setZoomMode("camera", (rect, k) => { zoomRect = rect; zoomK = k; if (fx.selected) return; if (rect) toZoom(0); else want(null); });
+  const unbind = bindPanel(fx, { onEscape: () => { location.hash = ""; } });
+  const unzoom = fx.on(() => {
+    if (fx.selected === lastSel) return;
+    lastSel = fx.selected;
+    if (fx.selected) want(ZOOM[fx.selected], 5); else if (zoomRect) toZoom(650); else want(null);
+  });
   fx.setActive(true);
   window.pmFlo = fx;
   return { focus: [VIEW[0] + 20, VIEW[1] + 10, VIEW[2] - 40, VIEW[3] - 20], view: "flotacion",

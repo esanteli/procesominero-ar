@@ -1491,3 +1491,58 @@ body[data-mode="demo"] .explorer { background: #fff; } /* el arte es blanco: al 
 .sc-trail { fill: none; stroke: var(--pm-orange); stroke-linecap: round; pointer-events: none; }
 .readout[data-warn] { color: #b8401a; }
 @media (prefers-reduced-motion: reduce) { .sc-art [data-eq], .sc-art .sc-stepdim, .sc-hopper-in { transition: none; } }
+
+/* T19 · Flotación: rutas del concentrado, edificios por dentro, destinos y llamadas del zoom */
+.route-switch { display: inline-flex; align-items: center; gap: 8px; flex: none; min-height: 44px; padding: 0 12px; border-radius: 999px; border: 1.5px solid #ef783555; background: #fff; color: #3b2416; font: 600 14px var(--pm-sans); cursor: pointer; pointer-events: auto; }
+.route-switch .route-knob { position: relative; width: 40px; height: 22px; border-radius: 999px; background: #f1ddc9; transition: background .25s var(--pm-ease); }
+.route-switch .route-knob::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #0003; transition: transform .25s var(--pm-ease); }
+.route-switch[aria-checked="true"] .route-knob { background: var(--pm-orange); }
+.route-switch[aria-checked="true"] .route-knob::after { transform: translateX(18px); }
+.route-switch kbd { font: 600 11px var(--pm-mono, monospace); opacity: .55; }
+.chip[data-fl-rutas][data-on] { background: var(--pm-orange); color: #fff; }
+.ctl--window input[type="range"] { background: linear-gradient(90deg, transparent 37%, #6fb98f55 37%, #6fb98f55 85%, transparent 85%); }
+[data-fl-readout][data-warn] { color: #b8401a; }
+.fl-int { pointer-events: auto; }
+.fl-stepdim { opacity: .35; transition: opacity .5s var(--pm-ease); }
+.fl-roof { transition: none; }
+.fl-floor { fill: #f5ede4; }
+.fl-wall-in { fill: #fbf5ef; stroke: #ef8c22; stroke-width: .55; stroke-linejoin: round; }
+.fl-wall-in--end { fill: #f6ece2; }
+.fl-pilaster { stroke: #f0b77d; stroke-width: .55; }
+.fl-cutline { fill: none; stroke: #e57f1c; stroke-width: .7; }
+.fx-press-leg, .fx-press-head, .fl-pump, .fl-pumphead, .fl-truck, .fl-truck-cab { fill: #fff; stroke: #ef8c22; stroke-width: .55; stroke-linejoin: round; }
+.fx-press-head--side, .fl-pump--side, .fl-pumphead--side, .fl-truck--side, .fl-truck-cab--side { fill: #fbe8d6; }
+.fx-press-rail { fill: #fbe8d6; stroke: #ef8c22; stroke-width: .4; }
+.fx-plate { fill: #c3ccd3; stroke: #6f7b84; stroke-width: .35; stroke-linejoin: round; }
+.fx-plate--edge { fill: #c9d1d7; }
+.fx-plate-fill { opacity: .9; }
+.fx-cake, .fl-cake { fill: #4b5a52; stroke: #2d2b23; stroke-width: .3; stroke-linejoin: round; }
+.fl-cake--side { fill: #3c473f; }
+.fx-drip { fill: #5fa8cf; }
+.fx-air { fill: #fff; stroke: #c9d6de; stroke-width: .3; }
+.fl-piston { fill: #e9eef1; stroke: #6f7b84; stroke-width: .45; stroke-linejoin: round; }
+.fl-valve { fill: #ef8c22; }
+.fl-wheel { fill: #3b2416; stroke: #fff; stroke-width: .5; }
+.fl-slurry { stroke: #ef8c22; stroke-width: .6; }
+.fl-agit { stroke: #fff; stroke-width: 1.4; stroke-linecap: round; }
+.fl-hubc { fill: #8a4a1e; }
+.fl-sup { fill: none; stroke: #ef8c22; stroke-width: 1.3; stroke-linecap: round; }
+.fl-route { transition: opacity .35s var(--pm-ease); }
+.fl-route[data-off] { opacity: .4; }
+.fl-route[data-off] .fl-pipe-o { stroke-dasharray: 5 4; }
+.fl-route[data-stop] .fl-pipe-o { stroke: #c0592b; }
+.fl-rflow { fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-dasharray: 1.4 6.6; }
+.fl-rflow--water { stroke: #5fa8cf; }
+.fl-arrow { fill: #ef8c22; }
+.fl-dest { pointer-events: auto; cursor: pointer; opacity: .45; outline: none; transition: opacity .3s var(--pm-ease); }
+.fl-dest[data-on] { opacity: 1; }
+.fl-dest-pill { fill: #fff; stroke: #ef7835; stroke-width: .9; }
+.fl-dest[data-on] .fl-dest-pill { fill: var(--pm-orange); stroke: #fff; }
+.fl-dest-text { font-size: 6px; font-weight: 700; fill: #a8501a; }
+.fl-dest[data-on] .fl-dest-text { fill: #fff; }
+.fl-dest:focus-visible .fl-dest-pill { stroke: #3b2416; stroke-width: 1.8; }
+.fl-zoom { pointer-events: none; }
+.fl-zl-lead { fill: none; stroke: #8a4a1e; }
+.fl-zl-dot { fill: var(--pm-orange); }
+.fl-zl-text { font-weight: 600; fill: #5a3b27; paint-order: stroke; stroke: #fff; stroke-linejoin: round; }
+@media (prefers-reduced-motion: reduce) { .fl-stepdim, .fl-route, .fl-dest, .route-switch .route-knob, .route-switch .route-knob::after { transition: none; } }
