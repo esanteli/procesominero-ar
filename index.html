@@ -421,8 +421,8 @@
           <output class="readout" data-pu-readout aria-live="polite">—</output>
         </div>
         <div class="chips" role="group" aria-label="Equipos: toca uno para ver su descripción y su detalle">
-          <button type="button" class="chip" data-pu-chip="espesadores"><span>01</span>Espesadores</button>
-          <button type="button" class="chip" data-pu-chip="mineroducto"><span>02</span>Mineroducto</button>
+          <button type="button" class="chip" data-pu-chip="mineroducto"><span>01</span>Concentraducto</button>
+          <button type="button" class="chip" data-pu-chip="espesadores"><span>02</span>Espesadores de recepción</button>
           <button type="button" class="chip" data-pu-chip="filtros"><span>03</span>Planta de filtros</button>
           <button type="button" class="chip" data-pu-chip="galpon"><span>04</span>Galpón de acopio</button>
           <button type="button" class="chip" data-pu-chip="embarque"><span>05</span>Embarque</button>
@@ -443,14 +443,19 @@
             <input type="range" min="7" max="12" value="8.5" step="0.5" data-pu-h aria-label="Humedad del queque de concentrado, en porcentaje; sobre el límite transportable (TML, 10 %) no se puede embarcar">
             <output data-pu-h-out>8,5 %</output>
           </label>
+          <label class="ctl">
+            <span class="ctl-label">% de sólidos</span>
+            <input type="range" min="45" max="72" value="65" step="1" data-pu-uf aria-label="Porcentaje de sólidos de la pulpa que llega a los espesadores de recepción (45 a 72, referencial)">
+            <output data-pu-uf-out>65 %</output>
+          </label>
         </div>
-        <div class="seq" role="group" aria-label="Sigue el concentrado desde los espesadores hasta la bodega del barco">
+        <div class="seq" role="group" aria-label="Sigue el concentrado desde el concentraducto hasta la bodega del barco">
           <button type="button" class="seq-play" data-pu-play aria-label="Pausar" aria-pressed="true">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-pause" d="M8 5v14M16 5v14"/><path class="i-play" d="M8 5l11 7-11 7z"/></svg>
           </button>
           <div class="seq-body">
             <div class="seq-steps" data-pu-steps></div>
-            <p class="seq-label"><b data-pu-step-n>1</b><span data-pu-step-label>Los espesadores llevan la pulpa a ~65 % de sólidos y las bombas la impulsan</span></p>
+            <p class="seq-label"><b data-pu-step-n>1</b><span data-pu-step-label>Llega el concentraducto y la estación terminal disipa la presión</span></p>
           </div>
           <div class="seq-nav">
             <button type="button" class="seq-nav-btn" data-pu-prev aria-label="Paso anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>

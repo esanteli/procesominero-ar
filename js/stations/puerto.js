@@ -1,27 +1,20 @@
 // Estación 5 · Puerto — lámina viva sobre los dibujos de Emilio (assets/puerto/: espesadores, puerto y barco).
 //
-// Flujo del concentrado (como en los puertos de concentrado del norte de Chile, p. ej. Coloso):
-//   · Espesadores de la concentradora: el concentrado de flotación sedimenta, las rastras lo llevan al centro y sale
-//     por abajo como pulpa espesa (~65 % sólidos); el agua clara rebalsa por el borde y vuelve al proceso.
-//   · Bombas → mineroducto (~170 km, aquí comprimido con un corte) → estación terminal (disipa la presión).
-//   · Planta de filtros (nave del portón): estanque de alimentación y filtro prensa; el queque sale con ~8–9 % de
-//     humedad y el agua filtrada va a tratamiento.
-//   · Galpón de acopio (cerrado, presión negativa): pila de concentrado; un cargador frontal alimenta la tolva.
-//   · Correa cubierta → torre de transferencia (muestreo) → caballete del muelle → cargador de barcos de pedestal:
-//     gira y extiende el brazo sobre cada bodega y baja un chute telescópico. Se carga por pasadas entre bodegas.
-//   · Límite de humedad transportable (TML): si el queque sale sobre el TML no se puede embarcar (riesgo de
-//     licuefacción en la bodega), así que el embarque se detiene.
+// Flujo (coherente con la Ruta A de Flotación): el concentraducto, impulsado por las bombas de pistón de la planta,
+// baja por gravedad a la costa → estación terminal (válvula y orificio: disipa la presión) → espesadores de recepción
+// (vuelven a espesar y estabilizan la alimentación; rebalse a tratamiento) → bombas de alimentación → estanque agitado
+// → filtros prensa (queque ~8–9 % de humedad) → galpón de acopio → correa → torre de muestreo → cargador de barcos.
+// Límite de humedad transportable (TML): si el queque sale sobre el TML no se puede embarcar.
 //
-// Misma lógica de la skill anatomy que las otras estaciones: un modelo (humedad del queque → tasa, horas por barco,
-// TML) manda y el dibujo lo sigue; "sigue el concentrado" en 6 pasos con state(t) puro; equipos con foco, ficha y
-// detalle; deslizadores para abrir las naves y la galería de la correa. La carga del barco es un reloj aparte que sólo
-// avanza si la humedad está bajo el TML.
+// Un modelo (humedad del queque y % de sólidos de llegada → ciclo del filtro, tasa, TML) manda y el dibujo lo sigue;
+// "sigue el concentrado" en 6 pasos con state(t) puro; equipos con foco y ficha; zoom sobre el dibujo (naves que se
+// abren, galería de la correa) con llamadas ancladas.
 //
-// Geometría: px de la infografía; los tres dibujos están a escala 2 (registro por correlación). Isometría de mundo
-// W(e, n, z) en px con origen en el extremo de la correa en el muelle (fin de la galería): n a lo largo de la correa
-// (hacia el barco), e a lo ancho, z hacia arriba.
+// Geometría: px de la infografía; los tres dibujos están a escala 2. Isometría de mundo W(e, n, z) con origen en el
+// extremo de la correa en el muelle: n a lo largo de la correa (hacia el barco), e a lo ancho, z hacia arriba.
 import { createLayers } from "../layers.js";
-import { filterPressSvg, pressPhase } from "./filtro-prensa.js";
+import { filterPressSvg, pressPhase, PRESS_CYCLE } from "./filtro-prensa.js";
+import { shared } from "../shared.js";
 import { nextTick, cancelTick } from "../clock.js";
 const NS = "http://www.w3.org/2000/svg";
 const U = (f) => new URL(`../../assets/puerto/${f}`, import.meta.url).href;
@@ -70,38 +63,69 @@ const PRESS = { e: -150, n0: -458, n1: -404, z0: 6, z1: 18, we: 9, N: 16 };
 const FEEDTANK = [-123, -452];
 const PILE = { e0: -66, e1: -16, n: -452, hw: 15, h: 17 };
 const HOPPER = { e: 24, n: -442 };
-// cañerías
-const PUMP = { e0: -350, e1: -330, n0: -503, n1: -487 };
-const PIPE_S = [[-385, -405, 1], [-385, -495, 1], [-350, -495, 1]];
-const PIPE_B = [[-290, -482, 1], [-290, -495, 1], [-330, -495, 1]];
-const MINERO = [[-340, -503, 1.5], [-340, -515, 1.5], [-128, -515, 1.5], [-128, -473.5, 1.5]];
-const MINERO_IN = [[-128, -473.5, 1.5], [-128, -460, 1.5], [FEEDTANK[0], FEEDTANK[1] - 7, 1.5]];
-const BREAK_E = -232;
+// ---- cañerías (Ruta A de Flotación): el concentraducto llega (lo impulsan las bombas de pistón de la planta; aquí baja
+// por gravedad a la costa), la estación terminal disipa la presión y alimenta los dos espesadores de recepción
+const DUCT = [[-128, -515, 1.5], [-340, -515, 1.5]];                     // llegada → fin del corredor
+const FEED_B = [[-340, -515, 1.5], [-340, -495, 1], [-290, -495, 1], [-290, -482, 1]];   // → espesador grande
+const FEED_S = [[-340, -495, 1], [-385, -495, 1], [-385, -405, 1]];       // → espesador chico
+const STATION_E = -262, BREAK_E = -172;                                   // estación terminal · corte de la distancia
+// descarga por el cono de cada espesador (enterrada: línea punteada) → bombas de alimentación en la planta de filtros
+const UNDER_S = [[-430, -364, 0], [-430, -403, 0], [-296, -403, 0]];
+const UNDER_B = [[-296, -403, 0], [-181, -403, 0]];
+const UNDER_IN = [[-181, -403, 0], [-170, -392, 3]];
+const FEEDPUMPS = [[-170, -388], [-170, -372]];                           // bombas de alimentación (dentro de la nave)
+const PUMP_TANK = [[-170, -380, 3], [-123, -380, 3], [-123, -446, 3]];    // bombas → estanque agitado
+const TANK_PRESS = [[-123, -456, 3], [-133, -462, 3], [-150, -462, 10]];  // estanque → filtro prensa
 
-// ---------------------------------------------------------------- modelo (humedad del queque)
+// ---------------------------------------------------------------- modelo (humedad del queque y % de sólidos)
 const H_MIN = 7, H_MAX = 12, TML = 10, SHIP_T = 50000;
-export const model = (h) => {
-  const rate = Math.round((1800 - 150 * (10 - h)) / 10) * 10;   // t/h: secar más alarga el ciclo del filtro
-  return { h, rate, hours: SHIP_T / rate, ok: h <= TML, solids: 65, km: 170, trip: 170000 / 1.6 / 3600 };
+export const UF_MIN = 45, UF_MAX = 72, UF_NOM = 65;
+export const model = (h, uf = UF_NOM) => {
+  const cycle = uf < 55 ? 1 + (55 - uf) / 20 : 1;                          // pulpa diluida: el filtro tarda más
+  const rate = Math.round((1800 - 150 * (10 - h)) / cycle / 10) * 10;       // t/h: secar más alarga el ciclo del filtro
+  return { h, uf, cycle, rate, hours: SHIP_T / rate, ok: h <= TML, viscous: uf > 70, km: 170, trip: 170000 / 1.6 / 3600 };
 };
 
 // ---------------------------------------------------------------- "sigue el concentrado" (state(t) puro)
-export const PERIOD = 53;
-export const STEPS = [
-  { n: 1, id: "espesadores", label: "Los espesadores llevan la pulpa a ~65 % de sólidos y las bombas la impulsan", t0: 0 },
-  { n: 2, id: "mineroducto", label: "La pulpa viaja ~170 km por el mineroducto hasta el puerto", t0: 8 },
-  { n: 3, id: "filtros", label: "El filtro prensa le saca el agua: sale un queque con ~9 % de humedad", t0: 15 },
-  { n: 4, id: "galpon", label: "El concentrado se acopia en el galpón cerrado y un cargador alimenta la tolva", t0: 25 },
-  { n: 5, id: "embarque", label: "La correa cubierta lo lleva al muelle; en la torre se toman muestras", t0: 34 },
-  { n: 6, id: "embarque", label: "El cargador de barcos llena las bodegas por pasadas para nivelar el barco", t0: 44 },
-].map((s, i, a) => ({ ...s, t1: i + 1 < a.length ? a[i + 1].t0 : PERIOD }));
-const stepAt = (t) => STEPS.find((s) => t >= s.t0 && t < s.t1) || STEPS[STEPS.length - 1];
-const FP = PERIOD / 4, LP = PERIOD / 5;
-// filtro prensa (componente compartido con Flotación): un ciclo completo por cada cuarto de la secuencia
-const pressAt = (t) => pressPhase(t - 12.5);
-// cargador frontal: carga en la pila → va a la tolva → vacía → vuelve
+// Cada paso: llegada (ARRIVE s: se ilumina el equipo y el resto baja a ~35 %), acción (tramos) y pausa (HOLD s con el
+// resultado a la vista). `cut`: qué se abre solo en ese paso.
+const ARRIVE = 0.5, PAUSE = 1.2;
+const SEQ_STEPS = [
+  { id: "mineroducto", lit: ["mineroducto"], label: "Llega el concentraducto y la estación terminal disipa la presión", act: [["fast", 3.5], ["drop", 1.5], ["calm", 3]] },
+  { id: "espesadores", lit: ["espesadores"], label: "El espesador de recepción vuelve a espesar la pulpa", act: [["settle", 5], ["cone", 1.5]] },
+  { id: "filtros", lit: ["espesadores", "filtros"], cut: "plant", label: "Las bombas la llevan al estanque agitado y a los filtros", act: [["under", 2.5], ["pumps", 1], ["tank", 3], ["feed", 1.8]] },
+  { id: "filtros", lit: ["filtros"], cut: "plant", label: "El filtro saca el agua: queque con ~9 % de humedad, bajo el TML", act: [["press", 9]] },
+  { id: "galpon", lit: ["galpon"], cut: "galpon", label: "El queque se acopia en el galpón y un cargador alimenta la tolva", act: [["pile", 3], ["loader", 6]] },
+  { id: "embarque", lit: ["embarque"], cut: "belt", label: "La correa pasa por la torre de muestreo y el cargador llena las bodegas", act: [["belt", 6], ["boom", 2.5], ["hold", 3]] },
+];
+export const STEPS = [];
+{
+  let t = 0;
+  SEQ_STEPS.forEach((q, i) => {
+    const t0 = t, ta = t0 + ARRIVE; let x = ta;
+    const stages = q.act.map(([k, d]) => { const r = { k, a: x, b: x + d }; x += d; return r; });
+    t = x + PAUSE;
+    STEPS.push({ n: i + 1, id: q.id, lit: q.lit, label: q.label, cut: q.cut || null, t0, ta, th: x, t1: t, stages });
+  });
+}
+export const PERIOD = STEPS[STEPS.length - 1].t1;
+const stepAt = (t) => { t = mod(t, PERIOD); return STEPS.find((s) => t >= s.t0 && t < s.t1) || STEPS[STEPS.length - 1]; };
+/** estado de la secuencia en t: paso, fase, tramo y avance, y qué está abierto */
+export function state(t) {
+  t = mod(t, PERIOD);
+  const step = stepAt(t), first = step.stages[0], last = step.stages[step.stages.length - 1];
+  let phase = "act", sg = first, u = 0;
+  if (t < step.ta) phase = "arrive";
+  else if (t >= step.th) { phase = "hold"; sg = last; u = 1; }
+  else { sg = step.stages.find((r) => t < r.b) || last; u = clamp((t - sg.a) / (sg.b - sg.a)); }
+  const prev = STEPS[(step.n + STEPS.length - 2) % STEPS.length], k = smooth((t - step.t0) / ARRIVE);
+  const openOf = (key) => (step.cut === key ? (prev.cut === key ? 1 : k) : prev.cut === key ? 1 - k : 0);
+  return { t, step, phase, stage: sg.k, u, arrive: k, open: { plant: openOf("plant"), galpon: openOf("galpon"), belt: openOf("belt") } };
+}
+// cargador frontal: carga en la pila → va a la tolva → vacía → vuelve (ciclo de LP segundos)
+const LP = 10.6;
 function loaderAt(t) {
-  const u = mod(t - 26, LP), k = (a, b) => smooth((u - a) / (b - a));
+  const u = mod(t, LP), k = (a, b) => smooth((u - a) / (b - a));
   const A = PILE.e1 + 5, Bp = HOPPER.e - 9;
   if (u < 2) return { e: A, bucket: k(0.4, 2) * 0.6, full: u > 1.2, dump: 0 };
   if (u < 5) return { e: lerp(A, Bp, k(2, 5)), bucket: 0.6 + 0.4 * k(2, 3), full: true, dump: 0 };
@@ -124,18 +148,18 @@ function shipAt(s) {
 
 // ---------------------------------------------------------------- fichas
 const EQUIP = {
-  espesadores: { kicker: "Concentradora", title: "Espesadores de concentrado", text: "El concentrado de flotación sedimenta en los espesadores: las rastras lo arrastran al centro del fondo y sale como una pulpa espesa; el agua clara rebalsa por el borde y vuelve al proceso. Bombas de pistón impulsan la pulpa al mineroducto.",
-    specs: (m) => [`Pulpa ~${m.solids} % de sólidos`, "Rebalse: agua clara a reutilización", "Bombas de desplazamiento positivo"] },
-  mineroducto: { kicker: "Transporte", title: "Mineroducto", text: "Tubería de acero enterrada que lleva el concentrado como pulpa desde la concentradora hasta el puerto, aprovechando la bajada hacia la costa. Al llegar, la estación terminal disipa la presión antes de la planta de filtros.",
-    specs: (m) => [`~${m.km} km (aquí, comprimido)`, "Pulpa a ~1,6 m/s", `Llega en ~${fdec(m.trip)} horas`] },
-  filtros: { kicker: "Recepción", title: "Planta de filtros", text: "La pulpa pasa a un estanque agitado y de ahí a los filtros prensa: entre placas con telas se presiona, se sopla aire y el agua sale filtrada. Al abrir las placas cae el queque, un concentrado húmedo pero manejable.",
-    specs: (m) => [`Queque con ~${fdec(m.h, 1)} % de humedad`, "Agua filtrada → tratamiento", `${fdec(m.rate)} t/h de concentrado`] },
-  galpon: { kicker: "Almacenamiento", title: "Galpón de acopio", text: "El concentrado se acopia bajo techo, con presión negativa y filtros de aire para que el polvo no salga. Un cargador frontal lo lleva a la tolva que alimenta la correa de embarque.",
+  mineroducto: { kicker: "Transporte", title: "Concentraducto y estación terminal", text: "El concentrado viaja como pulpa por un concentraducto enterrado desde la concentradora. Lo impulsan las bombas de pistón de la planta (Flotación, Ruta A) y baja por gravedad hasta la costa. En la estación terminal, una válvula y un orificio disipan la presión: la pulpa llega rápida y sale tranquila.",
+    specs: (m) => [`~${m.km} km (aquí, comprimido)`, `Pulpa ~${Math.round(m.uf)} % de sólidos`, `Llega en ~${fdec(m.trip)} horas`] },
+  espesadores: { kicker: "Recepción", title: "Espesadores de recepción", text: "Reciben el concentrado del concentraducto, lo vuelven a espesar y dan una alimentación estable a los filtros. Las rastras llevan el sólido al cono, por donde sale hacia las bombas; el rebalse de agua clara va a tratamiento.",
+    specs: (m) => [`Llega con ~${Math.round(m.uf)} % de sólidos`, "Rebalse: agua clara → tratamiento", m.viscous ? "Pulpa muy viscosa" : "Descarga por el cono → bombas"] },
+  filtros: { kicker: "Filtrado", title: "Planta de filtros", text: "Las bombas de alimentación llevan la pulpa a un estanque agitado y de ahí a los filtros prensa: entre placas con telas se presiona, se sopla aire y el agua sale filtrada. Al abrir las placas cae el queque.",
+    specs: (m) => [`Queque con ~${fdec(m.h, 1)} % de humedad`, m.cycle > 1.01 ? `Ciclo ${fdec(m.cycle, 1)}× (pulpa diluida)` : "Llenado · prensado · soplado · descarga · cierre", `${fdec(m.rate)} t/h de concentrado`] },
+  galpon: { kicker: "Almacenamiento", title: "Galpón de acopio", text: "El queque se acopia bajo techo, con presión negativa y filtros de aire para que el polvo no salga. Un cargador frontal lo lleva a la tolva que alimenta la correa de embarque.",
     specs: () => ["Acopio cerrado: sin polvo al exterior", "Cargador frontal → tolva → correa", "Reserva para varios barcos"] },
-  embarque: { kicker: "Embarque", title: "Correa y cargador de barcos", text: "Una correa cubierta lleva el concentrado al muelle; en la torre de transferencia se toman muestras para certificar ley y humedad. El cargador gira y extiende el brazo sobre cada bodega y baja un chute telescópico para cargar sin levantar polvo.",
+  embarque: { kicker: "Embarque", title: "Correa y cargador de barcos", text: "Una correa cubierta lleva el queque al muelle; en la torre de transferencia se toman muestras para certificar ley y humedad. El cargador gira y extiende el brazo sobre cada bodega y baja un chute telescópico para cargar sin levantar polvo.",
     specs: (m) => [`${fdec(m.rate)} t/h · barco de 50.000 t en ~${fdec(m.hours)} h`, `Humedad ${fdec(m.h, 1)} % · límite TML ${TML} %`, "Pasadas entre bodegas para nivelar el barco"] },
 };
-const ORDER = ["espesadores", "mineroducto", "filtros", "galpon", "embarque"];
+const ORDER = ["mineroducto", "espesadores", "filtros", "galpon", "embarque"];
 
 // ---------------------------------------------------------------- utilidades SVG
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k2, v] of Object.entries(attrs)) e.setAttribute(k2, v); parent?.appendChild(e); return e; };
@@ -188,6 +212,41 @@ const ring = (T, r, dz, k = 56) => { const o = []; for (let i = 0; i < k; i++) o
 const CONC = [74, 72, 60], PULP = [96, 92, 74], WATER = [158, 196, 214];
 const rgb = (c) => `rgb(${c.map((v) => Math.round(v)).join(",")})`;
 
+// color de la pulpa según el % de sólidos (más espesa, más oscura)
+function pulpFill(uf) { const k = clamp((uf - UF_MIN) / (UF_MAX - UF_MIN)); return rgb([150, 170, 160].map((v, i) => lerp(v, [58, 70, 62][i], k))); }
+
+// concentraducto, estación terminal (válvula y orificio), alimentación de los espesadores y descargas enterradas
+function ductSvg(fl, m) {
+  const col = pulpFill(m.uf);
+  let g = pipeSvg(FEED_S, "pu-pipe--pulp") + pipeSvg(FEED_B, "pu-pipe--pulp") + pipeSvg(DUCT, "pu-pipe--minero");
+  // la pulpa llega rápida y, pasada la estación terminal, sale tranquila (presión disipada)
+  const st = [STATION_E, -515, 1.5];
+  g += `<path class="pu-flow pu-flow--fast" d="${D([P3(DUCT[0]), P3(st)], false, f2)}" style="stroke:${col};stroke-dashoffset:${f2(-fl * 34)}"/>`;
+  g += `<path class="pu-flow pu-flow--calm" d="${D([P3(st), P3(DUCT[1])], false, f2)}" style="stroke:${col};stroke-dashoffset:${f2(-fl * 5)}"/>`;
+  for (const p of [FEED_B, FEED_S]) g += `<path class="pu-flow pu-flow--calm" d="${D(p.map(P3), false, f2)}" style="stroke:${col};stroke-dashoffset:${f2(-fl * 5)}"/>`;
+  // corte de la distancia (≈ 170 km comprimidos)
+  const a = W(BREAK_E - 5, -515, 1.5), b = W(BREAK_E + 5, -515, 1.5);
+  g += line([v3.add(a, [-2, 5]), v3.add(a, [2, -5])], "pu-break") + line([v3.add(b, [-2, 5]), v3.add(b, [2, -5])], "pu-break");
+  // llegada (extremo del corredor): brida
+  g += cylA([DUCT[0][0] - 1.5, -515, 1.5], [1, 0, 0], 2.4, 3.2, 3.2, "pu-flange");
+  // estación terminal sobre la tubería: orificio (brida con placa) y válvula con volante
+  g += cylA([STATION_E + 9, -515, 1.5], [1, 0, 0], 1.6, 3.8, 3.8, "pu-flange") + cylA([STATION_E + 11, -515, 1.5], [1, 0, 0], 1.6, 3.8, 3.8, "pu-flange");
+  g += cylA([STATION_E - 4.5, -515, 1.5], [1, 0, 0], 4.5, 3.2, 1.2, "pu-valve") + cylA([STATION_E, -515, 1.5], [1, 0, 0], 4.5, 1.2, 3.2, "pu-valve");
+  g += cylA([STATION_E, -515, 2.5], [0, 0, 1], 6, 0.7, 0.7, "pu-stem") + cylA([STATION_E, -515, 8.5], [0, 0, 1], 1, 3.2, 3.2, "pu-wheel2");
+  // turbulencia en el orificio (la energía se pierde ahí)
+  for (let j = 0; j < 4; j++) { const ph = mod(fl * 1.7 + j / 4, 1); g += circ(W(STATION_E + 10 - ph * 8, -515, 4 + Math.sin(j * 2.1) * 2 + ph * 3), 0.6 + ph, "pu-turb", (1 - ph) * 0.8); }
+  return g;
+}
+
+// descarga por el cono de cada espesador hacia las bombas (enterrada: línea punteada, bajo la nave de filtros)
+function underSvg(fl, m) {
+  const col = pulpFill(m.uf);
+  let g = "";
+  for (const p of [UNDER_S, UNDER_B]) g += `<path class="pu-under" d="${D(p.map(P3), false, f2)}"/><path class="pu-flow pu-flow--under" d="${D(p.map(P3), false, f2)}" style="stroke:${col};stroke-dashoffset:${f2(-fl * 5)}"/>`;
+  for (const T of [UNDER_S[0], UNDER_B[0]]) g += circ(P3(T), 2.2, "pu-cone");
+  return g;
+}
+
 // ---------------------------------------------------------------- espesadores
 function thickSvg(T, rot, fl, big) {
   let g = poly(ring(T, T.R - 2.2, -1.2), "pu-th-water");
@@ -223,19 +282,38 @@ function hallSvg(b) {
   g += line([W(b.e0, b.n0, H), W(b.e0, b.n1, H), W(b.e1, b.n1, H)], "pu-cutline");
   return g;
 }
-function pressSvg(pr, fl, h) {
-  const P = PRESS, wet = clamp((h - H_MIN) / (H_MAX - H_MIN));
+function agitTankSvg(fl, uf) {
+  let g = cylA([FEEDTANK[0], FEEDTANK[1], 0], [0, 0, 1], 13, 6, 6, "pu-tank");
+  const c = W(FEEDTANK[0], FEEDTANK[1], 13), r = 4.4, a = fl * 3;
+  g += `<ellipse class="pu-slurry" cx="${f2(c[0])}" cy="${f2(c[1])}" rx="6.2" ry="3.4" style="fill:${pulpFill(uf)}"/>`;
+  for (let k = 0; k < 2; k++) { const aa = a + (k * Math.PI) / 2; g += line([[c[0] + Math.cos(aa) * r * 0.87, c[1] + Math.sin(aa) * r * 0.5], [c[0] - Math.cos(aa) * r * 0.87, c[1] - Math.sin(aa) * r * 0.5]], "pu-stir"); }
+  return g;
+}
+// bombas de alimentación (centrífugas): motor, voluta y succión
+function feedPumpSvg([e, n], fl, on) {
+  let g = boxSvg(e - 4.4, e + 3.8, n - 3, n + 3, 0, 1.2, "pu-pumpbase");
+  g += boxSvg(e - 4, e - 0.6, n - 2.2, n + 2.2, 1.2, 5.4, "pu-feedpump");                            // motor
+  g += cylA([e - 0.4, n, 3.2], [1, 0, 0], 2.2, 2.6, 2.6, "pu-volute");                               // voluta
+  const c = P3([e + 1.8, n, 3.2]), a = on ? fl * 12 : 0;
+  g += line([[c[0] - Math.cos(a) * 1.5, c[1] - Math.sin(a) * 1.5], [c[0] + Math.cos(a) * 1.5, c[1] + Math.sin(a) * 1.5]], "pu-impeller");
+  return g;
+}
+function pressSvg(pr, fl, m) {
+  const P = PRESS, wet = clamp((m.h - H_MIN) / (H_MAX - H_MIN));
+  const pf = pulpFill(m.uf);
   let g = "";
-  // estanque de alimentación agitado
-  g += cylA([FEEDTANK[0], FEEDTANK[1], 0], [0, 0, 1], 13, 6, 6, "pu-tank");
-  { const c = W(FEEDTANK[0], FEEDTANK[1], 13), r = 4.4, a = fl * 3; g += line([[c[0] + Math.cos(a) * r * 0.87, c[1] + Math.sin(a) * r * 0.5], [c[0] - Math.cos(a) * r * 0.87, c[1] - Math.sin(a) * r * 0.5]], "pu-stir"); }
-  g += pipeSvg([[FEEDTANK[0], FEEDTANK[1] - 4, 3], [FEEDTANK[0] - 10, P.n0 - 4, 3], [P.e, P.n0 - 4, P.z0 + 4]], "pu-pipe--pulp");
-  // filtro prensa: patas, correa bajo el filtro (hacia −n) y transversal hacia el galpón, placas y queque
+  // llegada de la descarga de los espesadores, bombas de alimentación, estanque agitado y alimentación del filtro
+  g += pipeSvg(UNDER_IN, "pu-pipe--pulp") + flowSvg(UNDER_IN, "pu-flow--pulp", -fl * 7);
+  g += pipeSvg(PUMP_TANK, "pu-pipe--pulp") + flowSvg(PUMP_TANK, "pu-flow--pulp", -fl * 8);
+  for (const p of FEEDPUMPS) g += feedPumpSvg(p, fl, true);
+  g += agitTankSvg(fl, m.uf);
+  g += pipeSvg(TANK_PRESS, "pu-pipe--pulp") + flowSvg(TANK_PRESS, "pu-flow--pulp", -fl * 8);
+  // filtro prensa (compartido): patas, correa bajo el filtro y transversal hacia el galpón, placas y queque
   const bz = 2.4;
   const plateCol = rgb(PULP.map((v, i) => lerp(v, CONC[i], 1 - wet * 0.3)));
   const cbelt = beam([P.e, P.n1 + 2, bz], [P.e, P.n0 - 12, bz], 4.4, 1.2, "pu-cbelt") + beam([P.e - 2, P.n0 - 12, bz], [B46.e1 + 2, P.n0 - 12, bz], 4.4, 1.2, "pu-cbelt")
     + flowSvg([[P.e, P.n1, bz + 0.7], [P.e, P.n0 - 12, bz + 0.7], [B46.e1 + 2, P.n0 - 12, bz + 0.7]], "pu-flow--cake", -fl * 8);
-  g += filterPressSvg({ W, P, pr, fl, cls: "pu", fill: plateCol, cakeZ: bz + 1, under: cbelt });
+  g += filterPressSvg({ W, P, pr, fl, cls: "pu", fill: plateCol || pf, cakeZ: bz + 1, under: cbelt });
   return g;
 }
 function pileSvg(b, ld, fl) {
@@ -311,71 +389,17 @@ function loaderSvg(L, chuteZ, pour, fl, rateK) {
   return g;
 }
 
-// ---------------------------------------------------------------- detalle A: filtro prensa en corte (2D)
-function detailA(box, s, m, fl) {
-  const [bx, by, bw, bh] = box, pr = s.press, x0 = bx + 26, x1 = bx + bw - 36, top = by + 40, bot = by + 92, N = 9;
-  const wet = clamp((m.h - H_MIN) / (H_MAX - H_MIN));
-  let g = `<rect class="pu-a-frame" x="${f1(x0 - 8)}" y="${f1(top - 7)}" width="${f1(x1 - x0 + 16)}" height="4" rx="1"/>`;
-  g += `<rect class="pu-a-head" x="${f1(x0 - 12)}" y="${f1(top - 4)}" width="6" height="${f1(bot - top + 8)}" rx="1"/><rect class="pu-a-head" x="${f1(x1 + 6)}" y="${f1(top - 4)}" width="6" height="${f1(bot - top + 8)}" rx="1"/>`;
-  const gap = (x1 - x0) / N, sq = pr.squeeze, open = pr.open;
-  for (let k = 0; k < N; k++) {
-    let xa = x0 + k * gap, w = gap - 2.2;
-    if (open >= 0) { const j = open * N; if (k < j) { xa -= Math.min(1, j - k) * 0; } }
-    const cx = xa + w / 2, ch = bot - top;
-    // cámara (entre placas)
-    const fillH = pr.ph === "descarga" ? 0 : ch * pr.fill;
-    g += `<rect class="pu-a-chamber" x="${f1(xa + 1)}" y="${f1(top)}" width="${f1(w - 2 + sq * 0.6)}" height="${f1(ch)}"/>`;
-    if (fillH > 0.5) g += `<rect class="pu-a-pulp" x="${f1(xa + 1)}" y="${f1(bot - fillH)}" width="${f1(w - 2)}" height="${f1(fillH)}" style="fill:${rgb(PULP.map((v, i) => lerp(v, CONC[i], pr.ph === "soplado" ? 0.6 + 0.4 * (1 - wet) : sq * 0.6)))}"/>`;
-    g += `<rect class="pu-a-plate" x="${f1(xa + w - 1)}" y="${f1(top - 3)}" width="3" height="${f1(ch + 6)}" rx="0.6"/><path class="pu-a-cloth" d="M${f1(xa + w - 1.4)} ${f1(top)}V${f1(bot)}M${f1(xa + 1)} ${f1(top)}V${f1(bot)}"/>`;
-    // queque que cae al abrir
-    if (open >= 0) { const j = open * N, d = j - k; if (d > 0 && d < 1) g += `<rect class="pu-a-cake" x="${f1(xa + 1.5)}" y="${f1(lerp(top + 2, bot + 18, smooth(d)))}" width="${f1(w - 3)}" height="${f1(ch * 0.8)}" rx="1.5"/>`; }
-    if (pr.air && k % 2 === 0) for (let i = 0; i < 3; i++) { const ph = mod(fl * 1.2 + i / 3 + k * 0.17, 1); g += circ([cx + Math.sin(ph * 9 + k) * 1.5, lerp(top + 4, bot - 4, ph)], 0.9, "pu-a-air", 1 - ph); }
-    if (pr.ph === "prensado" || pr.ph === "llenado") { const ph = mod(fl * 1.5 + k * 0.23, 1); g += circ([xa + w - 0.5, lerp(bot, bot + 10, ph)], 0.7, "pu-a-drop", 1 - ph); }
-  }
-  // alimentación, colector de agua y correa del queque
-  g += `<path class="pu-a-feed" d="M${f1(bx + 4)} ${f1((top + bot) / 2)}H${f1(x0 - 12)}"/>`;
-  g += `<path class="pu-a-water" d="M${f1(x0)} ${f1(bot + 9)}H${f1(x1)}M${f1(x1)} ${f1(bot + 9)}H${f1(bx + bw - 4)}"/>`;
-  g += `<rect class="pu-a-belt" x="${f1(x0 - 4)}" y="${f1(bot + 20)}" width="${f1(x1 - x0 + 8)}" height="3" rx="1.5"/>`;
-  for (let j = 0; j < 7; j++) { const ph = mod(fl * 0.2 + j / 7, 1); g += `<rect class="pu-a-cake" x="${f1(lerp(x0, x1, ph))}" y="${f1(bot + 17)}" width="6" height="3" rx="1"/>`; }
-  const phName = { llenado: "1 · llenado", prensado: "2 · prensado", soplado: "3 · soplado de aire", descarga: "4 · descarga del queque", cierre: "cierre" }[pr.ph];
-  g += `<text class="pu-a-phase" x="${f1(bx + bw / 2)}" y="${f1(by + 26)}" text-anchor="middle">${phName}</text>`;
-  return { svg: g, pts: { feed: [bx + 6, (top + bot) / 2], plate: [x0 + gap * 3 + gap - 0.5, top - 2], water: [x1 + 10, bot + 9], belt: [x0 + 10, bot + 21], cake: [x0 + gap * 6, bot - 6] } };
-}
-// ---------------------------------------------------------------- detalle B: cargador y bodega en corte (2D)
-function detailB(box, s, m, fl) {
-  const [bx, by, bw, bh] = box, sh = s.ship, hold = sh.to, lv = sh.lv[hold];
-  const hx = bx + bw * 0.62, wl = by + bh - 34 + s.ship.load * 4, deck = by + 74, keel = by + bh - 16, half = 44;
-  let g = `<rect class="pu-b-sea" x="${f1(bx + 1)}" y="${f1(wl)}" width="${f1(bw - 2)}" height="${f1(by + bh - wl - 1)}"/>`;
-  // casco en corte (U) y bodega
-  g += `<path class="pu-b-hull" d="M${f1(hx - half)} ${f1(deck)}V${f1(keel - 8)}Q${f1(hx - half)} ${f1(keel)} ${f1(hx - half + 8)} ${f1(keel)}H${f1(hx + half - 8)}Q${f1(hx + half)} ${f1(keel)} ${f1(hx + half)} ${f1(keel - 8)}V${f1(deck)}"/>`;
-  g += `<path class="pu-b-hold" d="M${f1(hx - half + 6)} ${f1(deck)}V${f1(keel - 10)}Q${f1(hx - half + 6)} ${f1(keel - 5)} ${f1(hx - half + 11)} ${f1(keel - 5)}H${f1(hx + half - 11)}Q${f1(hx + half - 6)} ${f1(keel - 5)} ${f1(hx + half - 6)} ${f1(keel - 10)}V${f1(deck)}Z"/>`;
-  // pila en la bodega
-  const ph = (keel - 5 - deck) * lv * 0.95, rb = 8 + lv * 34, apx = hx + Math.sin(sh.trim * TAU) * 3 * (sh.pour ? 1 : 0);
-  if (lv > 0.01) g += `<path class="pu-b-pile" d="M${f1(Math.max(hx - half + 6, apx - rb))} ${f1(keel - 5)}L${f1(apx)} ${f1(keel - 5 - ph)}L${f1(Math.min(hx + half - 6, apx + rb))} ${f1(keel - 5)}Z"/>`;
-  g += `<path class="pu-b-coam" d="M${f1(hx - 14)} ${f1(deck)}V${f1(deck - 5)}M${f1(hx + 14)} ${f1(deck)}V${f1(deck - 5)}"/>`;
-  // muelle, pedestal, brazo y chute telescópico
-  const qx = bx + 22, boomY = by + 30;
-  g += `<rect class="pu-b-quay" x="${f1(bx + 1)}" y="${f1(wl - 10)}" width="${f1(hx - half - bx - 14)}" height="10"/>`;
-  g += `<rect class="pu-b-ped" x="${f1(qx - 4)}" y="${f1(boomY + 6)}" width="8" height="${f1(wl - 10 - boomY - 6)}"/>`;
-  g += `<path class="pu-b-boom" d="M${f1(qx - 14)} ${f1(boomY + 10)}L${f1(apx + 3)} ${f1(boomY - 2)}"/>`;
-  g += `<path class="pu-b-belt" d="M${f1(qx)} ${f1(boomY + 4)}L${f1(apx)} ${f1(boomY - 4)}" style="stroke-dashoffset:${f2(-fl * 12)}"/>`;
-  const cb = Math.min(keel - 8 - ph, deck + 10);
-  g += `<rect class="pu-b-chute" x="${f1(apx - 3)}" y="${f1(boomY)}" width="6" height="${f1(cb - boomY)}"/><rect class="pu-b-chute pu-b-chute--in" x="${f1(apx - 2)}" y="${f1(boomY + (cb - boomY) * 0.4)}" width="4" height="${f1((cb - boomY) * 0.6)}"/>`;
-  if (sh.pour && m.ok) for (let j = 0; j < 8; j++) { const p = mod(fl * 1.8 + j / 8, 1); g += circ([apx + (hash(j) - 0.5) * 3, lerp(cb, keel - 6 - ph, p)], 1, "pu-b-grain", 1 - p * 0.5); }
-  g += `<path class="pu-b-wl" d="M${f1(bx + 2)} ${f1(wl)}H${f1(bx + bw - 2)}"/>`;
-  return { svg: g, pts: { boom: [lerp(qx, apx, 0.5), lerp(boomY + 4, boomY - 4, 0.5)], chute: [apx + 3, (boomY + cb) / 2], pile: [apx + 6, keel - 8 - ph * 0.5], wl: [hx + half + 2, wl], ped: [qx, boomY + 30] } };
-}
-
 // ---------------------------------------------------------------- lámina
 export async function createPuerto() {
   const root = document.createElement("div");
   root.className = "pu-plate";
   root.style.cssText = `position:absolute;left:${VIEW[0]}px;top:${VIEW[1]}px;width:${VIEW[2]}px;height:${VIEW[3]}px`;
   const svg = el("svg", { viewBox: VIEW.join(" "), class: "pu-svg", role: "group", tabindex: "0",
-    "aria-label": "Puerto: el concentrado llega de los espesadores por el mineroducto, se filtra, se acopia en el galpón y una correa cubierta lo lleva al cargador, que llena las bodegas del barco. Espacio pausa; coma y punto cambian de paso; 1 a 5 eligen un equipo." }, root);
+    "aria-label": "Puerto: el concentraducto trae la pulpa, la estación terminal disipa la presión, los espesadores de recepción la vuelven a espesar, las bombas la llevan a los filtros, el queque se acopia y una correa lo lleva al cargador, que llena las bodegas del barco. Espacio pausa; coma y punto cambian de paso; 1 a 5 eligen un equipo." }, root);
   const defs = el("defs", {}, svg);
   const geo = await import("./puerto-geo.js").catch(() => ({ SIL: "" }));
-  el("path", { d: geo.SIL, class: "pu-sil" }, svg);
+  const silEl = el("path", { d: geo.SIL, class: "pu-sil" }, svg);
+  const printedAt = (x, y) => { const q = svg.createSVGPoint(); q.x = x; q.y = y; return silEl.isPointInFill(q); };
   async function loadDoc(file, pre) {
     const text = (await (await fetch(U(file))).text()).replace(/\bcls-(\d+)/g, `${pre}cls-$1`).replace(/(id="|url\(#)(clippath[-\d]*)/g, `$1${pre}$2`).replace(/\sid="(?!pu|[a-z]+-clippath)[^"]*"/g, (m0) => (m0.includes("clippath") ? m0 : ""));
     const doc = new DOMParser().parseFromString(text, "image/svg+xml").documentElement;
@@ -403,6 +427,7 @@ export async function createPuerto() {
   const wSmall = el("g", { class: "pu-thw" }, thSmall);
   const s2 = G("", REG.esp, thSmall); smK0.slice(1).forEach((n) => imp(n, s2)); imp(smK[1], s2);
 
+  const gUnder = el("g", { "data-eq": "espesadores" }, svg);
   // ---- cañerías y mineroducto (adelante de los espesadores)
   const gPipe = el("g", { "data-eq": "mineroducto" }, svg);
 
@@ -461,23 +486,26 @@ export async function createPuerto() {
   const topG = el("g", { class: "pu-top" }, svg);
   const lab = el("g", { class: "pu-labels" }, topG);
   const LB = (p, t, a = "start", cls = "pu-small") => { const e = el("text", { x: f1(p[0]), y: f1(p[1]), class: cls, "text-anchor": a }, lab); e.textContent = t; return e; };
-  LB(v3.add(W(-235, -515, 2), [0, 11]), "mineroducto ≈ 170 km", "middle");
-  LB(v3.add(W(PUMP.e0, PUMP.n0, 0), [-3, 6]), "bombas", "end");
-  LB(v3.add(W(-150, -521, 0), [-2, 8]), "estación terminal", "middle");
-  LB(v3.add(TP(TH.big, TH.big.R, -Math.PI * 0.25), [6, 6]), "rebalse: agua clara a reúso", "start");
-  LB([4897, 622], "torre de transferencia · muestreo", "start");
+  const kmTag = LB([4368, 759], "concentraducto ≈ 170 km", "middle");
+  LB([4308, 724], "estación terminal", "middle");
+  LB([4340, 704], "rebalse: agua clara a tratamiento", "middle");
+  LB([4932, 616], "torre de transferencia · muestreo", "middle");
   const tmlTag = LB([0, 0], "", "middle", "pu-warn");
+  const viscTag = LB([4300, 606], "", "middle", "pu-warn");
+  // enlace a quien impulsa el concentraducto: las bombas de pistón de la planta (Flotación, Ruta A)
+  const src = el("g", { class: "pu-link", role: "link", tabindex: "0", "aria-label": "Desde la planta: bombas de pistón de Flotación (abrir la estación)", transform: "translate(4420 766)" }, topG);
+  el("rect", { x: -36, y: -6, width: 72, height: 12, rx: 6, class: "pu-link-pill" }, src);
+  el("text", { x: 0, y: 2.4, class: "pu-link-text", "text-anchor": "middle" }, src).textContent = "← bombas de la planta";
+  const goPlant = (e) => { e.stopPropagation(); dispatchEvent(new CustomEvent("pm:goto", { detail: "celdas-flotacion" })); };
+  src.addEventListener("click", goPlant); src.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goPlant(e); } });
   const tourG = el("g", { class: "pu-tour" }, topG);
   const tourRing = el("circle", { r: 5, class: "pu-tour-ring" }, tourG), tourDot = el("circle", { r: 1.9, class: "pu-tour-dot" }, tourG);
   const tourPulse = el("circle", { r: 8, class: "pu-tour-pulse" }, topG);
-  const CAL = { A: [4342, 425, 250, 150], B: [4612, 425, 250, 150] };
-  const calG = el("g", { class: "pu-callouts" }, topG), cardG = el("g", { class: "pu-callout" }, calG);
-  CAL.lead = el("path", { class: "pu-lead" }, cardG); CAL.leadDot = el("circle", { r: 2.2, class: "pu-lead-dot" }, cardG);
-  CAL.rect = el("rect", { rx: 7, class: "pu-card" }, cardG);
-  const cclipR = el("rect", { rx: 6 }, el("clipPath", { id: "pu-cal" }, defs));
-  CAL.body = el("g", { "clip-path": "url(#pu-cal)" }, cardG); CAL.title = el("text", { class: "pu-cal-title" }, cardG); CAL.labels = el("g", {}, cardG); CAL.g = cardG;
+  // zoom sobre el dibujo: llamadas ancladas al dibujo ampliado
+  const zoomG = el("g", { class: "pu-zoom", "aria-hidden": "true" }, svg);
   const tagsG = el("g", { class: "pu-tags" }, topG);
-  const TAGS = { espesadores: ["Espesadores", TP(TH.big, 0, 0, 14)], mineroducto: ["Mineroducto", W(-235, -515, 8)], filtros: ["Planta de filtros", W((B46.e0 + B46.e1) / 2, (B46.n0 + B46.n1) / 2, B46.H + 16)], galpon: ["Galpón de acopio", W((B54.e0 + B54.e1) / 2, (B54.n0 + B54.n1) / 2, B54.H + 6)], embarque: ["Cargador de barcos", null] };
+  // píldoras dentro de lo impreso (?qa=silueta)
+  const TAGS = { espesadores: ["Espesadores de recepción", TP(TH.big, 0, 0, 14)], mineroducto: ["Concentraducto", [4336, 754]],  filtros: ["Planta de filtros", [4461, 677]], galpon: ["Galpón de acopio", [4541, 747]], embarque: ["Cargador de barcos", null] };
   const tagEls = {};
   for (const [id, [label]] of Object.entries(TAGS)) {
     const g = el("g", { class: "pu-tag" }, tagsG);
@@ -485,44 +513,123 @@ export async function createPuerto() {
     const ww = label.length * 3.7 + 12; el("rect", { x: -ww / 2, y: -23, width: ww, height: 11, rx: 5.5, class: "pu-tag-pill" }, g);
     el("text", { x: 0, y: -15.6, class: "pu-tag-text", "text-anchor": "middle" }, g).textContent = label; tagEls[id] = g;
   }
-  const units = [[gEsp, "espesadores"], [gPipe, "mineroducto"], [gShipW, "embarque"], [gLoader, "embarque"], ...[...gPort.children].map((c) => [c, c.dataset.eq ?? ""])];
+  const units = [[gEsp, "espesadores"], [gUnder, "espesadores"], [gShipW, "embarque"], [gLoader, "embarque"], ...[...gPort.children].map((c) => [c, c === gPipe ? "mineroducto" : c.dataset.eq ?? ""])];
+  // ?qa=silueta: en rojo todo lo vivo que se pinte fuera de lo impreso (silueta de la lámina)
+  const QA = typeof location !== "undefined" && new URLSearchParams(location.search).get("qa") === "silueta";
+  if (QA) {
+    const liveEls = [wBig, wSmall, gUnder, gPipe, B46g.int, B54g.int, B46g.roof, B54g.roof, L.belt, L.trestle, gShipW, gLoader, gFx, topG, zoomG];
+    liveEls.forEach((n, i) => (n.id = `pu-qa-${i}`));
+    const mask = el("mask", { id: "pu-qa-out", maskUnits: "userSpaceOnUse", x: 3000, y: 0, width: 3000, height: 2000 }, defs);
+    el("rect", { x: 3000, y: 0, width: 3000, height: 2000, fill: "#fff" }, mask); el("path", { d: geo.SIL, fill: "#000" }, mask);
+    const red = el("filter", { id: "pu-qa-red", x: "-5%", y: "-5%", width: "110%", height: "110%" }, defs);
+    el("feFlood", { "flood-color": "#ff0033", result: "c" }, red); el("feComposite", { in: "c", in2: "SourceAlpha", operator: "in" }, red);
+    const qa = el("g", { class: "pu-qa", "pointer-events": "none" }, svg);
+    const out = el("g", { mask: "url(#pu-qa-out)", filter: "url(#pu-qa-red)" }, qa);
+    liveEls.forEach((n) => { el("use", { href: `#${n.id}` }, out).dataset.src = n.id; });
+    el("path", { d: geo.SIL, fill: "none", stroke: "#00b7ff", "stroke-width": 1.2, "vector-effect": "non-scaling-stroke" }, qa);
+    root.__qaFix = () => out.querySelectorAll("use").forEach((u) => { const n = svg.querySelector(`#${u.dataset.src}`); const a = n?.parentNode?.getCTM?.(), b = svg.getCTM(); if (a && b) { const m = b.inverse().multiply(a); u.setAttribute("transform", `matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`); } });
+  }
 
   // ------------------------------------------------------------ estado
   const still = matchMedia("(prefers-reduced-motion: reduce)");
-  const ST = { t: 0, flow: 0, h: 8.5, plant: 0, belt: 0, ship: 0.3 };
-  const shown = { plant: 0, belt: 0 };
-  let selected = null, playing = !still.matches, active = false, raf = 0, last = 0, sliderDetail = null;
-  if (still.matches) ST.t = STEPS[2].t0 + 6;
-  function step(dt) { ST.flow += dt; ST.t = (ST.t + dt) % PERIOD; const m = model(ST.h); if (m.ok) ST.ship = (ST.ship + (dt * m.rate) / 1575 / (3 * PERIOD)) % 1; }
-  const live = () => { const m = model(ST.h); return { t: ST.t, m, step: stepAt(ST.t), press: pressAt(ST.t), fel: loaderAt(ST.t), ship: shipAt(ST.ship) }; };
-  const detailNow = () => (selected ? (selected === "filtros" || selected === "galpon" ? "A" : selected === "embarque" ? "B" : null) : sliderDetail);
+  const ST = { t: 0, flow: 0, h: 8.5, uf: shared.uf ?? UF_NOM, seenUf: shared.uf, plant: 0, belt: 0, ship: 0.3, press: 0, loader: 0 };
+  const shown = { plant: 0, galpon: 0, belt: 0, plantS: 0, beltS: 0 };
+  let selected = null, playing = !still.matches, active = false, raf = 0, last = 0, lastLit = null;
+  if (still.matches) ST.t = STEPS[3].ta + 2;
+  const curModel = () => model(ST.h, ST.uf);
+  function step(dt) {
+    ST.flow += dt; ST.t = (ST.t + dt) % PERIOD; const m = curModel();
+    ST.press += dt / m.cycle; ST.loader += dt;
+    if (m.ok) ST.ship = (ST.ship + (dt * m.rate) / 1575 / (3 * 53)) % 1;
+  }
+  const live = () => {
+    const m = curModel(), q = state(ST.t);
+    // en los pasos 4 y 5 el filtro y el cargador siguen la secuencia; fuera de ellos, sus propios relojes
+    const press = q.step.n === 4 ? pressPhase(q.stage === "press" ? q.u * (PRESS_CYCLE - 0.01) : q.phase === "arrive" ? 0 : PRESS_CYCLE - 0.3) : pressPhase(ST.press);
+    const fel = loaderAt(q.step.n === 5 ? (q.stage === "loader" ? q.u * 9.3 : 0) : ST.loader);
+    return { t: ST.t, m, step: q.step, seq: q, press, fel, ship: shipAt(ST.ship) };
+  };
+  // cuánto está abierta cada cosa: deslizadores («Interior planta» abre las dos naves), selección y secuencia
+  const targets = () => {
+    const q = state(ST.t), sel = (k) => (selected === k ? 1 : 0);
+    return { plant: Math.max(ST.plant, sel("filtros"), selected ? 0 : q.open.plant), galpon: Math.max(ST.plant, sel("galpon"), selected ? 0 : q.open.galpon), belt: Math.max(ST.belt, selected ? 0 : q.open.belt), plantS: ST.plant, beltS: ST.belt };
+  };
   let loaderNow = null;
+
+  // ---- zoom sobre el dibujo (deslizadores): naves (A) y galería de la correa (B)
+  const ZR = { A: [4372, 632, 262, 214], B: [4640, 430, 480, 330] };
+  let zoomMode = "viewBox", onZoom = null, zoomKey = null, lastZoom = "", vb = VIEW.slice();
+  const mixRect = (a, b, u) => { const w = Math.exp(lerp(Math.log(a[2]), Math.log(b[2]), u)), h = Math.exp(lerp(Math.log(a[3]), Math.log(b[3]), u));
+    return [lerp(a[0] + a[2] / 2, b[0] + b[2] / 2, u) - w / 2, lerp(a[1] + a[3] / 2, b[1] + b[3] / 2, u) - h / 2, w, h]; };
+  const fitAspect = ([x, y, w, h]) => { const a = VIEW[2] / VIEW[3]; return w / h > a ? [x, y - (w / a - h) / 2, w, w / a] : [x - (h * a - w) / 2, y, h * a, h]; };
+  function applyZoom() {
+    const z = zoomKey === "A" ? shown.plantS : zoomKey === "B" ? shown.beltS : 0, sig = `${zoomKey}|${z.toFixed(4)}`;
+    if (sig === lastZoom) return z;
+    lastZoom = sig;
+    if (zoomMode === "camera") onZoom?.(z > 0.001 ? mixRect(VIEW, ZR[zoomKey], z) : null, z);
+    else { vb = z > 0.001 ? mixRect(VIEW, fitAspect(ZR[zoomKey]), z) : VIEW.slice(); svg.setAttribute("viewBox", vb.map((v) => v.toFixed(2)).join(" ")); svg.style.overflow = z > 0.001 ? "hidden" : ""; }
+    return z;
+  }
+  function viewNow() {
+    if (zoomMode === "camera") { const m = svg.getScreenCTM(); if (m && m.a) return { r: [-m.e / m.a, -m.f / m.d, innerWidth / m.a, innerHeight / m.d], u: 1 / m.a }; }
+    const v = svg.viewBox.baseVal, r = v && v.width ? [v.x, v.y, v.width, v.height] : vb, w = svg.getBoundingClientRect().width;
+    return { r, u: w > 1 ? r[2] / w : 1 };
+  }
+  // llamadas: [lado, punto, texto]; cada texto se corre hacia su ancla hasta quedar entero sobre lo impreso
+  function callouts(list, cols, op) {
+    const o = op.toFixed(3); if (zoomG.style.opacity !== o) zoomG.style.opacity = o;
+    if (op <= 0.001 || !list.length) { setHTML(zoomG, ""); return; }
+    const { r: vr, u } = viewNow(), fs = 11.5 * u, out = [], along = Array.from({ length: 9 }, (_, k) => k / 8);
+    for (const side of [0, 1]) {
+      const col = list.filter((l) => l[0] === side).sort((a, b) => a[1][1] - b[1][1]);
+      const tw = Math.max(0, ...col.map((l) => l[2].length)) * 6.3 * u + 6 * u;
+      const x = side ? Math.min(cols[1], vr[0] + vr[2] - tw) : Math.max(cols[0], vr[0] + tw);
+      let y = vr[1] + fs * 0.4;
+      for (const [, pt, text] of col) {
+        y = Math.min(Math.max(pt[1] + fs * 0.35, y + fs * 1.6), vr[1] + vr[3] - fs * 0.6);
+        const w = text.length * 5.8 * u + 4 * u, dir = side ? -1 : 1;
+        let tx = x;
+        for (let i = 0; i < 90; i++) { if (along.every((k) => { const q = tx - dir * w * k; return printedAt(q, y - fs * 0.8) && printedAt(q, y + fs * 0.2); })) break; tx += dir * 2 * u; }
+        const ex = side ? tx - 3 * u : tx + 3 * u;
+        out.push(`<path class="pu-zl-lead" stroke-width="${f2(u)}" d="M${f2(pt[0])} ${f2(pt[1])}L${f2(ex)} ${f2(y - fs * 0.35)}"/>`, `<circle class="pu-zl-dot" cx="${f2(pt[0])}" cy="${f2(pt[1])}" r="${f2(2.4 * u)}"/>`,
+          `<text class="pu-zl-text" x="${f2(tx)}" y="${f2(y)}" font-size="${f2(fs)}" stroke-width="${f2(3 * u)}" text-anchor="${side ? "start" : "end"}">${text}</text>`);
+      }
+    }
+    setHTML(zoomG, out.join(""));
+  }
+  const PHASE = { llenado: "llenado", prensado: "prensado", soplado: "soplado", descarga: "descarga", cierre: "cierre" };
+  function drawCallouts(s, z) {
+    const op = (v) => smooth((v - 0.55) / 0.35);
+    if ((zoomKey === "A" && z > 0.001 && !selected) || selected === "filtros") {
+      const o = selected ? smooth((shown.plant - 0.5) / 0.4) : op(z);
+      callouts([[1, W(-170, -388, 5), "Bombas de alimentación"], [1, W(PRESS.e, -420, PRESS.z1), `Filtro prensa · ${PHASE[s.press.ph]}`],
+        [0, W(FEEDTANK[0], FEEDTANK[1], 13), "Estanque agitado"], [0, W(PRESS.e + 5, -450, 2), "Agua filtrada"], [0, W(-135, PRESS.n0 - 12, 3), "Queque → galpón"]], [4400, 4505], o);
+    } else if (selected === "galpon") {
+      callouts([[0, W(-45, PILE.n, PILE.h), "Pila de queque"], [1, W(s.fel.e + 2, HOPPER.n - 4, 6), "Cargador frontal"], [1, W(HOPPER.e, HOPPER.n, 11), "Tolva"]], [4500, 4560], smooth((shown.galpon - 0.5) / 0.4));
+    } else if (zoomKey === "B" && z > 0.001 && !selected && loaderNow) {
+      callouts([[0, W(0, -190, 2), "Correa cubierta"], [0, W(0, TOWER_N, 6), "Torre de muestreo"], [1, P3(loaderNow.head), "Brazo y chute telescópico"], [1, W(...hatchGeo(2.6 * s.ship.load)[s.ship.to].slice(0, 2), ZH - 4), `Bodega ${s.ship.to + 1}`]], [4780, 4900], op(z));
+    } else { setHTML(zoomG, ""); if (zoomG.style.opacity !== "0") zoomG.style.opacity = "0"; }
+  }
 
   function draw() {
     const s = live(), m = s.m, fl = ST.flow, sh = s.ship;
     // ---- espesadores
     setHTML(wBig, thickSvg(TH.big, fl * 0.25, fl, true) + launderFlow(TH.big, fl));
     setHTML(wSmall, thickSvg(TH.small, -fl * 0.35, fl, false));
-    // ---- cañerías: descarga de los espesadores, bombas, mineroducto con corte, estación terminal
-    {
-      let g = pipeSvg(PIPE_S, "pu-pipe--pulp") + pipeSvg(PIPE_B, "pu-pipe--pulp") + pipeSvg(MINERO, "pu-pipe--minero");
-      g += flowSvg(PIPE_S, "pu-flow--pulp", -fl * 7) + flowSvg(PIPE_B, "pu-flow--pulp", -fl * 7) + flowSvg(MINERO, "pu-flow--pulp", -fl * 9);
-      g += boxSvg(PUMP.e0, PUMP.e1, PUMP.n0, PUMP.n1, 0, 8, "pu-pump");
-      for (let k = 0; k < 3; k++) g += cylA([PUMP.e0 + 4 + k * 6, PUMP.n0 - 3, 0], [0, 1, 0], 3, 1.6, 1.6, "pu-pumpcyl");
-      g += boxSvg(-156, -144, -521, -509, 0, 6, "pu-pump pu-pump--term");
-      const a = W(BREAK_E - 5, -515, 1.5), b = W(BREAK_E + 5, -515, 1.5);
-      g += line([v3.add(a, [-2, 5]), v3.add(a, [2, -5])], "pu-break") + line([v3.add(b, [-2, 5]), v3.add(b, [2, -5])], "pu-break");
-      setHTML(gPipe, g);
-    }
+    // ---- concentraducto, estación terminal, alimentación y descargas
+    setHTML(gPipe, ductSvg(fl, m));
+    setHTML(gUnder, underSvg(fl, m));
+    viscTag.textContent = m.viscous ? "pulpa muy viscosa" : "";
     // ---- naves: muros recortados a la altura del corte, techos que suben y se desvanecen
-    for (const [b, gg, sv] of [[B46, B46g, shown.plant], [B54, B54g, shown.plant]]) {
+    for (const [b, gg, sv] of [[B46, B46g, shown.plant], [B54, B54g, shown.galpon]]) {
       const zc = lerp(b.H + (b.ridge || 0) + 6, 7, smooth(sv));
       gg.cp.setAttribute("d", D(cutPoly(b, -6, zc).map((p) => toL(REG.port, p)), true, f2));
       gg.roof.setAttribute("transform", `translate(${REG.port[0]} ${f2(REG.port[1] - 34 * smooth(sv))}) scale(${S})`);
       gg.roof.style.opacity = f2(1 - smooth(sv * 1.6));
       gg.int.style.display = sv > 0.01 ? "" : "none";
     }
-    if (shown.plant > 0.01) { setHTML(in46, pressSvg(s.press, fl, m.h) + pipeSvg(MINERO_IN, "pu-pipe--minero") + flowSvg(MINERO_IN, "pu-flow--pulp", -fl * 9)); setHTML(in54, pileSvg(B54, s.fel, fl)); }
+    if (shown.plant > 0.01) setHTML(in46, pressSvg(s.press, fl, m));
+    if (shown.galpon > 0.01) setHTML(in54, pileSvg(B54, s.fel, fl));
     // ---- correa: galería (cubierta que se levanta), caballete abierto
     {
       const bz = 0.4, ok = m.ok ? 1 : 0.25, off = -fl * 12 * (m.rate / 1575);
@@ -556,60 +663,50 @@ export async function createPuerto() {
         for (let j = 0; j < 3; j++) { const p = mod(fl * 0.5 + j / 3, 1); fx += circ(W(tgt[0] + 2, c[1] - 6, ZH + 1 + p * 5), 1.2 + p * 2, "pu-dust", (1 - p) * 0.35); } }
       setHTML(gFx, fx);
       tmlTag.textContent = m.ok ? "" : `Humedad ${fdec(m.h, 1)} % > TML ${TML} %: embarque detenido`;
-      const tp = W(LOADER.e + 6, LOADER.n + 30, LOADER.head + 18); tmlTag.setAttribute("x", f1(tp[0])); tmlTag.setAttribute("y", f1(tp[1]));
+      tmlTag.setAttribute("x", 5001); tmlTag.setAttribute("y", 528);
     }
     lab.style.opacity = 1;
-    // ---- detalles
-    const det = detailNow();
-    CAL.g.style.display = det ? "" : "none";
-    if (det) {
-      const box = CAL[det], [bx, by, bw, bh] = box;
-      CAL.rect.setAttribute("x", bx); CAL.rect.setAttribute("y", by); CAL.rect.setAttribute("width", bw); CAL.rect.setAttribute("height", bh);
-      cclipR.setAttribute("x", bx + 0.6); cclipR.setAttribute("y", by + 13); cclipR.setAttribute("width", bw - 1.2); cclipR.setAttribute("height", bh - 13.6);
-      CAL.title.setAttribute("x", bx + 8); CAL.title.setAttribute("y", by + 9.5);
-      const at = det === "A" ? W(PRESS.e, (PRESS.n0 + PRESS.n1) / 2, PRESS.z1) : P3(loaderNow.head);
-      CAL.leadDot.setAttribute("cx", f1(at[0])); CAL.leadDot.setAttribute("cy", f1(at[1]));
-      const e0 = [bx + bw * 0.5, by + bh];
-      CAL.lead.setAttribute("d", `M${f1(e0[0])} ${f1(e0[1])}C${f1(e0[0])} ${f1(e0[1] + 40)} ${f1(at[0])} ${f1(at[1] - 50)} ${f1(at[0])} ${f1(at[1])}`);
-      const T1 = by + 22, B1 = by + bh - 5;
-      if (det === "A") { const r = detailA(box, s, m, fl); CAL.title.textContent = "Detalle · Filtro prensa en corte"; setHTML(CAL.body, r.svg);
-        setHTML(CAL.labels, lbl(r.pts.feed, [bx + 8, T1], `Pulpa ~${m.solids} % sólidos`, "start") + lbl(r.pts.plate, [bx + bw - 7, T1], "Placas con telas filtrantes", "end") +
-          lbl(r.pts.belt, [bx + 8, B1], `Queque ~${fdec(m.h, 1)} % humedad → galpón`, "start") + lbl(r.pts.water, [bx + bw - 7, B1], "Agua filtrada → tratamiento", "end")); }
-      else { const r = detailB(box, s, m, fl); CAL.title.textContent = "Detalle · Cargador y bodega en corte"; setHTML(CAL.body, r.svg);
-        setHTML(CAL.labels, lbl(r.pts.boom, [bx + 8, T1], `Correa del brazo · ${fdec(m.rate)} t/h`, "start") + lbl(r.pts.chute, [bx + bw - 7, T1], "Chute telescópico: carga sin polvo", "end") +
-          lbl(r.pts.ped, [bx + 8, B1], m.ok ? `Humedad ${fdec(m.h, 1)} % ≤ TML ${TML} %` : `Humedad sobre el TML: no se embarca`, "start") + lbl(r.pts.pile, [bx + bw - 7, B1], `Bodega ${sh.to + 1}: ${Math.round(sh.lv[sh.to] * 100)} %`, "end")); }
-    }
+    // zoom y llamadas
+    const z = applyZoom();
+    drawCallouts(s, z);
+    const tz = (1 - smooth(z * 2.5)).toFixed(3); if (tagsG.style.opacity !== tz) tagsG.style.opacity = tz;
+    const lz = ((1 - smooth(z * 2.5)) * (1 - smooth(shown.plant * 2))).toFixed(3); if (src.style.opacity !== lz) { src.style.opacity = kmTag.style.opacity = lz; src.style.pointerEvents = lz > 0.5 ? "" : "none"; }
     drawTour(s);
+    // foco del paso: se ilumina el equipo y el resto baja a ~35 % (si no hay un equipo elegido)
+    const lit = selected ? null : z > 0.3 ? null : s.seq.step.lit, litKey = lit ? lit.join() : "";
+    if (litKey !== lastLit) { lastLit = litKey; units.forEach(([u, eq]) => u.classList.toggle("pu-stepdim", !!lit && !lit.includes(eq))); }
     for (const id of ORDER) {
-      const on = selected === id; tagEls[id].toggleAttribute("data-on", on);
-      if (on) { const at = id === "embarque" ? P3(v3.add(loaderNow.root, [0, 0, 22])) : TAGS[id][1]; tagEls[id].setAttribute("transform", `translate(${f1(at[0])} ${f1(at[1])})`); }
+      const on = selected ? selected === id : !!lit && lit.includes(id); tagEls[id].toggleAttribute("data-on", on);
+      if (on && id === "embarque" && loaderNow) { const at = P3(v3.add(loaderNow.root, [0, 0, 22])); tagEls[id].setAttribute("transform", `translate(${f1(at[0])} ${f1(at[1])})`); }
+      else if (on) tagEls[id].setAttribute("transform", `translate(${f1(TAGS[id][1][0])} ${f1(TAGS[id][1][1])})`);
     }
+    root.__qaFix?.();
     listeners.forEach((fn) => fn(s, api));
   }
   function drawTour(s) {
-    const t = s.t; let tp = null, inside = null;
-    const along = (pts, u) => P3(polyline(pts).at(u * polyline(pts).len));
-    if (t < 2) inside = TP(TH.small, 0, 0, 0);
-    else if (t < 8) tp = along(PIPE_S, (t - 2) / 6);
-    else if (t < 15) { const all = [...MINERO, ...MINERO_IN.slice(1)]; tp = along(all, (t - 8) / 7); if (shown.plant < 0.5 && (t - 8) / 7 > 0.83) { tp = null; inside = W(-128, -470, 2); } }
-    else if (t < 21.2) { if (shown.plant > 0.5) tp = W(PRESS.e, lerp(PRESS.n0 + 6, PRESS.n1 - 6, (t - 15) / 6.2), (PRESS.z0 + PRESS.z1) / 2); else inside = W(PRESS.e, (PRESS.n0 + PRESS.n1) / 2, 10); }
-    else if (t < 25) { const pts = [[PRESS.e, PRESS.n0 + 4, 8], [PRESS.e, PRESS.n0 + 4, 3], [PRESS.e, PRESS.n0 - 12, 3], [B46.e1 + 2, PRESS.n0 - 12, 3]]; if (shown.plant > 0.5) tp = along(pts, (t - 21.2) / 3.8); else inside = W(B46.e1, PRESS.n0 - 12, 6); }
-    else if (t < 28) { if (shown.plant > 0.5) tp = W(PILE.e0 + 4, PILE.n, PILE.h + lerp(12, 0, (t - 25) / 3)); else inside = W(PILE.e0 + 10, PILE.n, 20); }
-    else if (t < 32.3) { const ld = s.fel; if (shown.plant > 0.5) tp = W(ld.e + 6.5, HOPPER.n - 4, 1.5 + ld.bucket * 9 + 3); else inside = W(ld.e, HOPPER.n, 20); }
-    else if (t < 35) { if (shown.plant > 0.5) tp = W(HOPPER.e, HOPPER.n, 10); else inside = W(HOPPER.e, HOPPER.n, 20); }
-    else if (t < 44) { const u = (t - 35) / 9, n = lerp(BELT.n0, BELT.n1 - 2, u); if (n > BELT.g0 && n < BELT.g1 && shown.belt < 0.5) { inside = W(0, n, 5); } else tp = W(0, n, 1.5); }
-    else if (t < 47.5) { const Lg = loaderNow; tp = P3(v3.lerp(Lg.root, Lg.head, (t - 44) / 3.5)); }
-    else { const c = hatchGeo(2.6 * s.ship.load)[s.ship.to]; if (t < 50) tp = W(c[0], c[1], lerp(LOADER.head - 2, ZH - 6, (t - 47.5) / 2.5)); else inside = W(c[0], c[1], ZH - 4); }
+    const q = s.seq, k = q.stage, u = q.u; let tp = null, inside = null;
+    const along = (pts, v) => P3(polyline(pts).at(v * polyline(pts).len));
+    const stationPt = [STATION_E, -515, 1.5];
+    if (k === "fast") tp = along([DUCT[0], stationPt], u);
+    else if (k === "drop") tp = W(STATION_E + 10 - 20 * smooth(u), -515, 1.5);
+    else if (k === "calm") tp = along([[STATION_E - 10, -515, 1.5], ...FEED_B.slice(0)], u);
+    else if (k === "settle") tp = TP(TH.big, TH.big.R * 0.5 * (1 - u), -Math.PI * 0.25 + u * 2, -2);
+    else if (k === "cone") tp = P3(UNDER_B[0]);
+    else if (k === "under") tp = along(UNDER_B, u);
+    else if (k === "pumps") { if (shown.plant > 0.5) tp = along(UNDER_IN, u); else inside = W(-170, -388, 8); }
+    else if (k === "tank") { if (shown.plant > 0.5) tp = along(PUMP_TANK, u); else inside = W(FEEDTANK[0], FEEDTANK[1], 14); }
+    else if (k === "feed") { if (shown.plant > 0.5) tp = along(TANK_PRESS, u); else inside = W(PRESS.e, -430, 10); }
+    else if (k === "press") { if (shown.plant > 0.5) tp = W(PRESS.e + 5, lerp(PRESS.n0 + 6, PRESS.n1 - 6, u), (PRESS.z0 + PRESS.z1) / 2); else inside = W(PRESS.e, -430, 10); }
+    else if (k === "pile") { if (shown.galpon > 0.5) tp = W(PILE.e0 + 4, PILE.n, PILE.h + lerp(12, 0, u)); else inside = W(PILE.e0 + 10, PILE.n, 20); }
+    else if (k === "loader") { const ld = s.fel; if (shown.galpon > 0.5) tp = u > 0.85 ? W(HOPPER.e, HOPPER.n, 11) : W(ld.e + 6.5, HOPPER.n - 4, 1.5 + ld.bucket * 9 + 3); else inside = W(HOPPER.e, HOPPER.n, 20); }
+    else if (k === "belt") { const n = lerp(BELT.n0, BELT.n1 - 2, u); if (n > BELT.g0 && n < BELT.g1 && shown.belt < 0.5) inside = W(0, n, 5); else tp = W(0, n, 1.5); }
+    else if (k === "boom" && loaderNow) tp = P3(v3.lerp(loaderNow.root, loaderNow.head, u));
+    else if (k === "hold") { const c = hatchGeo(2.6 * s.ship.load)[s.ship.to]; if (u < 0.5) tp = W(c[0], c[1], lerp(LOADER.head - 2, ZH - 6, u * 2)); else inside = W(c[0], c[1], ZH - 4); }
     if (tp) { for (const n of [tourRing, tourDot]) { n.setAttribute("cx", f1(tp[0])); n.setAttribute("cy", f1(tp[1] - 1)); n.style.opacity = 1; } }
     else { tourRing.style.opacity = 0; tourDot.style.opacity = 0; }
     if (inside) { const ph = (performance.now() / 900) % 1; tourPulse.setAttribute("cx", f1(inside[0])); tourPulse.setAttribute("cy", f1(inside[1])); tourPulse.setAttribute("r", f1(4 + ph * 9)); tourPulse.style.opacity = (0.9 * (1 - ph)).toFixed(2); }
     else tourPulse.style.opacity = 0;
   }
-  const lbl = (p, q, text, anchor) => {
-    const w = text.length * 2.72, x0 = anchor === "end" ? q[0] - w : anchor === "middle" ? q[0] - w / 2 : q[0], x1 = x0 + w;
-    const e = p[0] < x0 ? [x0 - 1.2, q[1] - 1.8] : p[0] > x1 ? [x1 + 1.2, q[1] - 1.8] : [p[0], p[1] < q[1] ? q[1] - 6 : q[1] + 2];
-    return `<path class="pu-cal-lead" d="M${f1(p[0])} ${f1(p[1])}L${f1(e[0])} ${f1(e[1])}"/><circle class="pu-cal-dot" cx="${f1(p[0])}" cy="${f1(p[1])}" r="1.3"/><text class="pu-cal-text" x="${f1(q[0])}" y="${f1(q[1])}" text-anchor="${anchor}">${text}</text>`;
-  };
 
   // ------------------------------------------------------------ reloj
   const listeners = new Set();
@@ -619,30 +716,37 @@ export async function createPuerto() {
   function frame(now) {
     layers.tick();
     const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
+    // el % de sólidos de Flotación manda cuando cambia
+    if (shared.uf != null && shared.uf !== ST.seenUf) { ST.seenUf = shared.uf; ST.uf = shared.uf; }
     if (playing) step(dt);
-    const kk = 1 - Math.exp(-dt * 6);
-    for (const key of ["plant", "belt"]) { shown[key] += (ST[key] - shown[key]) * kk; if (Math.abs(ST[key] - shown[key]) < 0.002) shown[key] = ST[key]; }
+    const kk = 1 - Math.exp(-dt * 6), tg = targets();
+    for (const key of Object.keys(tg)) { shown[key] += (tg[key] - shown[key]) * kk; if (Math.abs(tg[key] - shown[key]) < 0.002) shown[key] = tg[key]; }
     draw(); raf = active ? nextTick(frame) : 0;
   }
+  const redraw = (jump) => { if (jump || still.matches || !playing) Object.assign(shown, targets()); draw(); };
   const kick = () => { if (active && !raf) { last = performance.now(); raf = nextTick(frame); } };
   const api = {
     el: root, svg, PERIOD, STEPS,
-    get selected() { return selected; }, get playing() { return playing; }, get detail() { return detailNow(); },
-    get plant() { return ST.plant; }, get belt() { return ST.belt; }, get h() { return ST.h; },
+    get selected() { return selected; }, get playing() { return playing; },
+    get plant() { return ST.plant; }, get belt() { return ST.belt; }, get h() { return ST.h; }, get uf() { return ST.uf; },
+    get zoom() { return { key: zoomKey, viewBox: vb.slice() }; },
     live, on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     setActive(v) { active = v; if (v) kick(); else { cancelTick(raf); raf = 0; } },
     play() { playing = true; kick(); }, pause() { playing = false; }, togglePlay() { playing ? api.pause() : api.play(); },
-    seek(v) { ST.t = mod(v, PERIOD); draw(); },
+    seek(v) { ST.t = mod(v, PERIOD); redraw(); },
     goStep(n) { api.seek(STEPS[clamp(n, 1, STEPS.length) - 1].t0 + 0.01); },
     nextStep() { api.goStep((stepAt(ST.t).n % STEPS.length) + 1); },
     prevStep() { const st = stepAt(ST.t); api.goStep(ST.t - st.t0 > 1.2 ? st.n : ((st.n + STEPS.length - 2) % STEPS.length) + 1); },
-    setPlant(v, instant) { ST.plant = clamp(v); if (instant || still.matches) shown.plant = ST.plant; sliderDetail = ST.plant > 0 ? "A" : ST.belt > 0 ? "B" : null; draw(); },
-    setBelt(v, instant) { ST.belt = clamp(v); if (instant || still.matches) shown.belt = ST.belt; sliderDetail = ST.belt > 0 ? "B" : ST.plant > 0 ? "A" : null; draw(); },
-    setH(v) { ST.h = clamp(Math.round(v * 2) / 2, H_MIN, H_MAX); draw(); },
-    setShip(v) { ST.ship = mod(v, 1); draw(); },
-    select(id) { selected = id && EQUIP[id] ? id : null; root.toggleAttribute("data-sel", !!selected); units.forEach(([u, eq]) => u.classList.toggle("pu-dim", !!selected && eq !== selected)); draw(); },
+    setPlant(v, instant) { ST.plant = clamp(v); if (instant || still.matches) shown.plantS = ST.plant; zoomKey = ST.plant > 0 || ST.belt === 0 ? "A" : "B"; redraw(instant); },
+    setBelt(v, instant) { ST.belt = clamp(v); if (instant || still.matches) shown.beltS = ST.belt; zoomKey = ST.belt > 0 || ST.plant === 0 ? "B" : "A"; redraw(instant); },
+    setH(v) { ST.h = clamp(Math.round(v * 2) / 2, H_MIN, H_MAX); redraw(); },
+    setUf(v) { ST.uf = clamp(Math.round(v), UF_MIN, UF_MAX); redraw(); },
+    setShip(v) { ST.ship = mod(v, 1); redraw(); },
+    setZoomMode(mode, fn = null) { zoomMode = mode; onZoom = fn; lastZoom = ""; if (mode === "camera" && vb[2] !== VIEW[2]) { vb = VIEW.slice(); svg.setAttribute("viewBox", VIEW.join(" ")); } draw(); },
+    select(id) { selected = id && EQUIP[id] ? id : null; root.toggleAttribute("data-sel", !!selected); units.forEach(([u, eq]) => u.classList.toggle("pu-dim", !!selected && eq !== selected)); lastLit = null; redraw(); },
     destroy() { api.setActive(false); layers.destroy(); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
   };
+  Object.assign(shown, targets());
   svg.addEventListener("click", (e) => { const g = e.target.closest("[data-eq]"); const id = g?.dataset.eq; api.select(id ? (selected === id ? null : id) : null); });
   const onVis = () => { if (document.hidden) { cancelTick(raf); raf = 0; } else kick(); };
   document.addEventListener("visibilitychange", onVis);
@@ -651,7 +755,7 @@ export async function createPuerto() {
 }
 
 // ---------------------------------------------------------------- panel (HUD)
-export function bindPanel(fx, { onEscape, onFocus } = {}) {
+export function bindPanel(fx, { onEscape } = {}) {
   const $ = (q) => document.querySelector(q);
   const playBtn = $("[data-pu-play]"), stepsBox = $("[data-pu-steps]");
   stepsBox.innerHTML = ""; stepsBox.style.setProperty("--n", fx.STEPS.length);
@@ -659,6 +763,7 @@ export function bindPanel(fx, { onEscape, onFocus } = {}) {
     b.addEventListener("click", () => fx.goStep(s.n)); stepsBox.appendChild(b); return b; });
   const info = $("[data-info]"), meter = $("[data-pu-meter]"), readout = $("[data-pu-readout]");
   const plS = $("[data-pu-plant]"), plO = $("[data-pu-plant-out]"), beS = $("[data-pu-belt]"), beO = $("[data-pu-belt-out]"), hS = $("[data-pu-h]"), hO = $("[data-pu-h-out]");
+  const ufS = $("[data-pu-uf]"), ufO = $("[data-pu-uf-out]");
   let lastStep = 0, lastText = "", lastInfo = "";
   const off = []; const on = (node, ev, fn, opt) => { node.addEventListener(ev, fn, opt); off.push(() => node.removeEventListener(ev, fn, opt)); };
   const chips = [...document.querySelectorAll("[data-pu-chip]")]; // fijos en el panel: se buscan una vez, no en cada cuadro
@@ -678,28 +783,32 @@ export function bindPanel(fx, { onEscape, onFocus } = {}) {
       stepBtns.forEach((b) => { const kk = Number(b.dataset.step); b.toggleAttribute("data-done", kk < st.n); b.toggleAttribute("data-current", kk === st.n); }); lastStep = st.n; }
     stepBtns[st.n - 1].style.setProperty("--p", clamp((s.t - st.t0) / (st.t1 - st.t0)).toFixed(3));
     meter.style.setProperty("--fill", s.ship.load.toFixed(3));
-    const text = s.m.ok ? `Barco ${Math.round(s.ship.load * 100)} % · ${fdec(s.ship.load * 50, 1)} de 50 kt · ${fdec(s.m.rate)} t/h` : `Humedad ${fdec(s.m.h, 1)} % sobre el TML · embarque detenido`;
+    const warn = s.m.viscous ? " · pulpa muy viscosa" : s.m.cycle > 1.01 ? " · pulpa diluida: el filtro tarda más" : "";
+    const text = (s.m.ok ? `Barco ${Math.round(s.ship.load * 100)} % · ${fdec(s.ship.load * 50, 1)} de 50 kt · ${fdec(s.m.rate)} t/h` : `Humedad ${fdec(s.m.h, 1)} % sobre el TML · embarque detenido`) + warn;
+    readout.toggleAttribute("data-warn", !s.m.ok || !!warn);
+    if (Number(ufS.value) !== Math.round(s.m.uf)) { ufS.value = s.m.uf; ufO.textContent = `${Math.round(s.m.uf)} %`; }
     if (text !== lastText) { readout.textContent = text; lastText = text; }
     playBtn.setAttribute("aria-pressed", String(fx.playing)); playBtn.setAttribute("aria-label", fx.playing ? "Pausar" : "Reproducir");
     renderInfo(s);
   }));
-  const sync = () => { plS.value = Math.round(fx.plant * 100); plO.textContent = `${plS.value} %`; beS.value = Math.round(fx.belt * 100); beO.textContent = `${beS.value} %`; hS.value = fx.h; hO.textContent = `${fdec(fx.h, 1)} %`; };
-  on(plS, "input", () => { fx.setPlant(plS.value / 100); plO.textContent = `${plS.value} %`; onFocus?.("A", plS.value > 0 || fx.belt > 0); });
-  on(beS, "input", () => { fx.setBelt(beS.value / 100); beO.textContent = `${beS.value} %`; onFocus?.("B", beS.value > 0 || fx.plant > 0); });
+  const sync = () => { plS.value = Math.round(fx.plant * 100); plO.textContent = `${plS.value} %`; beS.value = Math.round(fx.belt * 100); beO.textContent = `${beS.value} %`; hS.value = fx.h; hO.textContent = `${fdec(fx.h, 1)} %`; ufS.value = fx.uf; ufO.textContent = `${fx.uf} %`; };
+  on(plS, "input", () => { fx.setPlant(plS.value / 100); plO.textContent = `${plS.value} %`; });
+  on(beS, "input", () => { fx.setBelt(beS.value / 100); beO.textContent = `${beS.value} %`; });
+  on(ufS, "input", () => { fx.setUf(Number(ufS.value)); ufO.textContent = `${ufS.value} %`; });
   on(hS, "input", () => { fx.setH(Number(hS.value)); hO.textContent = `${fdec(fx.h, 1)} %`; });
   on(playBtn, "click", () => fx.togglePlay());
   on($("[data-pu-prev]"), "click", () => fx.prevStep()); on($("[data-pu-next]"), "click", () => fx.nextStep());
   document.querySelectorAll("[data-pu-chip]").forEach((c) => on(c, "click", () => fx.select(fx.selected === c.dataset.puChip ? null : c.dataset.puChip)));
   on($("[data-info-close]"), "click", () => { if (info.dataset.owner === "pu") fx.select(null); });
   on(window, "keydown", (e) => {
-    if (document.body.dataset.view !== "puerto" || e.target.closest?.("input, [data-intro]")) return;
+    if (document.body.dataset.view !== "puerto" || e.target.closest?.("input, [data-intro], .pu-link")) return;
     if (e.key === " " && !e.target.closest("button")) fx.togglePlay();
     else if (e.key === ",") fx.prevStep(); else if (e.key === ".") fx.nextStep();
     else if (/^[1-5]$/.test(e.key)) { const id = ORDER[Number(e.key) - 1]; fx.select(fx.selected === id ? null : id); }
-    else if (e.key === "ArrowRight") { fx.setPlant(fx.plant + 0.1); sync(); onFocus?.("A", fx.plant > 0); }
-    else if (e.key === "ArrowLeft") { fx.setPlant(fx.plant - 0.1); sync(); onFocus?.("A", fx.plant > 0); }
-    else if (e.key === "ArrowUp") { fx.setBelt(fx.belt + 0.1); sync(); onFocus?.("B", fx.belt > 0); }
-    else if (e.key === "ArrowDown") { fx.setBelt(fx.belt - 0.1); sync(); onFocus?.("B", fx.belt > 0); }
+    else if (e.key === "ArrowRight") { fx.setPlant(fx.plant + 0.1); sync(); }
+    else if (e.key === "ArrowLeft") { fx.setPlant(fx.plant - 0.1); sync(); }
+    else if (e.key === "ArrowUp") { fx.setBelt(fx.belt + 0.1); sync(); }
+    else if (e.key === "ArrowDown") { fx.setBelt(fx.belt - 0.1); sync(); }
     else if (e.key === "Escape") { if (fx.selected) fx.select(null); else onEscape?.(); }
     else return;
     e.preventDefault(); e.stopImmediatePropagation();
@@ -709,7 +818,8 @@ export function bindPanel(fx, { onEscape, onFocus } = {}) {
 }
 
 // ---------------------------------------------------------------- explorador (demo sin cámara)
-const ZOOM = { espesadores: [4185, 500, 300, 230], mineroducto: [4190, 560, 300, 260], filtros: [4335, 420, 330, 420], galpon: [4335, 420, 330, 420], embarque: [4600, 420, 520, 300], A: [4335, 420, 330, 420], B: [4600, 420, 520, 300] };
+const ZOOM = { mineroducto: [4180, 620, 260, 220], espesadores: [4185, 500, 300, 260], filtros: [4372, 640, 220, 300], galpon: [4480, 700, 200, 280], embarque: [4600, 420, 520, 330] }; // alto extra abajo: la ficha tapa esa zona
+const ZOOM_CAP = 12;
 // lámina armada de antemano, en reposo, mientras se mira la infografía (js/explorer.js): abrir sólo la inserta
 let prebuilt = null;
 export function prebuild() { return (prebuilt ||= createPuerto().catch(() => (prebuilt = null))); }
@@ -718,10 +828,13 @@ export async function mount({ layer, focus }) {
   prebuilt = null;
   if (fx.el.parentNode !== layer) layer.appendChild(fx.el); // la precarga pudo dejarla ya puesta (estacionada)
   requestAnimationFrame(() => fx.el.setAttribute("data-in", ""));
-  let focused = null;
+  // cámara: el equipo elegido manda; si no, el zoom sobre el dibujo de los deslizadores; si no, el encuadre
+  let focused = null, zoomRect = null, zoomK = 0, lastSel = null;
   const want = (z, cap) => { const kz = z ? JSON.stringify(z) : ""; if (kz !== focused) { focused = kz; focus?.(z, cap); } };
-  const unbind = bindPanel(fx, { onEscape: () => { location.hash = ""; }, onFocus: (which, on) => want(on ? ZOOM[which] : null, 3.2) });
-  const unzoom = fx.on(() => { if (fx.selected) want(ZOOM[fx.selected], 3); else if (fx.detail) want(ZOOM[fx.detail], 3.2); else want(null); });
+  const toZoom = (ms) => { focused = "zoom"; focus?.(zoomRect, ZOOM_CAP, ms, lerp(0.06, 0.03, zoomK)); };
+  fx.setZoomMode("camera", (rect, k) => { zoomRect = rect; zoomK = k; if (fx.selected) return; if (rect) toZoom(0); else want(null); });
+  const unbind = bindPanel(fx, { onEscape: () => { location.hash = ""; } });
+  const unzoom = fx.on(() => { if (fx.selected === lastSel) return; lastSel = fx.selected; if (fx.selected) want(ZOOM[fx.selected], 5); else if (zoomRect) toZoom(650); else want(null); });
   fx.setActive(true);
   window.pmPu = fx;
   return { focus: [VIEW[0] + 10, VIEW[1] + 10, VIEW[2] - 20, VIEW[3] - 20], view: "puerto",

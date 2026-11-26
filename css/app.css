@@ -962,6 +962,7 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
 .pu-wall-in { fill: #fbf5ef; stroke: var(--ln); stroke-width: .55; stroke-linejoin: round; }
 .pu-wall-in--end { fill: #f6ece2; }
 .pu-pilaster { stroke: #f0b77d; stroke-width: .55; }
+/* placas del filtro (clase -slab: «pu-plate» es la lámina entera, que parte en opacity 0) */
 .pu-slab { fill: #c3ccd3; stroke: #6f7b84; stroke-width: .35; stroke-linejoin: round; }
 .pu-slab--edge { fill: #c9d1d7; }
 .pu-slab-fill { opacity: .9; }
@@ -1548,3 +1549,29 @@ body[data-mode="demo"] .explorer { background: #fff; } /* el arte es blanco: al 
 /* en una estación (demo o AR enfocado) el encabezado deja sólo el botón «Salir» */
 body[data-mode="demo"][data-view]:not([data-view="map"]) .topbar > :not([data-back]),
 body[data-ar="focus"] .topbar > :not([data-exit-ar]) { display: none !important; }
+
+/* T21 · Puerto: concentraducto, estación terminal, descargas, bombas de alimentación y llamadas del zoom */
+.pu-flow--fast { stroke-width: 2; stroke-dasharray: 5 3; stroke-linecap: round; fill: none; }
+.pu-flow--calm { stroke-width: 1.6; stroke-dasharray: 1.2 6; stroke-linecap: round; fill: none; }
+.pu-under { fill: none; stroke: #ef8c22; stroke-width: 2.6; stroke-dasharray: 3 3; opacity: .55; stroke-linecap: round; }
+.pu-flow--under { stroke-width: 1.4; stroke-dasharray: 1.2 6; stroke-linecap: round; fill: none; }
+.pu-cone { fill: #fff; stroke: #ef8c22; stroke-width: 1; }
+.pu-flange, .pu-valve, .pu-stem, .pu-wheel2, .pu-feedpump, .pu-volute, .pu-pumpbase { fill: #fff; stroke: #ef8c22; stroke-width: .6; stroke-linejoin: round; }
+.pu-valve { fill: #fbe8d6; }
+.pu-flange--cap, .pu-volute--cap, .pu-valve--cap { fill: #fbe8d6; }
+.pu-wheel2 { fill: #ef8c22; }
+.pu-feedpump--side, .pu-pumpbase--side { fill: #fbe8d6; }
+.pu-impeller { stroke: #8a4a1e; stroke-width: .7; stroke-linecap: round; }
+.pu-turb { fill: #fff; stroke: #8a4a1e; stroke-width: .35; }
+.pu-slurry { stroke: #ef8c22; stroke-width: .4; }
+.pu-stepdim { opacity: .35; transition: opacity .5s var(--pm-ease); }
+.pu-link { cursor: pointer; pointer-events: auto; outline: none; }
+.pu-link-pill { fill: #fff; stroke: #ef7835; stroke-width: .9; }
+.pu-link-text { font-size: 5.6px; font-weight: 700; fill: #a8501a; }
+.pu-link:focus-visible .pu-link-pill { stroke: #3b2416; stroke-width: 1.8; }
+.pu-zoom { pointer-events: none; }
+.pu-zl-lead { fill: none; stroke: #8a4a1e; }
+.pu-zl-dot { fill: var(--pm-orange); }
+.pu-zl-text { font-weight: 600; fill: #5a3b27; paint-order: stroke; stroke: #fff; stroke-linejoin: round; }
+[data-pu-readout][data-warn] { color: #b8401a; }
+@media (prefers-reduced-motion: reduce) { .pu-stepdim { transition: none; } }

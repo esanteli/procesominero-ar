@@ -23,6 +23,7 @@
 // capas vivas se dibujan en las unidades del dibujo que les corresponde (isometría 0,866 / 0,5).
 import { nextTick, cancelTick } from "../clock.js";
 import * as R from "./flotacion-rutas.js";
+import { shared } from "../shared.js";
 const { pulpColor } = R;
 const NS = "http://www.w3.org/2000/svg";
 const U = (f) => new URL(`../../assets/flotacion/${f}`, import.meta.url).href;
@@ -598,7 +599,7 @@ export async function createFlotacion() {
     setCell(v, instant) { S.cell = clamp(v); if (instant || still.matches) shown.cell = S.cell; zoomKey = S.cell > 0 || S.th === 0 ? "A" : "B"; redraw(); },
     setTh(v, instant) { S.th = clamp(v); if (instant || still.matches) shown.th = S.th; zoomKey = S.th > 0 || S.cell === 0 ? "B" : "A"; redraw(); },
     setAir(v) { S.air = clamp(v, AIR_MIN, AIR_MAX); redraw(); },
-    setUf(v, instant) { S.uf = clamp(v, UF_MIN, UF_MAX); if (instant || still.matches) shown.uf = S.uf; redraw(); },
+    setUf(v, instant) { S.uf = clamp(v, UF_MIN, UF_MAX); shared.uf = S.uf; if (instant || still.matches) shown.uf = S.uf; redraw(); },
     setZoomMode(mode, fn = null) { zoomMode = mode; onZoom = fn; lastZoom = ""; if (mode === "camera" && vb[2] !== VIEW[2]) { vb = VIEW.slice(); svg.setAttribute("viewBox", VIEW.join(" ")); } draw(); },
     get zoom() { return { key: zoomKey, viewBox: vb.slice() }; },
     rects: ZR,

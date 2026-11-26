@@ -1215,7 +1215,7 @@ function setFocus(S) {
 // enlaces entre estaciones desde una lámina (p. ej. los destinos de Flotación): en el demo, la estación por su hash;
 // en AR, se enfoca esa estación
 addEventListener("pm:goto", (e) => {
-  if (document.body.dataset.mode === "ar") { const S = arStations.find((x) => x.id === e.detail); if (S) setFocus(S); return; }
+  if (document.body.dataset.mode === "ar") { const S = arStations.find((x) => x.id === e.detail || x.demo === e.detail); if (S) setFocus(S); return; }
   location.hash = `#${e.detail}`;
 });
 
