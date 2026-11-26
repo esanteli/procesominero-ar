@@ -1,11 +1,14 @@
 // Estación 2.2 · Chancado secundario y terciario — lámina viva sobre el dibujo de Emilio
-// (assets/secundario/chancado-secundario.svg: correa inclinada, 4 líneas tolva → alimentador → HPGR, correa de producto).
+// (assets/secundario/chancado-secundario.svg: correa inclinada, 4 líneas chancador de conos → alimentador → HPGR,
+// correa de producto). Lectura del dibujo (sin tocar el SVG): la caja cuadrada de arriba es la tolva de alimentación
+// del cono; el cuerpo facetado de abajo, la carcasa del cono; el cuello y la correa corta con rodillos, el alimentador
+// del HPGR.
 //
-// Lógica de la skill anatomy: un modelo manda (alimentación → nivel de la tolva → velocidad del alimentador →
-// carga del HPGR) y el dibujo lo sigue; secuencia "sigue una colpa" por pasos con play/pausa; selección de equipos
-// con foco y ficha; dos cortes: "Interior de la tolva" (pared frontal transparente, nivel y flujo de masa) e
-// "Interior de los rodillos" (un plano de corte avanza por el HPGR y deja ver los rodillos en contrarrotación,
-// el lecho comprimido en la garganta y el queque que sale). Los detalles ampliados (A y B) repiten esa geometría.
+// Lógica de la skill anatomy: un modelo manda (alimentación y CSS → nivel de la tolva del cono → producción del cono
+// → alimentador → carga del HPGR) y el dibujo lo sigue; secuencia "sigue una colpa" en 6 pasos con state(t) puro
+// (llegada, acción y pausa); selección de equipos con foco y ficha; dos cortes: "Interior del cono" (pared frontal
+// transparente: el cono en sección por su eje, con la cabeza girando excéntrica dentro de la taza) e "Interior de los
+// rodillos" (un plano de corte avanza por el HPGR). Los detalles ampliados (A y B) repiten esa geometría.
 //
 // Geometría (unidades del SVG): isométrica de la infografía, X → (0,866 ; 0,5), Y → (−0,866 ; 0,5), Z → (0 ; −1).
 // Las cotas del HPGR y de la tolva salen de los vértices del dibujo (ver README). Las correas avanzan a velocidad
@@ -62,6 +65,15 @@ const P_INCL = FEEDP.S[2], P_DIST = FEEDP.S[3];                        // fin de
 const pDropOf = (m) => P_DIST + Math.hypot(INLET(m)[0] - DIST0[0], distY(INLET(m)[0]) - DIST0[1]);
 const PRODP = polyline([DROP(0), PROD1]);
 const pProdOf = (m) => Math.hypot(DROP(m)[0] - DROP(0)[0], DROP(m)[1] - DROP(0)[1]);
+const FEEDERP = polyline(FEEDER);
+// la colpa marcada sobre una correa dibujada (módulo 3), o null si va por dentro de un equipo o bajo la plataforma
+function beltPoint(stage, u) {
+  if (stage === "incl") return FEEDP.at(u * P_INCL);
+  if (stage === "dist") return FEEDP.at(lerp(P_DIST, pDropOf(3), u));
+  if (stage === "feeder") return FEEDERP.at(u * FEEDERP.len);
+  if (stage === "prod") { const q = PRODP.at(lerp(pProdOf(3), PRODP.len, u)); return q[0] < 1000 ? null : q; }
+  return null;
+}
 
 // ---------------------------------------------------------------- HPGR: cotas (módulo 3, ejes locales desde O3)
 // cuerpo X 0…57,8 · Y −45,8…0 · Z 0…34,74; losa superior X −13,4…69 · Y −46,2…2 · Z 34,74…40 (vértices del dibujo).
@@ -70,45 +82,87 @@ const HP = { x: 57.8, y: 45.8, z: 34.74, t: 2.6, slab: [-13.4, 69, -46.2, 2, 34.
   r: 9, zc: 16.5, yf: -13.4, yb: -32.4, rx: [19, 39], bx: [40, 48], bhy: 6, bhz: 7 };
 // tolva m3 (ejes locales desde H3): perfil de la cara frontal (X, Z) y fondo en Y
 const HOP = { e: [-29.34, 0], f: [0, 0], d: [0, 31.42], b: [6.69, 81.55], a: [-27.84, 81.73], c: [-51.11, 31.35] };
-const hopL = (z) => (z <= 31.35 ? lerp(HOP.e[0], HOP.c[0], z / 31.35) : lerp(HOP.c[0], HOP.a[0], (z - 31.35) / 50.38));
-const hopR = (z) => (z <= 31.42 ? 0 : lerp(0, HOP.b[0], (z - 31.42) / 50.13));
 const hopY = (z) => (z <= 31.4 ? -23.1 : lerp(-23.1, -16.5, (z - 31.4) / 50.2));
-const HOP_TOP = 81.6, LEVEL_MAX = 74;
+// ---------------------------------------------------------------- chancador de conos (dentro de la carcasa del m3)
+// Sección por el eje en el plano X + Y = cte (paralelo a la pantalla: se ve en verdadera magnitud). s = distancia
+// horizontal al eje en ese plano, z = altura; mismos ejes locales que la tolva (desde H3). Medidas referenciales,
+// ajustadas a la silueta del cuerpo dibujado; la excentricidad va exagerada para que se vea.
+const CONE = { xa: -31.13, ya: -11.5, z0: 29, z1: 58, zh: 54, zp: 66, rc0: 13.5, rc1: 9, liner: 1.8, bowl: 3.2, gTop: 4.6, e: 1.2,
+  nut: [54, 56.6, 3], plate: [56.8, 57.9, 5.6], hub: [4.4, 8.5], ecc: 17, out: [3.5, -15], zLev: [28, 72] };
+const R2 = Math.SQRT1_2;
+const rc = (z) => lerp(CONE.rc0, CONE.rc1, (z - CONE.z0) / (CONE.z1 - CONE.z0));              // cara interior del cóncavo
+const cssU = (css) => 0.6 + ((css - 25) / 20) * 1.2;                                          // CSS en unidades del dibujo
+const gapAt = (z, css) => lerp(cssU(css) + CONE.e, CONE.gTop, clamp((z - CONE.z0) / (CONE.zh - CONE.z0)));
+const rh = (z, css) => rc(z) - gapAt(z, css);                                                // cara exterior del manto
+const sway = (z) => (CONE.zp - z) / (CONE.zp - CONE.z0);                                      // la base se mueve más que la punta
+const wallS = (z) => (z <= CONE.z1 ? rc(z) : rc(CONE.z1) + (z - CONE.z1) * 0.55);             // pared: cóncavo y, arriba, la tolva
+const levelZ = (l) => lerp(CONE.zLev[0], CONE.zLev[1], l);
+export const NUT_LEVEL = (CONE.nut[1] - CONE.zLev[0]) / (CONE.zLev[1] - CONE.zLev[0]);        // bajo esto: alimentación por goteo
 
 // ---------------------------------------------------------------- modelo
-const FEEDER_NOM = 2790, FEEDER_MAX = 3230;                            // t/h por línea (alimentador de correa típico)
+const FEEDER_NOM = 2790, FEEDER_MAX = 3700;                            // t/h por línea (alimentador de correa típico)
 const FEED_MIN = 6000, FEED_MAX = 13000;
+const CSS_MIN = 25, CSS_MAX = 45, CSS_NOM = 35;
+// capacidad del cono ahogado por línea (referencial): menor CSS, algo menos de capacidad; producto P80 ~1,2 × CSS
+export const coneCap = (css) => 3100 * (css / CSS_NOM) ** 0.6;
+export const p80 = (css) => Math.round(css * 1.2);
+const CHOKE = 0.95;                                                    // nivel desde el que el cono saca toda su capacidad
 const V_BELT = 60, V_PROD = 46;                                        // u/s en pantalla (velocidad constante)
 const OMEGA = 1.4;                                                     // rad/s de los rodillos (visual)
+const OMEGA_G = Math.PI * 2 * 0.75;                                    // giro excéntrico de la cabeza (visual; real ~4–5 vueltas/s)
 
-// secuencia "sigue una colpa" (tiempo de la secuencia, en s)
-const TOUR = { incl: [0, 7], head: [7, 7.6], dist: [7.6, 11.2], fall: [11.2, 11.9], bin: [11.9, 19.5], feeder: [19.5, 23], hood: [23, 24], nip: [24, 26.5], under: [26.5, 27.5], prod: [27.5, 32] };
-export const PERIOD = 33;
-export const STEPS = [
-  { n: 1, id: "alim", label: "Sube por la correa de alimentación", t0: 0 },
-  { n: 2, id: "alim", label: "La distribuidora la reparte entre las 4 tolvas", t0: 7 },
-  { n: 3, id: "tolva", label: "Cae en la tolva del chancador secundario", t0: 11.2 },
-  { n: 4, id: "alimentador", label: "El alimentador regula la descarga", t0: 19.5 },
-  { n: 5, id: "hpgr", label: "Los rodillos HPGR la comprimen y la fracturan", t0: 23 },
-  { n: 6, id: "producto", label: "Sale fina por la correa de producto", t0: 26.5 },
-].map((s, i, a) => ({ ...s, t1: i + 1 < a.length ? a[i + 1].t0 : PERIOD }));
-const stepAt = (t) => STEPS.find((s) => t >= s.t0 && t < s.t1) || STEPS[STEPS.length - 1];
-const phase = (t, [a, b]) => clamp((t - a) / (b - a));
+// ---------------------------------------------------------------- "sigue una colpa" (state(t) puro)
+// Cada paso: llegada (ARRIVE s: se ilumina el equipo y el resto baja a ~35 %), acción (tramos) y pausa (HOLD s con el
+// resultado a la vista). `cut`: en esos pasos el corte del cono se abre solo.
+const ARRIVE = 0.5, HOLD = 1.2;
+const SEQ = [
+  { id: "alim", lit: ["alim"], label: "La correa inclinada sube el mineral del primario", act: [["incl", 6]] },
+  { id: "alim", lit: ["alim"], label: "La distribuidora lo reparte entre los 4 conos", act: [["head", 0.6], ["dist", 3.6]] },
+  { id: "cono", lit: ["cono"], label: "La tolva mantiene el cono ahogado", act: [["fall", 0.7], ["bin", 3.3]], cut: true },
+  { id: "cono", lit: ["cono"], label: "El manto gira excéntrico y comprime la roca contra el cóncavo", act: [["cone", 4.4], ["chute", 1.2]], cut: true },
+  { id: "alimentador", lit: ["alimentador", "hpgr"], label: "El alimentador regula y los rodillos del HPGR la comprimen", act: [["feeder", 3.5], ["hood", 1], ["nip", 2.5]] },
+  { id: "producto", lit: ["producto"], label: "Sale fina por la correa de producto", act: [["under", 1], ["prod", 4.5]] },
+];
+export const STEPS = [];
+{
+  let t = 0;
+  SEQ.forEach((q, i) => {
+    const t0 = t, ta = t0 + ARRIVE; let x = ta;
+    const stages = q.act.map(([k, d]) => { const r = { k, a: x, b: x + d }; x += d; return r; });
+    t = x + HOLD;
+    STEPS.push({ n: i + 1, id: q.id, lit: q.lit, label: q.label, cut: !!q.cut, t0, ta, th: x, t1: t, stages });
+  });
+}
+export const PERIOD = STEPS[STEPS.length - 1].t1;
+const wrap = (t) => ((t % PERIOD) + PERIOD) % PERIOD;
+const stepAt = (t) => { t = wrap(t); return STEPS.find((s) => t >= s.t0 && t < s.t1) || STEPS[STEPS.length - 1]; };
+// estado de la secuencia en el tiempo t: paso, fase, tramo y su avance, cuánto va la llegada y cuán abierto el cono
+export function state(t) {
+  t = wrap(t);
+  const step = stepAt(t), first = step.stages[0], last = step.stages[step.stages.length - 1];
+  let ph = "act", sg = first, u = 0;
+  if (t < step.ta) ph = "arrive";
+  else if (t >= step.th) { ph = "hold"; sg = last; u = 1; }
+  else { sg = step.stages.find((r) => t < r.b) || last; u = clamp((t - sg.a) / (sg.b - sg.a)); }
+  const prev = STEPS[(step.n + STEPS.length - 2) % STEPS.length], k = smooth((t - step.t0) / ARRIVE);
+  const open = step.cut ? (prev.cut ? 1 : k) : prev.cut ? 1 - k : 0;
+  return { t, step, phase: ph, stage: sg.k, u, arrive: k, open };
+}
 
 // ---------------------------------------------------------------- fichas
 const EQUIP = {
-  alim: { kicker: "Transporte", title: "Correas de alimentación", text: "La correa inclinada sube el mineral hasta la casa de traspaso y la correa distribuidora, sobre los marcos, lo reparte entre las cuatro tolvas.",
+  alim: { kicker: "Transporte", title: "Correas de alimentación", text: "La correa inclinada sube el mineral del chancado primario hasta la casa de traspaso y la correa distribuidora, sobre los marcos, lo reparte entre los cuatro chancadores de conos.",
     specs: (s) => [`Alimentación ${fmt(s.feed)} t/h`, "Velocidad constante", "4 líneas en paralelo"] },
-  tolva: { kicker: "Chancado secundario", title: "Tolva del chancador secundario", text: "Pulmón entre la correa y el chancado: absorbe las variaciones de la alimentación. Por su descarga inferior el mineral baja en flujo de masa hacia el alimentador.",
-    specs: (s) => [`Nivel ${Math.round(s.level * 100)} %`, `Entra ${fmt(s.feed / 4)} t/h`, `Sale ${fmt(s.draw)} t/h`] },
-  alimentador: { kicker: "Regulación", title: "Alimentador de correa", text: "Correa corta y lenta bajo la tolva. Cambia su velocidad para mantener el nivel de la tolva y entregar al HPGR un flujo parejo (alimentación ahogada).",
+  cono: { kicker: "Chancado secundario", title: "Chancador de conos", text: "Recibe el mineral del chancado primario en su tolva, que lo mantiene ahogado. La cabeza, con su manto, gira de forma excéntrica dentro de la taza: el espacio con el cóncavo se cierra y se abre, y la roca se fractura por compresión mientras baja. La abertura mínima (CSS) fija el tamaño del producto, que cae al alimentador del HPGR.",
+    specs: (s) => [`CSS ~${Math.round(s.css)} mm`, "Razón de reducción ~3–5:1", "Alimentación ahogada", `Tolva ${Math.round(s.level * 100)} % · ${fmt(s.draw)} t/h · P80 ~${p80(s.css)} mm (referencial)`] },
+  alimentador: { kicker: "Regulación", title: "Alimentador del HPGR", text: "El cuello bajo el cono y la correa corta con rodillos. Cambia su velocidad para entregar a los rodillos un flujo parejo, al ritmo que produce el chancador de conos, y mantener el HPGR ahogado.",
     specs: (s) => [`${fmt(s.draw)} t/h`, `Velocidad ${Math.round((s.draw / FEEDER_MAX) * 100)} %`, `Máx. ~${fmt(FEEDER_MAX)} t/h`] },
   hpgr: { kicker: "Chancado terciario", title: "HPGR · rodillos de alta presión", text: "Dos rodillos giran en sentidos opuestos: uno fijo y otro flotante empujado por cilindros hidráulicos. El mineral se comprime en lecho entre ellos y sale como un queque fracturado.",
     specs: (s) => [`${fmt(s.draw)} t/h por línea`, `Gap ${f1(18 + s.gap * 14)} mm`, "Presión ~4 N/mm²"] },
   producto: { kicker: "Transporte de producto", title: "Correa de producto", text: "Recibe el producto de los cuatro HPGR bajo las plataformas y lo lleva a la siguiente etapa (harneado y molienda).",
     specs: (s) => [`${fmt(s.draw * 4)} t/h`, "Producto bajo ~6 mm", "Velocidad constante"] },
 };
-const ORDER = ["alim", "tolva", "alimentador", "hpgr", "producto"];
+const ORDER = ["alim", "cono", "alimentador", "hpgr", "producto"];
 
 // ---------------------------------------------------------------- utilidades SVG
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent?.appendChild(e); return e; };
@@ -224,49 +278,112 @@ function convexHull(pts) {
   return lo.slice(0, -1).concat(up.slice(0, -1));
 }
 
-// ---------------------------------------------------------------- interior de la tolva (string SVG, proyección P)
+// ---------------------------------------------------------------- interior del cono (string SVG, proyección P)
+// Recortado a la pared frontal de la carcasa. Cabeza: el eje describe un círculo chico (no rota como rueda), así el
+// espacio con el cóncavo se cierra de un lado y se abre en el opuesto; la zona de cierre recorre toda la cámara (se
+// marca en la órbita de la base). Mineral ahogado sobre el manto; las colpas bajan por la cámara, se achican y caen
+// finas por el chute.
 const hopWindow = (P) => [HOP.c, HOP.a, HOP.b, HOP.d, HOP.f, HOP.e].map(([x, z]) => P([x, 0, z]));
-function hopperSvg(P, s, tour, k = 1, id = "hopw") {
-  const win = hopWindow(P), zl = Math.max(2, s.level * LEVEL_MAX), h = 5.5, xm = -12, ym = -10, rh = 22;
-  const heapZ = (x, y) => zl + h * Math.max(0, 1 - Math.hypot(x - xm, y - ym) / rh);
+const zs = (a, b, n = 6) => Array.from({ length: n + 1 }, (_, i) => lerp(a, b, i / n));
+// geometría del cono que depende del estado (la usan el dibujo, la colpa marcada y las etiquetas del detalle)
+function coneGeo(s) {
+  const css = s.css, G0 = cssU(css) + CONE.e, sw = CONE.e * Math.cos(s.gyr + Math.PI / 4); // corrimiento hacia +s (derecha)
+  const off = (z) => sw * sway(z), zl = levelZ(s.level);
+  const head = (sg, z) => sg * rh(z, css) + off(z), mid = (sg, z) => (head(sg, z) + sg * rc(z)) / 2;
+  const heap = (x) => zl + 2.2 * Math.max(0, 1 - Math.abs(x) / 9);
+  // chorro de finos bajo la cámara: rodea el buje y cae a la boca del chute
+  const fall = (sg, v, j = 0) => { const z = lerp(CONE.z0 - 0.5, CONE.out[1], v), x0 = sg * (rc(CONE.z0) - G0 / 2), xh = sg * (CONE.hub[0] + 1.6);
+    return [z > CONE.hub[1] ? lerp(x0, xh, (CONE.z0 - z) / (CONE.z0 - CONE.hub[1])) : lerp(xh, CONE.out[0] + j * 3, (CONE.hub[1] - z) / (CONE.hub[1] - CONE.out[1])), z]; };
+  return { css, G0, off, zl, head, mid, heap, fall };
+}
+function coneSvg(P, s, tour, k = 1, id = "hopw") {
+  const C = (x, z) => P([CONE.xa + x * R2, CONE.ya - x * R2, z]);
+  const Dp = (pts) => D(pts.map(([x, z]) => C(x, z)));
+  const ln = (a, b, cls) => { const p = C(...a), q = C(...b); return `<path class="${cls}" d="M${f1(p[0])} ${f1(p[1])}L${f1(q[0])} ${f1(q[1])}"/>`; };
+  const rk = (x, z, sc, rot, i, cls = "hb-rock") => { const q = C(x, z); return `<path class="${cls}" transform="translate(${f1(q[0])} ${f1(q[1])}) rotate(${Math.round(rot)}) scale(${f1(sc * k)})" d="${ROCK[i % 3]}"/>`; };
+  const g = coneGeo(s), { css, G0, off, zl, head, mid, heap } = g, { z0: Z0, z1: Z1, zh: ZH, liner: L, bowl: B } = CONE;
+  const win = hopWindow(P);
   const out = [`<clipPath id="${id}"><path d="${D(win)}"/></clipPath><g clip-path="url(#${id})">`, `<path class="hb-wall" d="${D(win)}"/>`];
-  // aristas interiores (fondo y cara izquierda), vistas a través de la pared frontal
-  const back = [HOP.c, HOP.a, HOP.b, HOP.d, HOP.f, HOP.e].map(([x, z]) => P([x, hopY(z), z]));
-  out.push(`<path class="hb-edge" d="${D(back)}"/>`);
-  for (const v of [HOP.c, HOP.a, HOP.e]) { const p = P([v[0], 0, v[1]]), q = P([v[0], hopY(v[1]), v[1]]); out.push(`<path class="hb-edge" d="M${f1(p[0])} ${f1(p[1])}L${f1(q[0])} ${f1(q[1])}"/>`); }
-  // superficie del mineral (cono de reposo bajo la entrada) y corte frontal del lecho
-  const xl = hopL(zl), xr = hopR(zl), yb = hopY(zl), N = 14, surf = [];
-  for (let i = 0; i <= N; i++) { const x = lerp(xl, xr, i / N); surf.push(P([x, 0, heapZ(x, 0)])); }
-  for (let i = 1; i <= N; i++) { const y = lerp(0, yb, i / N); surf.push(P([xr, y, heapZ(xr, y)])); }
-  for (let i = 1; i <= N; i++) { const x = lerp(xr, xl, i / N); surf.push(P([x, yb, heapZ(x, yb)])); }
-  for (let i = 1; i < N; i++) { const y = lerp(yb, 0, i / N); surf.push(P([xl, y, heapZ(xl, y)])); }
-  out.push(`<path class="hb-surf" d="${D(surf)}"/>`);
-  const front = [P([HOP.e[0], 0, 0]), P([0, 0, 0])];
-  if (zl > 31.42) front.push(P([0, 0, 31.42]));
-  for (let i = 0; i <= N; i++) { const x = lerp(xr, xl, i / N); front.push(P([x, 0, heapZ(x, 0)])); }
-  if (zl > 31.35) front.push(P([HOP.c[0], 0, 31.35]));
-  out.push(`<path class="hb-bed" d="${D(front)}"/>`);
-  // colpas del lecho bajando en flujo de masa (rejilla que desciende con la descarga)
-  const step = 7.5, dz = (s.mass * 4) % step;
-  for (let r = 0; r < 12; r++) for (let c = 0; c < 6; c++) {
-    const z = r * step - dz + (c % 2) * 3, x = lerp(-48, -2, (c + 0.5) / 6 + (hash(r * 9 + c) - 0.5) * 0.08);
-    if (z < 1.5 || z > zl - 2.5 || x < hopL(z) + 2 || x > hopR(z) - 2) continue;
-    const q = P([x, 0, z]); out.push(`<path class="hb-rock" transform="translate(${f1(q[0])} ${f1(q[1])}) rotate(${Math.round(hash(r * 31 + c) * 360)}) scale(${f1((1.5 + hash(c * 3 + r) * 0.6) * k)})" d="${ROCK[(r + c) % 3]}"/>`);
+  // aristas del fondo de la carcasa, vistas a través de la pared frontal
+  out.push(`<path class="hb-edge" d="${D([HOP.c, HOP.a, HOP.b, HOP.d, HOP.f, HOP.e].map(([x, z]) => P([x, hopY(z), z])))}"/>`);
+  // taza, cóncavo y bastidor con el embudo de descarga (en sección)
+  for (const sg of [-1, 1]) {
+    const zz = zs(Z0 - 2, Z1 + 2), zc = zs(Z0, Z1), top = sg * (rc(Z0 - 2) + L), bot = sg < 0 ? -7 : 14;
+    out.push(`<path class="cn-sec" d="${Dp([...zz.map((z) => [sg * (rc(z) + L), z]), ...zz.slice().reverse().map((z) => [sg * (rc(z) + L + B), z])])}"/>`);
+    out.push(`<path class="cn-sec" d="${Dp([[top, Z0 - 2], [bot, -17], [bot + sg * 3, -17], [top + sg * B, Z0 - 2]])}"/>`);
+    out.push(`<path class="cn-liner" d="${Dp([...zc.map((z) => [sg * rc(z), z]), ...zc.slice().reverse().map((z) => [sg * (rc(z) + L), z])])}"/>`);
   }
-  // chorro de alimentación desde la caja superior
-  for (let i = 0; i < 7; i++) {
-    const ph = (s.feedS * 0.03 + i / 7) % 1; if (hash(i + Math.floor(s.feedS * 0.03)) > s.feed / FEED_MAX + 0.05) continue;
-    const z = lerp(HOP_TOP + 4, heapZ(xm, ym) + 1.5, ph * ph), q = P([xm + (hash(i) - 0.5) * 8, ym + (hash(i * 2) - 0.5) * 6, z]);
-    out.push(`<path class="hb-rock" transform="translate(${f1(q[0])} ${f1(q[1])}) rotate(${Math.round(ph * 300 + i * 50)}) scale(${f1(1.7 * k)})" d="${ROCK[i % 3]}"/>`);
+  // mineral: llena la cámara y, si alcanza, tapa el manto, la tuerca y el plato (alimentación ahogada)
+  const zt = Math.max(Z0 + 0.5, zl), mat = [];
+  for (const z of zs(Z0, zt)) mat.push([-wallS(z), z]);
+  for (let i = 0; i <= 12; i++) { const x = lerp(-wallS(zt), wallS(zt), i / 12); mat.push([x, heap(x)]); }
+  for (const z of zs(zt, Z0)) mat.push([wallS(z), z]);
+  out.push(`<path class="hb-bed" d="${Dp(mat)}"/>`);
+  // colpas sobre el manto, bajando con la descarga
+  const stp = 3.4, dz = (s.mass * 3) % stp;
+  for (let r = 0; r < 7; r++) for (let c = 0; c < 7; c++) {
+    const z = ZH - 1 + r * stp - dz + (c % 2) * 1.5, ws = wallS(z) - 1.3, x = lerp(-ws, ws, (c + 0.5) / 7 + (hash(r * 9 + c) - 0.5) * 0.06);
+    if (z > heap(x) - 1 || (Math.abs(x - off(z)) < rh(Math.min(z, ZH), css) + 0.9 && z < CONE.plate[1] + 1)) continue;
+    out.push(rk(x, z, 0.95 + hash(c * 3 + r) * 0.3, hash(r * 31 + c) * 360, r + c));
   }
-  // nivel: línea punteada en la pared
-  const l0 = P([hopL(zl), 0, zl]), l1 = P([hopR(zl), 0, zl]);
-  out.push(`<path class="hb-level" d="M${f1(l0[0])} ${f1(l0[1])}L${f1(l1[0])} ${f1(l1[1])}"/>`);
-  // la colpa que se sigue (paso 3): cae al cono y baja con el lecho hasta la descarga
-  if (tour.stage === "bin") {
-    const u = tour.u, top = heapZ(xm, ym), z = u < 0.15 ? lerp(HOP_TOP + 4, top, (u / 0.15) ** 2) : lerp(top, 0, (u - 0.15) / 0.85);
-    const x = u < 0.15 ? xm : lerp(xm, -15, (u - 0.15) / 0.85), q = P([x, 0, Math.max(z, 0)]);
-    out.push(`<g transform="translate(${f1(q[0])} ${f1(q[1])})"><circle r="${f1(4.2 * k)}" class="sc-tour-ring"/><path d="${ROCK[0]}" transform="scale(${f1(2.2 * k)})" class="sc-tour-rock"/></g>`);
+  // cámara: las colpas bajan entre manto y cóncavo y se achican; donde el espacio se cierra, se fracturan
+  const load = clamp(s.draw / FEEDER_NOM, 0.15, 1.2);
+  for (const sg of [-1, 1]) for (let i = 0; i < 9; i++) {
+    const v = (s.flow * 0.22 + i / 9 + (sg > 0 ? 0.055 : 0)) % 1, z = lerp(ZH + 0.5, Z0 + 0.4, v);
+    if (z > zl) continue;
+    const gap = Math.abs(sg * rc(z) - head(sg, z)), sz = Math.max(0.22, Math.min(lerp(1.1, 0.25 + cssU(css) * 0.22, v), gap * 0.3));
+    out.push(rk(mid(sg, z), z, sz, v * 260 + i * 47, i));
+    if (gap < G0 * 0.8 && z < Z0 + 9) out.push(ln([head(sg, z), z + 0.3], [sg * rc(z), z - 0.5], "hp-crack"));
+  }
+  // finos que caen por el chute
+  for (let i = 0; i < 12; i++) {
+    const ph = (s.flow * 0.5 + i / 12) % 1; if (hash(i + Math.floor(s.flow * 0.5)) > 0.3 + 0.6 * load) continue;
+    const [x, z] = g.fall(i % 2 ? 1 : -1, ph, hash(i * 3.7) - 0.5);
+    out.push(rk(x, z, 0.28 + cssU(css) * 0.12, i * 60, i, "hp-rock hp-rock--fine"));
+  }
+  // chorro de alimentación desde la tolva, sobre el plato
+  for (let i = 0; i < 6; i++) {
+    const ph = (s.feedS * 0.03 + i / 6) % 1; if (s.level > 0.97 || hash(i + Math.floor(s.feedS * 0.03)) > s.feed / FEED_MAX + 0.05) continue;
+    const zt2 = Math.max(heap(0), CONE.plate[1]) + 1.2;
+    out.push(rk((hash(i) - 0.5) * 5, lerp(78, zt2, ph * ph), 1.15, ph * 300 + i * 50, i));
+  }
+  // buje de la excéntrica (sección) y la excéntrica que gira: su centro describe el círculo
+  out.push(`<path class="cn-sec" d="${Dp([[-CONE.hub[0], CONE.hub[1]], [CONE.hub[0], CONE.hub[1]], [CONE.hub[0], Z0 - 1.6], [-CONE.hub[0], Z0 - 1.6]])}"/>`);
+  const ring = (cx, cy, r, z, n = 20) => D(Array.from({ length: n }, (_, i) => { const a = (i / n) * Math.PI * 2; return P([cx + r * Math.cos(a), cy + r * Math.sin(a), z]); }));
+  out.push(`<path class="cn-ecc" d="${ring(CONE.xa, CONE.ya, 3.2, CONE.ecc)}"/>`);
+  out.push(`<path class="cn-ecc-in" d="${ring(CONE.xa + 1.2 * Math.cos(s.gyr), CONE.ya + 1.2 * Math.sin(s.gyr), 1.8, CONE.ecc, 14)}"/>`);
+  // cabeza con su manto, eje, tuerca del manto y plato de alimentación
+  const zb = Z0 - 1.2, hz = zs(Z0, ZH, 8);
+  out.push(`<path class="cn-head" d="${Dp([[head(-1, Z0), zb], ...hz.map((z) => [head(-1, z), z]), ...hz.slice().reverse().map((z) => [head(1, z), z]), [head(1, Z0), zb]])}"/>`);
+  out.push(ln([off(CONE.ecc), CONE.ecc], [off(ZH), ZH], "cn-shaft"));
+  for (const sg of [-1, 1]) out.push(`<path class="cn-liner" d="${Dp([...hz.map((z) => [head(sg, z), z]), ...hz.slice().reverse().map((z) => [head(sg, z) - sg * 1.4, z])])}"/>`);
+  const [n0, n1, nr] = CONE.nut, [p0, p1, pr] = CONE.plate, on = off(n1), op = off(p1);
+  out.push(`<path class="cn-nut${zl < n1 ? " cn-nut--bare" : ""}" d="${Dp([[-nr + on, n0], [nr + on, n0], [nr * 0.8 + on, n1], [-nr * 0.8 + on, n1]])}"/>`);
+  out.push(`<path class="cn-plate" d="${Dp([[-pr + op, p0], [pr + op, p0], [pr + op, p1], [-pr + op, p1]])}"/>`);
+  // zona de cierre: órbita en la base de la cámara y el tramo donde el manto está más cerca del cóncavo
+  const rm = rc(Z0 + 1) - G0 / 2, zo = Z0 + 0.6;
+  out.push(`<path class="cn-orbit" d="${ring(CONE.xa, CONE.ya, rm, zo, 36)}"/>`);
+  const arc = Array.from({ length: 9 }, (_, i) => { const a = s.gyr - 0.55 + (i / 8) * 1.1; return P([CONE.xa + rm * Math.cos(a), CONE.ya + rm * Math.sin(a), zo]); });
+  out.push(`<path class="cn-close" d="M${arc.map((p) => `${f1(p[0])} ${f1(p[1])}`).join("L")}"/>`);
+  // nivel en la pared
+  out.push(ln([-wallS(zl), zl], [wallS(zl), zl], "hb-level"));
+  // la colpa que se sigue: paso 3 cae a la tolva y baja con el lecho; paso 4 baja por la cámara y sale por el chute
+  if (tour.stage === "bin" || tour.stage === "cone" || tour.stage === "chute") {
+    const u = tour.u, ent = [mid(-1, ZH + 0.4), ZH + 0.4];
+    const ring2 = (x, z, r) => { const q = C(x, z); return `<circle class="sc-tour-ring" cx="${f1(q[0])}" cy="${f1(q[1])}" r="${f1(r * k)}"/>`; };
+    if (tour.stage === "bin") {
+      const top = Math.max(heap(-2), ZH + 1), x = u < 0.2 ? -2 : lerp(-2, ent[0], smooth((u - 0.2) / 0.8)), z = u < 0.2 ? lerp(76, top, (u / 0.2) ** 2) : lerp(top, ent[1], smooth((u - 0.2) / 0.8));
+      out.push(ring2(x, z, 3.2), rk(x, z, 1.3, u * 120, 0, "sc-tour-rock"));
+    } else if (tour.stage === "cone") {
+      const z = lerp(ent[1], Z0 + 0.3, u), x = mid(-1, z);
+      out.push(ring2(x, z, 3));
+      if (u < 0.75) out.push(rk(x, z, lerp(1.25, 0.8, u / 0.75), u * 200, 0, "sc-tour-rock"));
+      else for (let j = 0; j < 4; j++) out.push(rk(x + (j - 1.5) * 0.5, z + (j % 2) * 0.7 - (j > 1 ? 0.6 : 0), 0.45 + cssU(css) * 0.12, j * 80, j, "sc-tour-rock"));
+    } else {
+      const [x, z] = g.fall(-1, u);
+      out.push(ring2(x, z, 2.8));
+      for (let j = 0; j < 4; j++) out.push(rk(x + (j - 1.5) * 0.6, z + j * 0.5, 0.4 + cssU(css) * 0.1, j * 80, j, "sc-tour-rock"));
+    }
   }
   out.push("</g>");
   return out.join("");
@@ -289,7 +406,7 @@ export async function createSecundario() {
   root.className = "sec-plate";
   root.style.cssText = `position:absolute;left:${f1(REG.tx)}px;top:${f1(REG.ty)}px;width:${f1(VIEW[2] * REG.s)}px;height:${f1(VIEW[3] * REG.s)}px`;
   const svg = el("svg", { viewBox: VIEW.join(" "), class: "sc-svg", role: "group", tabindex: "0",
-    "aria-label": "Chancado secundario y terciario: el mineral sube por la correa, se reparte en cuatro tolvas, los alimentadores lo llevan a los rodillos HPGR y sale por la correa de producto. Espacio pausa; coma y punto cambian de paso; 1 a 5 eligen un equipo." }, root);
+    "aria-label": "Chancado secundario y terciario: el mineral sube por la correa, se reparte entre cuatro chancadores de conos, los alimentadores lo llevan a los rodillos HPGR y sale por la correa de producto. Espacio pausa; coma y punto cambian de paso; 1 a 5 eligen un equipo." }, root);
   const defs = el("defs", {}, svg);
   el("path", { d: SIL, class: "sc-sil" }, svg);
 
@@ -314,7 +431,10 @@ export async function createSecundario() {
     const g = at(M.path), c = kids(g);
     [...M.motors, M.housing, M.slab, M.funnel, M.slabR, M.funnelL, M.frontL, M.frame, M.door, M.slabF].forEach((i) => tag(c[i], "hpgr"));
     [M.fplat, M.feeder, M.hood, ...M.fedges].forEach((i) => tag(c[i], "alimentador"));
-    tag(c[M.hopper], "tolva");
+    // tolva (caja de arriba) y carcasa: el chancador de conos; el cuello bajo la carcasa (sus 4 primeras caras) va
+    // con el alimentador del HPGR
+    tag(c[M.hopper], "cono");
+    kids(kids(c[M.hopper])[1]).slice(0, 4).forEach((n) => tag(n, "alimentador"));
     (M.prod || []).forEach((i) => tag(c[i], "producto"));
     // capa de colpas del alimentador: bajo la campana, sobre la correa
     const fl = el("g", { class: "sc-rocks" }); c[M.hood].before(fl);
@@ -331,8 +451,8 @@ export async function createSecundario() {
   // producto sobre la correa (bajo la plataforma del módulo 3)
   const prodL = el("g", { class: "sc-rocks" }); c3[K3.plat].before(prodL);
   const prodRocks = pool(prodL, 34, "sc-rock sc-rock--fine");
-  // tolva del módulo 3: interior entre la parte trasera y la pared frontal (que se vuelve transparente)
-  const hop3 = kids(kids(c3[K3.hopper])[1]);                           // caras de la tolva facetada (cada una: relleno + borde)
+  // carcasa del cono del módulo 3: interior entre la parte trasera y la pared frontal (que se vuelve transparente)
+  const hop3 = kids(kids(c3[K3.hopper])[1]);                           // caras de la carcasa facetada (cada una: relleno + borde)
   const hopIn = el("g", { class: "sc-hopper-in" }); hop3[4].before(hopIn);
   const hopFront = [hop3[4].children[0], hop3[7].children[0]];          // rellenos blancos de las dos caras frontales
 
@@ -353,11 +473,13 @@ export async function createSecundario() {
   const tourG = el("g", { class: "sc-tour" }, svg);
   const tourRing = el("circle", { r: 9, class: "sc-tour-ring" }, tourG);
   const tourRocks = Array.from({ length: 5 }, (_, i) => el("path", { d: ROCK[i % 3], class: "sc-tour-rock" }, tourG));
+  // estela: sólo sobre las correas dibujadas (no cruza el aire ni el interior de los equipos)
+  const trailEls = Array.from({ length: 14 }, () => { const e = el("path", { class: "sc-trail" }); tourG.insertBefore(e, tourRing); return e; });
   const tourPulse = el("circle", { r: 14, class: "sc-tour-pulse" }, svg);
 
   // detalles ampliados A (tolva) y B (rodillos), en el espacio libre bajo la correa inclinada
   const CAL = {
-    A: { box: [16, 438, 196, 330], k: 2.35, at: [1031, 430], title: "Detalle A · Tolva", anchor: [1040, 300] },
+    A: { box: [16, 438, 196, 330], k: 2.35, at: [1031, 430], title: "Detalle A · Cono en corte", anchor: [1040, 300] },
     B: { box: [226, 452, 300, 316], k: 4.2, at: [995, 610], title: "Detalle B · Rodillos HPGR", anchor: [1040, 300] },
   };
   CAL.A.O = [CAL.A.box[0] + 150, CAL.A.box[1] + 268]; CAL.A.P = iso(CAL.A.O, CAL.A.k);
@@ -385,7 +507,7 @@ export async function createSecundario() {
 
   // etiquetas de foco
   const tagsG = el("g", { class: "sc-tags" }, svg);
-  const TAGS = { alim: ["Correas de alimentación", [380, 50]], tolva: ["Tolva", [1050, 360]], alimentador: ["Alimentador", [1030, 500]], hpgr: ["HPGR", [995, 575]], producto: ["Correa de producto", [1120, 745]] };
+  const TAGS = { alim: ["Correas de alimentación", [380, 50]], cono: ["Chancador de conos", [1050, 360]], alimentador: ["Alimentador", [1030, 500]], hpgr: ["HPGR", [995, 575]], producto: ["Correa de producto", [1120, 745]] };
   const tagEls = {};
   for (const [id, [label, p]] of Object.entries(TAGS)) {
     const g = el("g", { class: "sc-tag", transform: `translate(${p[0]} ${p[1]})` }, tagsG);
@@ -407,27 +529,25 @@ export async function createSecundario() {
 
   // ------------------------------------------------------------ estado
   const still = matchMedia("(prefers-reduced-motion: reduce)");
-  const S = { feed: 10500, level: 0.56, draw: 2620, gap: 0.5, rot: 0, flow: 0, mass: 0, feedS: 0, feederS: 0, prodS: 0, t: 0, hop: 0, cut: 0 };
+  const S = { feed: 10500, css: CSS_NOM, level: 0.8, draw: 2620, gap: 0.5, rot: 0, gyr: 0, flow: 0, mass: 0, feedS: 0, feederS: 0, prodS: 0, t: 0, hop: 0, cut: 0 };
   const shown = { hop: 0, cut: 0 };
-  let selected = null, playing = !still.matches, active = false, raf = 0, last = 0;
-  if (still.matches) { S.t = STEPS[4].t0 + 1.5; }
+  let selected = null, playing = !still.matches, active = false, raf = 0, last = 0, lastLit = null;
+  if (still.matches) { S.t = STEPS[3].ta + 2; S.gyr = 2.2; }            // quieto: el cono en corte, a mitad del paso 4
   const feedVis = new Map(), prodVis = new Map();
   const visible = (map, id, p) => { if (!map.has(id)) { map.set(id, hash(id * 1.37) < p); if (map.size > 600) map.delete(map.keys().next().value); } return map.get(id); };
 
   function step(dt) {
-    const inflow = S.feed / 4;
-    S.draw = clamp(FEEDER_NOM * (S.level / 0.6), 0, FEEDER_MAX);
+    // por línea: entra feed/4 a la tolva del cono; el cono ahogado saca su capacidad (según CSS); bajo el nivel de
+    // ahogo saca proporcional al nivel. El alimentador entrega al HPGR lo que produce el cono.
+    const inflow = S.feed / 4, cap = coneCap(S.css);
+    S.draw = cap * clamp(S.level / CHOKE);
     S.level = clamp(S.level + 0.25 * ((inflow - S.draw) / FEEDER_NOM) * dt, 0.05, 1);
     S.gap += (clamp(S.draw / FEEDER_MAX) - S.gap) * (1 - Math.exp(-dt * 2));
-    S.rot += OMEGA * dt; S.flow += dt * (0.6 + S.draw / FEEDER_MAX); S.mass += dt * (S.draw / FEEDER_MAX);
+    S.rot += OMEGA * dt; S.gyr += OMEGA_G * dt; S.flow += dt * (0.6 + S.draw / FEEDER_MAX); S.mass += dt * (S.draw / FEEDER_MAX);
     S.feedS += V_BELT * dt; S.feederS += 26 * (S.draw / FEEDER_MAX) * dt; S.prodS += V_PROD * dt;
     S.t = (S.t + dt) % PERIOD;
   }
-  const tourAt = (t) => {
-    for (const [k, r] of Object.entries(TOUR)) if (t >= r[0] && t < r[1]) return { stage: k, u: phase(t, r) };
-    return { stage: "done", u: 1 };
-  };
-  const live = () => ({ ...S, step: stepAt(S.t), tour: tourAt(S.t), cut: shown.cut, hop: shown.hop });
+  const live = () => { const q = state(S.t); return { ...S, seq: q, step: q.step, tour: { stage: q.stage, u: q.u }, cut: shown.cut, hop: Math.max(shown.hop, q.open) }; };
 
   // Xc del plano de corte según el deslizador (0 = cerrado)
   const cutX = (c) => (c < 0.15 ? lerp(69, HP.x, c / 0.15) : lerp(HP.x, 37, (c - 0.15) / 0.85));
@@ -466,10 +586,10 @@ export async function createSecundario() {
     }
     for (; pi < prodRocks.length; pi++) put(prodRocks[pi], null);
 
-    // tolva m3: pared frontal transparente + interior
-    const hv = shown.hop;
+    // cono m3: pared frontal transparente + interior (el deslizador o, en los pasos 3 y 4, la secuencia)
+    const hv = s.hop;
     hopFront.forEach((n) => (n.style.opacity = (1 - hv).toFixed(3)));
-    setHTML(hopIn, hv > 0.005 ? hopperSvg(iso(H3), s, tour) : "");
+    setHTML(hopIn, hv > 0.005 ? coneSvg(iso(H3), s, tour) : "");
     hopIn.style.opacity = Math.min(1, hv * 1.6).toFixed(3);
     // HPGR m3: cuerpo, losa y corte
     const Xc = cutX(shown.cut), Xh = Math.min(Xc, HP.x);
@@ -478,13 +598,22 @@ export async function createSecundario() {
     if (key === "" || hpKey !== key) { setHTML(hpG, hpgrSvg(iso(O3), Xc, s, tour)); hpKey = key; }
 
     // detalles ampliados
-    const showA = clamp(hv * 3) * (selected && selected !== "tolva" ? 0.0 : 1), showB = clamp((shown.cut - 0.25) * 4) * (selected && selected !== "hpgr" ? 0 : 1);
+    const showA = clamp(hv * 3) * (selected && selected !== "cono" ? 0.0 : 1), showB = clamp((shown.cut - 0.25) * 4) * (selected && selected !== "hpgr" ? 0 : 1);
     CAL.A.g.style.opacity = showA.toFixed(3); CAL.A.g.style.display = showA > 0.01 ? "" : "none";
     CAL.B.g.style.opacity = showB.toFixed(3); CAL.B.g.style.display = showB > 0.01 ? "" : "none";
     if (showA > 0.01) {
-      setHTML(CAL.A.body, `<g class="sc-cal-k">${hopperShellSvg(CAL.A.P)}${hopperSvg(CAL.A.P, s, tour, CAL.A.k, "hopwk")}<path class="hb-outline" d="${D(hopWindow(CAL.A.P))}"/></g>`);
-      const zl = Math.max(2, s.level * LEVEL_MAX), lv = CAL.A.P([hopL(zl) - 2, 0, zl]), out = CAL.A.P([-14, -11.5, -22.8]), inl = CAL.A.P([-10, -8, HOP_TOP + 6]);
-      setHTML(CAL.A.labels, label(lv, [CAL.A.box[0] + 12, lv[1] - 18], `Nivel ${Math.round(s.level * 100)} %`, "start") + label(out, [CAL.A.box[0] + 12, CAL.A.box[1] + CAL.A.box[3] - 14], "Descarga al alimentador", "start") + label(inl, [CAL.A.box[0] + 12, CAL.A.box[1] + 44], "Entra desde la distribuidora", "start"));
+      setHTML(CAL.A.body, `<g class="sc-cal-k">${hopperShellSvg(CAL.A.P)}${coneSvg(CAL.A.P, s, tour, CAL.A.k, "hopwk")}<path class="hb-outline" d="${D(hopWindow(CAL.A.P))}"/></g>`);
+      // el cono en corte: tolva, plato, cóncavo, manto, CSS, excéntrica y chute (columna de etiquetas a la izquierda)
+      const P = CAL.A.P, C = (x, z) => P([CONE.xa + x * R2, CONE.ya - x * R2, z]), G = coneGeo(s), x0 = CAL.A.box[0] + 10, y0 = CAL.A.box[1];
+      const rm = rc(CONE.z0 + 1) - G.G0 / 2, closing = P([CONE.xa + rm * Math.cos(s.gyr), CONE.ya + rm * Math.sin(s.gyr), CONE.z0 + 0.6]); // la CSS: donde cierra ahora
+      setHTML(CAL.A.labels,
+        label(C(-6, 64), [x0, y0 + 42], "Tolva", "start") +
+        label(C(G.off(CONE.plate[1]) - 2, CONE.plate[1]), [x0, y0 + 64], "Plato", "start") +
+        label(C(-rc(50) - 0.9, 50), [x0, y0 + 86], "Cóncavo", "start") +
+        label(C(G.head(-1, 42) + 0.7, 42), [x0, y0 + 108], "Manto", "start") +
+        label(closing, [x0, y0 + 166], `CSS ${Math.round(s.css)} mm`, "start") +
+        label(C(-3.2, CONE.ecc), [x0, y0 + 196], "Excéntrica", "start") +
+        label(P([-12, 0, -11]), [x0, y0 + 292], "Chute", "start"));
       leader(CAL.A);
     }
     if (showB > 0.01) {
@@ -506,33 +635,52 @@ export async function createSecundario() {
       leader(CAL.B);
     }
 
-    // colpa que se sigue
-    let tp = null, inside = null, frag = false;
-    const t = tour, m3 = 3;
-    if (t.stage === "incl") tp = FEEDP.at(t.u * P_INCL);
-    else if (t.stage === "head") inside = [578, 31];
-    else if (t.stage === "dist") tp = FEEDP.at(lerp(P_DIST, pDropOf(m3), t.u));
-    else if (t.stage === "fall") tp = [INLET(m3)[0], distY(INLET(m3)[0]) - 4 + 33 * t.u * t.u];
-    else if (t.stage === "bin") inside = hv > 0.3 ? null : [1035, 430];
-    else if (t.stage === "feeder") tp = polyline(FEEDER).at(t.u * polyline(FEEDER).len);
-    else if (t.stage === "hood") inside = [1000, 545];
-    else if (t.stage === "nip") inside = Xc < HP.x - 3 ? null : [990, 612];
-    else if (t.stage === "under") inside = null;
-    else if (t.stage === "prod") { tp = PRODP.at(lerp(pProdOf(3), PRODP.len, t.u)); frag = true; if (tp[0] < 1000) { inside = [999, 676]; tp = null; } }
+    // colpa que se sigue (sobre las correas; por dentro de un equipo, el pulso si el corte está cerrado)
+    const q = s.seq;
+    let tp = beltPoint(q.stage, q.u), inside = null, frag = q.stage === "feeder" ? 1.6 : q.stage === "prod" ? 1.05 : 0;
+    if (!tp) switch (q.stage) {
+      case "head": inside = [578, 31]; break;
+      case "fall": tp = [INLET(3)[0], distY(INLET(3)[0]) - 4 + 33 * q.u * q.u]; break;
+      case "bin": case "cone": inside = hv > 0.3 ? null : [1035, 430]; break;
+      case "chute": if (q.u > 0.85) { tp = FEEDER[0]; frag = 1.6; } else inside = hv > 0.3 ? null : [1042, 478]; break;
+      case "hood": inside = [1000, 545]; break;
+      case "nip": inside = Xc < HP.x - 3 ? null : [990, 612]; break;
+      case "prod": inside = [999, 676]; break;
+    }
     if (tp) {
       tp = [tp[0], tp[1] - 4];
       tourRing.setAttribute("cx", f1(tp[0])); tourRing.setAttribute("cy", f1(tp[1])); tourRing.setAttribute("r", frag ? 11 : 9); tourRing.style.opacity = 1;
-      tourRocks.forEach((r, i) => (frag ? put(r, [tp[0] + (i - 2) * 3.4, tp[1] + ((i % 2) - 0.5) * 2.5], 1.25, i * 70) : put(r, i ? null : tp, 3.4, S.t * 40)));
+      tourRocks.forEach((r, i) => (frag ? put(r, [tp[0] + (i - 2) * 3.4, tp[1] + ((i % 2) - 0.5) * 2.5], frag, i * 70) : put(r, i ? null : tp, 3.4, S.t * 40)));
     } else { tourRing.style.opacity = 0; tourRocks.forEach((r) => put(r, null)); }
     if (inside) { const ph = (performance.now() / 900) % 1; tourPulse.setAttribute("cx", f1(inside[0])); tourPulse.setAttribute("cy", f1(inside[1])); tourPulse.setAttribute("r", f1(8 + ph * 16)); tourPulse.style.opacity = (0.9 * (1 - ph)).toFixed(2); }
     else tourPulse.style.opacity = 0;
+    // estela: el mismo recorrido unos instantes antes, mientras siga en el mismo tramo de correa
+    const trail = [];
+    if (beltPoint(q.stage, q.u)) for (let i = 0; i <= trailEls.length; i++) {
+      const b = state(S.t - i * 0.07); if (b.step !== q.step || b.stage !== q.stage) break;
+      const p = beltPoint(b.stage, b.u); if (!p) break; trail.push([p[0], p[1] - 4]);
+    }
+    trailEls.forEach((e, i) => {
+      if (i + 1 >= trail.length) { e.style.opacity = 0; return; }
+      e.setAttribute("d", `M${f1(trail[i][0])} ${f1(trail[i][1])}L${f1(trail[i + 1][0])} ${f1(trail[i + 1][1])}`);
+      e.style.opacity = ((1 - i / trailEls.length) * 0.8).toFixed(2); e.style.strokeWidth = f1(5 * (1 - i / trailEls.length) + 1);
+    });
 
-    for (const id of ORDER) tagEls[id].toggleAttribute("data-on", selected === id);
+    // foco del paso: se ilumina el equipo del paso y el resto baja a ~35 % (si no hay un equipo elegido)
+    const lit = selected ? null : q.step.lit, litKey = lit ? lit.join() : "";
+    if (litKey !== lastLit) {
+      lastLit = litKey;
+      units.forEach((eq, u) => u.classList.toggle("sc-stepdim", !!lit && !lit.includes(eq)));
+      hopIn.classList.toggle("sc-stepdim", !!lit && !lit.includes("cono"));
+    }
+    for (const id of ORDER) tagEls[id].toggleAttribute("data-on", selected ? selected === id : lit.includes(id));
     listeners.forEach((fn) => fn(s, api));
   }
   function label(p, q, text, anchor) {
     const tx = anchor === "end" ? q[0] - 2 : q[0] + 2;
-    return `<path class="sc-cal-lead" d="M${f1(p[0])} ${f1(p[1])}L${f1(q[0] + (anchor === "end" ? -2 : 2) * 0)} ${f1(q[1] + 4)}"/><circle class="sc-cal-dot" cx="${f1(p[0])}" cy="${f1(p[1])}" r="2.6"/><text class="sc-cal-text" x="${f1(tx)}" y="${f1(q[1])}" text-anchor="${anchor}">${text}</text>`;
+    // la guía llega al final del texto (no lo tacha): ancho estimado a 11,5 px
+    const w = text.length * 6.3 + 5, ex = anchor === "end" ? q[0] - 2 - w : q[0] + 2 + w;
+    return `<path class="sc-cal-lead" d="M${f1(p[0])} ${f1(p[1])}L${f1(ex)} ${f1(q[1] - 4)}"/><circle class="sc-cal-dot" cx="${f1(p[0])}" cy="${f1(p[1])}" r="2.6"/><text class="sc-cal-text" x="${f1(tx)}" y="${f1(q[1])}" text-anchor="${anchor}">${text}</text>`;
   }
   function leader(C) {
     const [x, y, cw] = C.box, e = [x + cw, y + 30];
@@ -556,7 +704,7 @@ export async function createSecundario() {
   const api = {
     el: root, svg, PERIOD, STEPS,
     get selected() { return selected; }, get playing() { return playing; },
-    get hop() { return S.hop; }, get cut() { return S.cut; }, get feed() { return S.feed; },
+    get hop() { return S.hop; }, get cut() { return S.cut; }, get feed() { return S.feed; }, get css() { return S.css; },
     live, on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     setActive(v) { active = v; if (v) { kick(); } else { cancelTick(raf); raf = 0; } },
     play() { playing = true; kick(); }, pause() { playing = false; }, togglePlay() { playing ? api.pause() : api.play(); },
@@ -567,10 +715,12 @@ export async function createSecundario() {
     setHop(v, instant) { S.hop = clamp(v); if (instant || still.matches) shown.hop = S.hop; draw(); },
     setCut(v, instant) { S.cut = clamp(v); if (instant || still.matches) shown.cut = S.cut; draw(); },
     setFeed(v) { S.feed = clamp(v, FEED_MIN, FEED_MAX); draw(); },
+    setCss(v) { S.css = clamp(v, CSS_MIN, CSS_MAX); draw(); },
     select(id) {
       selected = id && EQUIP[id] ? id : null;
       root.toggleAttribute("data-sel", !!selected);
       units.forEach((eq, u) => u.classList.toggle("sc-dim", !!selected && eq !== selected));
+      hopIn.classList.toggle("sc-dim", !!selected && selected !== "cono");
       draw();
     },
     destroy() { api.setActive(false); layers.destroy(); listeners.clear(); document.removeEventListener("visibilitychange", onVis); root.remove(); },
@@ -594,6 +744,7 @@ export function bindPanel(sec, { onEscape, onFocus } = {}) {
   });
   const info = $("[data-info]"), meter = $("[data-sc-meter]"), readout = $("[data-sc-readout]");
   const hopS = $("[data-sc-hop]"), hopO = $("[data-sc-hop-out]"), cutS = $("[data-sc-cut]"), cutO = $("[data-sc-cut-out]"), feedS = $("[data-sc-feed]"), feedO = $("[data-sc-feed-out]");
+  const cssS = $("[data-sc-css]"), cssO = $("[data-sc-css-out]");
   let lastStep = 0, lastText = "", lastInfo = "";
   const off = [];
   const on = (node, ev, fn, opt) => { node.addEventListener(ev, fn, opt); off.push(() => node.removeEventListener(ev, fn, opt)); };
@@ -618,14 +769,18 @@ export function bindPanel(sec, { onEscape, onFocus } = {}) {
     }
     stepBtns[st.n - 1].style.setProperty("--p", clamp((s.t - st.t0) / (st.t1 - st.t0)).toFixed(3));
     meter.style.setProperty("--fill", s.level.toFixed(3));
-    const warn = s.level > 0.95 ? " · ¡tolva llena!" : "";
-    const text = `${fmt(s.feed)} t/h · tolva ${Math.round(s.level * 100)} % · HPGR ${fmt(s.draw)} t/h${warn}`;
+    // bajo la tuerca del manto el cono ya no trabaja ahogado
+    const drip = s.level < NUT_LEVEL, warn = s.level > 0.95 ? " · ¡tolva llena!" : "";
+    const text = drip ? `${fmt(s.feed)} t/h · tolva ${Math.round(s.level * 100)} % · alimentación por goteo: desgaste irregular y producto menos cúbico`
+      : `${fmt(s.feed)} t/h · CSS ${Math.round(s.css)} mm · tolva ${Math.round(s.level * 100)} % · HPGR ${fmt(s.draw)} t/h${warn}`;
+    readout.toggleAttribute("data-warn", drip || s.level > 0.95);
     if (text !== lastText) { readout.textContent = text; lastText = text; }
     playBtn.setAttribute("aria-pressed", String(sec.playing));
     playBtn.setAttribute("aria-label", sec.playing ? "Pausar" : "Reproducir");
     renderInfo(s);
   }));
-  const sync = () => { hopS.value = Math.round(sec.hop * 100); hopO.textContent = `${hopS.value} %`; cutS.value = Math.round(sec.cut * 100); cutO.textContent = `${cutS.value} %`; feedS.value = sec.feed; feedO.textContent = `${fmt(sec.feed)} t/h`; };
+  const sync = () => { hopS.value = Math.round(sec.hop * 100); hopO.textContent = `${hopS.value} %`; cutS.value = Math.round(sec.cut * 100); cutO.textContent = `${cutS.value} %`; feedS.value = sec.feed; feedO.textContent = `${fmt(sec.feed)} t/h`; cssS.value = sec.css; cssO.textContent = `${sec.css} mm`; };
+  on(cssS, "input", () => { sec.setCss(Number(cssS.value)); cssO.textContent = `${cssS.value} mm`; });
   on(hopS, "input", () => { sec.setHop(hopS.value / 100); hopO.textContent = `${hopS.value} %`; onFocus?.("A", hopS.value > 0); });
   on(cutS, "input", () => { sec.setCut(cutS.value / 100); cutO.textContent = `${cutS.value} %`; onFocus?.("B", cutS.value > 0); });
   on(feedS, "input", () => { sec.setFeed(Number(feedS.value)); feedO.textContent = `${fmt(Number(feedS.value))} t/h`; });
@@ -654,7 +809,7 @@ export function bindPanel(sec, { onEscape, onFocus } = {}) {
 
 // ---------------------------------------------------------------- explorador (demo sin cámara)
 const toPoster = ([x, y, w, h]) => [x * REG.s + REG.tx, y * REG.s + REG.ty, w * REG.s, h * REG.s];
-const ZOOM = { alim: [0, 0, 660, 560], tolva: [930, 300, 240, 380], alimentador: [920, 440, 220, 300], hpgr: [890, 500, 250, 360], producto: [860, 580, 353, 330] }; // alto extra abajo: la ficha tapa esa zona
+const ZOOM = { alim: [0, 0, 660, 560], cono: [930, 300, 240, 380], alimentador: [920, 440, 220, 300], hpgr: [890, 500, 250, 360], producto: [860, 580, 353, 330] }; // alto extra abajo: la ficha tapa esa zona
 const CAL_ZOOM = { A: [10, 420, 220, 360], B: [215, 440, 320, 340] };
 
 // lámina armada de antemano, en reposo, mientras se mira la infografía (js/explorer.js): abrir sólo la inserta

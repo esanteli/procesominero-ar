@@ -1474,3 +1474,21 @@ body[data-mode="demo"] .explorer { background: #fff; } /* el arte es blanco: al 
   .hotspot-ring::after { animation: none; }
   .art-st[data-hot], .art-lb[data-hot] { transform: none; }
 }
+
+/* T15 · chancado secundario: el chancador de conos por dentro, foco por paso y estela de la colpa */
+.sc-svg .sc-stepdim { opacity: .35; }
+.sc-art [data-eq], .sc-art .sc-stepdim, .sc-hopper-in { transition: opacity .5s var(--pm-ease); }  /* = la llegada de cada paso */
+.cn-sec { fill: #ffe4c4; stroke: #ef8c22; stroke-width: .9; stroke-linejoin: round; }
+.cn-liner { fill: #f6b46b; stroke: #c8641f; stroke-width: .7; stroke-linejoin: round; }
+.cn-head { fill: #fff3e4; stroke: #ef8c22; stroke-width: 1; stroke-linejoin: round; }
+.cn-shaft { stroke: #e0a060; stroke-width: 1.4; stroke-dasharray: 2 1.5; }
+.cn-nut { fill: #ffe4c4; stroke: #c8641f; stroke-width: .8; stroke-linejoin: round; }
+.cn-nut--bare { fill: #ffd0b0; stroke: #d64a1a; stroke-width: 1.1; }
+.cn-plate { fill: #ffe4c4; stroke: #c8641f; stroke-width: .8; }
+.cn-ecc { fill: #fff8; stroke: #c8641f; stroke-width: .7; stroke-dasharray: 1.5 1; }
+.cn-ecc-in { fill: #f6b46b; stroke: #c8641f; stroke-width: .7; }
+.cn-orbit { fill: none; stroke: #c8641f; stroke-width: .6; stroke-dasharray: 1.6 1.2; opacity: .8; }
+.cn-close { fill: none; stroke: #d64a1a; stroke-width: 2; stroke-linecap: round; }
+.sc-trail { fill: none; stroke: var(--pm-orange); stroke-linecap: round; pointer-events: none; }
+.readout[data-warn] { color: #b8401a; }
+@media (prefers-reduced-motion: reduce) { .sc-art [data-eq], .sc-art .sc-stepdim, .sc-hopper-in { transition: none; } }

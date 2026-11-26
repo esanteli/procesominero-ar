@@ -189,20 +189,20 @@
       <!-- estación 2.2 · chancado secundario y terciario (js/stations/chancado-secundario.js conecta estos controles) -->
       <div class="panel-view panel-sec" data-panel-view="secundario" hidden>
         <div class="readout-row">
-          <div class="meter" data-sc-meter title="Nivel de la tolva"><span></span></div>
+          <div class="meter" data-sc-meter title="Nivel de la tolva del chancador de conos"><span></span></div>
           <output class="readout" data-sc-readout aria-live="polite">—</output>
         </div>
         <div class="chips" role="group" aria-label="Equipos: toca uno para ver su descripción">
           <button type="button" class="chip" data-sc-chip="alim"><span>01</span>Correas</button>
-          <button type="button" class="chip" data-sc-chip="tolva"><span>02</span>Tolva</button>
+          <button type="button" class="chip" data-sc-chip="cono"><span>02</span>Cono</button>
           <button type="button" class="chip" data-sc-chip="alimentador"><span>03</span>Alimentador</button>
           <button type="button" class="chip" data-sc-chip="hpgr"><span>04</span>HPGR</button>
           <button type="button" class="chip" data-sc-chip="producto"><span>05</span>Producto</button>
         </div>
         <div class="controls controls--3">
           <label class="ctl">
-            <span class="ctl-label">Interior tolva</span>
-            <input type="range" min="0" max="100" value="0" step="1" data-sc-hop aria-label="Interior de la tolva del chancador secundario: transparencia de la pared frontal">
+            <span class="ctl-label">Interior del cono</span>
+            <input type="range" min="0" max="100" value="0" step="1" data-sc-hop aria-label="Interior del chancador de conos: la pared frontal de la carcasa se vuelve transparente y muestra el cono en corte">
             <output data-sc-hop-out>0 %</output>
           </label>
           <label class="ctl">
@@ -215,6 +215,11 @@
             <input type="range" min="6000" max="13000" value="10500" step="250" data-sc-feed aria-label="Alimentación total, toneladas por hora">
             <output data-sc-feed-out>10.500 t/h</output>
           </label>
+          <label class="ctl">
+            <span class="ctl-label">CSS</span>
+            <input type="range" min="25" max="45" value="35" step="1" data-sc-css aria-label="Abertura mínima del chancador de conos (CSS), en milímetros: menor CSS, producto más fino y algo menos de capacidad">
+            <output data-sc-css-out>35 mm</output>
+          </label>
         </div>
         <div class="seq" role="group" aria-label="Sigue una colpa por el circuito">
           <button type="button" class="seq-play" data-sc-play aria-label="Pausar" aria-pressed="true">
@@ -222,7 +227,7 @@
           </button>
           <div class="seq-body">
             <div class="seq-steps" data-sc-steps></div>
-            <p class="seq-label"><b data-sc-step-n>1</b><span data-sc-step-label>Sube por la correa de alimentación</span></p>
+            <p class="seq-label"><b data-sc-step-n>1</b><span data-sc-step-label>La correa inclinada sube el mineral del primario</span></p>
           </div>
           <div class="seq-nav">
             <button type="button" class="seq-nav-btn" data-sc-prev aria-label="Paso anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
