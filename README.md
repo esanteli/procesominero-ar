@@ -166,39 +166,59 @@ Interpretaciones por validar:
 - El alimentador ahora entrega al HPGR lo que produce el cono (antes regulaba el nivel de la tolva).
 - La tuerca del manto queda al 65 % del nivel de la tolva: bajo eso se avisa la alimentación por goteo.
 
-## Estación 5 · Puerto (iteración 12)
+## Estación 5 · Puerto (iteración 14)
 
 Sobre los dibujos de Emilio en `assets/puerto/` (espesadores, puerto y barco), a escala 2 y registrados por correlación.
 Isometría de mundo `W(e, n, z)` en px con origen en el fin de la galería de la correa (n a lo largo de la correa, hacia el
 barco).
 
-Flujo del concentrado, como en los puertos de concentrado del norte de Chile: **espesadores** de la concentradora (rastras
-que giran, pozo de alimentación, rebalse de agua clara a reúso) → **bombas** → **mineroducto** (~170 km, comprimido con un
-corte) → **estación terminal** → **planta de filtros** (estanque agitado y filtro prensa: llenado, prensado, soplado,
-descarga placa por placa; agua filtrada a tratamiento) → **galpón de acopio** cerrado (pila, cargador frontal, tolva) →
-**correa cubierta** → **torre de transferencia** (muestreo) → caballete del muelle → **cargador de barcos** de pedestal
-(gira, extiende el brazo y baja un chute telescópico) → **bodegas**, por pasadas para nivelar el barco.
+Flujo del concentrado, coherente con la **Ruta A de Flotación**: el **concentraducto** (~170 km, comprimido con un corte)
+lo impulsan las bombas de pistón de la planta y la pulpa baja por gravedad a la costa → **estación terminal** (válvula y
+orificio sobre la tubería: la pulpa llega rápida y sale tranquila) → **espesadores de recepción** (vuelven a espesar y
+estabilizan la alimentación; el rebalse, agua clara, va a tratamiento) → descarga por el cono → **bombas de
+alimentación** y **estanque agitado** → **filtro prensa** (llenado, prensado, soplado, descarga y cierre) → **galpón de
+acopio** (pila, cargador frontal, tolva) → **correa cubierta** → **torre de muestreo** → **cargador de barcos** →
+**bodegas**, por pasadas para nivelar el barco.
 
 | Interacción | Dónde | Qué pasa |
 |---|---|---|
-| Interior planta | deslizador, flechas ←→ | los techos de la planta de filtros y del galpón suben y los muros se cortan: filtro prensa con su ciclo, estanque agitado, pila de concentrado, cargador frontal y tolva. Abre el **Detalle A**: filtro prensa en corte con la fase del ciclo |
-| Interior correa | deslizador, flechas ↑↓ | la cubierta de la galería se desvanece y se ve la correa con el concentrado. Abre el **Detalle B**: cargador y bodega en corte (brazo, chute, pila, línea de flotación) |
-| Humedad | deslizador | 7–12 % de humedad del queque: tasa de embarque y horas por barco. Sobre el **TML** (10 %) el concentrado no se puede embarcar (riesgo de licuefacción): la correa y el cargador se detienen y aparece el aviso (modelo referencial) |
-| Equipos | chips o tocar el dibujo; teclas 1–5 | espesadores, mineroducto, planta de filtros, galpón, embarque: foco, etiqueta y ficha con datos en vivo |
-| Sigue el concentrado | ▶/❚❚, 6 pasos, ‹ ›, `,` `.` | espesador → bombas → mineroducto → estanque y filtro prensa → queque al galpón → cargador frontal → tolva → correa → brazo del cargador → bodega |
+| Interior planta | deslizador, flechas ←→ | suben los techos de la planta de filtros y del galpón; la cámara se acerca a la planta (en AR, zoom del dibujo) con llamadas ancladas: bombas de alimentación, estanque agitado, filtro prensa y su fase, agua filtrada, queque |
+| Interior correa | deslizador, flechas ↑↓ | la cubierta de la galería se desvanece; zoom al muelle con llamadas: correa, torre de muestreo, brazo y chute, bodega en carga |
+| Humedad | deslizador | 7–12 % de humedad del queque. Sobre el **TML** (10 %) no se puede embarcar: la correa y el cargador se detienen y aparece el aviso (modelo referencial) |
+| % de sólidos | deslizador (45–72) | sólidos de la pulpa que llega a los espesadores. Bajo 55 % el ciclo del filtro se alarga y baja la tasa; sobre 70 % aparece «pulpa muy viscosa». Parte con el valor elegido en Flotación |
+| ← bombas de la planta | enlace junto al concentraducto | abre la estación de Flotación (en AR la enfoca) |
+| Equipos | chips o tocar el dibujo; teclas 1–5 | concentraducto, espesadores de recepción, planta de filtros, galpón, embarque: foco, etiqueta, llamadas y ficha |
+| Secuencia | ▶/❚❚, 6 pasos, ‹ ›, `,` `.` | en bucle; ver abajo |
+
+Secuencia (`state(t)`, función pura). Cada paso tiene llegada (0,5 s: se ilumina el equipo y el resto baja a ~35 %),
+acción y una pausa de 1,2 s con el resultado a la vista; los edificios se abren solos cuando el paso ocurre dentro.
+
+1. Llega el concentraducto y la estación terminal disipa la presión.
+2. El espesador de recepción vuelve a espesar la pulpa.
+3. Las bombas la llevan al estanque agitado y a los filtros.
+4. El filtro saca el agua: queque con ~9 % de humedad, bajo el TML.
+5. El queque se acopia en el galpón y un cargador alimenta la tolva.
+6. La correa pasa por la torre de muestreo y el cargador llena las bodegas.
 
 La carga del barco es un reloj aparte (sólo avanza con la humedad bajo el TML): se abren las escotillas, 9 pasadas
 alternando bodegas (las pilas crecen y el barco se hunde un poco), y al completar 50.000 t las escotillas se cierran y
-parte un barco nuevo. El recorrido, el filtro prensa (4 ciclos por vuelta) y el cargador frontal (5 por vuelta) son
-funciones puras del tiempo.
+parte un barco nuevo. El filtro prensa es el componente compartido `js/stations/filtro-prensa.js`; el % de sólidos se
+comparte con Flotación por `js/shared.js`. `?qa=silueta` pinta en rojo lo vivo que salga de lo impreso.
 
-Agregados e interpretaciones por validar: el anillo grande se tomó como espesador sin puente (columna central) y el chico
-como espesador con puente; la nave del portón como planta de filtros y la caja grande como galpón de acopio (la nave de
-atrás, cerrada, como recuperación hacia la correa); la rampa en S del dibujo se reemplazó por un cargador de barcos de
-pedestal; la grúa del muelle queda como está. Valores típicos: pulpa ~65 % sólidos, queque 8–9 %, TML 10 %, ~1.600 t/h.
+Lectura de los dibujos, **por validar**:
 
-Cómo está armada: `js/stations/puerto.js` (modelo, ciclos, espesadores, naves por dentro, correa, cargador, bodegas,
-detalles y panel) y `js/stations/puerto-geo.js` (silueta). AR: marcador 9 de `assets/targets.mind` (recorte
+- El anillo grande se tomó como espesador sin puente (columna central) y el chico como espesador con puente; ambos son
+  los espesadores de recepción.
+- La nave del portón es la planta de filtros y la caja grande el galpón de acopio (la nave de atrás, cerrada, la
+  recuperación hacia la correa). La rampa en S se reemplazó por un cargador de barcos de pedestal; la grúa queda igual.
+- El dibujo no trae un ducto impreso: el concentraducto es el de la app y entra por el extremo inferior derecho del
+  corredor de cañerías; la estación terminal va sobre él.
+- Las descargas de los espesadores hacia las bombas se dibujan enterradas (línea punteada).
+- Valores referenciales: pulpa ~65 % sólidos, queque 8–9 %, TML 10 %, ~1.600 t/h; el ciclo del filtro crece un 5 % por
+  cada punto bajo 55 % de sólidos.
+
+Cómo está armada: `js/stations/puerto.js` (modelo, secuencia, espesadores, cañerías, naves por dentro, correa, cargador,
+bodegas, llamadas y panel) y `js/stations/puerto-geo.js` (silueta). AR: marcador 9 de `assets/targets.mind` (recorte
 `assets/target-puerto.png`, x 4180 y 420, 960 × 450). Al recompilar con los 10 recortes, los 9 anteriores quedan idénticos.
 
 ## Estación 4 · Fundición (iteración 11)
@@ -449,6 +469,7 @@ ar-chancador/
 ├─ js/stations/flotacion.js      estación 3: celdas de flotación, espesadores y rutas del concentrado
 ├─ js/stations/flotacion-rutas.js edificios, cañerías e interiores de las rutas (estación 3)
 ├─ js/stations/filtro-prensa.js  filtro prensa compartido (Puerto y Flotación)
+├─ js/shared.js                  valores compartidos entre estaciones (% de sólidos)
 ├─ js/stations/flotacion-geo.js  silueta de la etapa de flotación
 ├─ assets/flotacion/*.svg         dibujos de Emilio (zona, celdas, espesadores)
 ├─ assets/target-flotacion.png    marcador de las celdas de flotación
@@ -460,7 +481,7 @@ ar-chancador/
 ├─ js/stations/fundicion-geo.js  silueta de la fundición
 ├─ assets/fundicion/fundidora.svg dibujo de Emilio (nave de la fundición)
 ├─ assets/target-fundicion.png    marcador de la fundición
-├─ js/stations/puerto.js         estación 5: espesadores, mineroducto, filtros, galpón, correa y cargador de barcos, detalles A/B
+├─ js/stations/puerto.js         estación 5: concentraducto, espesadores de recepción, filtros, galpón, correa y cargador de barcos, zoom con llamadas
 ├─ js/stations/puerto-geo.js     silueta del puerto
 ├─ assets/puerto/*.svg            dibujos de Emilio (espesadores, puerto, barco)
 ├─ assets/target-puerto.png       marcador del puerto
