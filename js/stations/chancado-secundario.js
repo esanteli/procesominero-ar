@@ -80,40 +80,44 @@ function beltPoint(stage, u) {
 // Rodillos con eje en X (los motores del dibujo entran por −X): Ø 18, X 19…39; descansos X 40…48.
 const HP = { x: 57.8, y: 45.8, z: 34.74, t: 2.6, slab: [-13.4, 69, -46.2, 2, 34.74, 40], slot: [-27, -18.8],
   r: 9, zc: 16.5, yf: -13.4, yb: -32.4, rx: [19, 39], bx: [40, 48], bhy: 6, bhz: 7 };
-/// ---------------------------------------------------------------- chancador de conos (sólido en el cuerpo del m3)
-// Misma isometría que el resto (P = iso(H3), ejes locales desde la esquina frontal-der. inferior del cuerpo facetado).
-// El cuerpo es el perfil frontal HOP extruido hacia atrás hasta hopY(z); el cuello, una caja bajo él. El cono es un
-// sólido de revolución con eje vertical dentro del cuerpo: taza con cóncavo (tronco exterior con espesor), cabeza con
-// manto (tronco interior, excéntrico), tuerca, plato, buje y excéntrica. "Interior del cono" mueve un plano Y = Yc que
-// quita lo de adelante (como el corte del HPGR): las caras cortadas van con relleno plano.
-const H3 = [1052.89, 479.81];
-const HOP = [[-29.34, 0], [0, 0], [0, 31.42], [6.69, 81.55], [-27.84, 81.73], [-51.11, 31.35]]; // perfil (X, Z) en Y = 0: e f d b a c
-const hopY = (z) => (z <= 31.4 ? -23.1 : lerp(-23.1, -16.5, (z - 31.4) / 50.2));                  // fondo del cuerpo
-const NECK = [[-24, -22.8], [0, -22.8], [0, 0], [-24, 0]];                                          // cuello (X, Z), fondo Y −23,1
-const WALL = 1.6;                                                                                   // espesor de pared (cuerpo y cuello)
-// medidas del cono (unidades del SVG, referenciales; la excentricidad va exagerada para que se vea). El fondo inclinado
-// del cuerpo limita el radio: la taza cabe con ~1,5 de pared por delante y por detrás. El eje cae sobre el cuello.
+// ---------------------------------------------------------------- chancador de conos (sólido en la tolva de atrás del m3)
+// La tolva de atrás del dibujo (caja de arriba, embudo, collar y cuello) es una columna de planta cuadrada con eje
+// vertical; sus medidas salen de los vértices de sus caras impresas. Ejes locales: X, Y en planta desde el eje, Z desde
+// el fondo del cuello; misma isometría que el resto (P3). La distribuidora descarga justo sobre este eje.
+// El cono es un sólido de revolución dentro del embudo, con la caja de arriba como tolva de alimentación: taza con
+// cóncavo (tronco con espesor), cabeza con manto (excéntrica), tuerca, plato, buje y excéntrica. "Interior del cono"
+// mueve dos planos paralelos a los ejes (como el corte del HPGR): el del frente (y = Yc) llega al eje y corta el cono
+// por la mitad; el del costado (x = Xc) se detiene a la derecha de la taza y sólo quita la pared derecha de la columna.
+const P3 = iso([1082.7, 453.5]);                                                    // eje de la columna, en el fondo del cuello
+// piezas de la columna: lado/2 abajo y arriba, z abajo y arriba, espesor de pared y extremos abiertos
+const COL = [
+  { h0: 12.2, h1: 12.2, z0: 0, z1: 33.7, t: 1.6, open: [true, true] },             // cuello (chute → alimentador)
+  { h0: 15.8, h1: 15.8, z0: 21.6, z1: 27.9, t: 1.6, open: [true, true] },          // collar del embudo
+  { h0: 15.5, h1: 21.15, z0: 24.8, z1: 80.4, t: 1.6, open: [true, true] },         // embudo (carcasa del cono)
+  { h0: 23.65, h1: 23.65, z0: 79, z1: 102.5, t: 3.95, open: [true, true] },        // caja de arriba (tolva de alimentación)
+];
+// medidas del cono (unidades del SVG, referenciales; la excentricidad va exagerada para que se vea)
 const CN = {
-  xa: -14.5, ya: -11.5,                 // eje (X, Y): sobre el cuello, al medio de la parte baja (la más honda) del cuerpo
-  z0: 16, z1: 32, zTop: 44,             // fondo de la cámara · borde del cóncavo · borde de la tolva (sobre la taza)
-  rc0: 7.4, rc1: 5.4,                   // cara interior del cóncavo abajo / arriba
-  liner: 1, bowl: 1.2,                  // espesor del cóncavo y de la taza
-  zh: 29, gTop: 2.2,                    // alto de la cabeza · espacio arriba con el cóncavo
-  e: 0.8, zp: 46,                       // excentricidad en la base del manto · punto de giro del eje (arriba)
-  nut: [29, 31, 1.9], plate: [31.2, 32.1, 3.6],     // tuerca del manto y plato de alimentación [z0, z1, r]
-  hub: [3, 3], ecc: [6, 11, 1.8, 0.8],              // buje [r, z abajo] · excéntrica [z0, z1, r, corrimiento]
-  zLev: [16, 43],                       // nivel de la tolva: 0 % → 100 %
+  xa: 0, ya: 0,                         // eje (en el eje de la columna)
+  z0: 50, z1: 74, zTop: 96,             // fondo de la cámara · borde del cóncavo · borde de la tolva interior
+  rc0: 12, rc1: 8.5,                    // cara interior del cóncavo abajo / arriba
+  liner: 1.3, bowl: 1.6,                // espesor del cóncavo y de la taza
+  zh: 70, gTop: 3.2,                    // alto de la cabeza · espacio arriba con el cóncavo
+  e: 1.3, zp: 98,                       // excentricidad en la base del manto · punto de giro del eje (arriba)
+  nut: [70, 73, 3.2], plate: [73.3, 74.6, 6],       // tuerca del manto y plato de alimentación [z0, z1, r]
+  hub: [4.2, 30], ecc: [36, 44, 2.8, 1.2],          // buje [r, z abajo] · excéntrica [z0, z1, r, corrimiento]
+  neck: 9, zLev: [50, 85.4],            // ancho útil del cuello (±) · nivel 0 % → 100 % (la tuerca queda al 65 %)
 };
-const P3 = iso(H3);
 const rc = (z) => (z >= CN.z1 ? CN.rc1 : lerp(CN.rc0, CN.rc1, (z - CN.z0) / (CN.z1 - CN.z0)));     // cara interior del cóncavo / tolva
 const rb = (z) => rc(z) + CN.liner + CN.bowl;                                                         // cara exterior de la taza
-const cssU = (css) => 0.35 + ((css - 25) / 20) * 0.7;                                               // CSS en unidades del dibujo
+const cssU = (css) => 0.55 + ((css - 25) / 20) * 1.1;                                               // CSS en unidades del dibujo
 const gapAt = (z, css) => lerp(cssU(css) + CN.e, CN.gTop, clamp((z - CN.z0) / (CN.zh - CN.z0)));
 const rh = (z, css) => rc(z) - gapAt(z, css);                                                        // cara exterior del manto
 const sway = (z) => (CN.zp - z) / (CN.zp - CN.z0);                                                   // la base se mueve más que la punta
 const levelZ = (l) => lerp(CN.zLev[0], CN.zLev[1], l);
 export const NUT_LEVEL = (CN.nut[1] - CN.zLev[0]) / (CN.zLev[1] - CN.zLev[0]);                       // bajo esto: alimentación por goteo
-const cutY = (hv) => lerp(0.3, CN.ya, clamp(hv));                                                    // plano de corte según el deslizador
+// planos de corte según el deslizador: del borde de la columna al eje (frente) y a la derecha de la taza (costado)
+const cutPlanes = (hv) => ({ X: lerp(24.5, rb(CN.z0 - 2) + 1.2, clamp(hv)), Y: lerp(24.5, CN.ya, clamp(hv)) });
 // ---------------------------------------------------------------- modelo
 const FEEDER_NOM = 2790, FEEDER_MAX = 3700;                            // t/h por línea (alimentador de correa típico)
 const FEED_MIN = 6000, FEED_MAX = 13000;
@@ -293,12 +297,10 @@ function convexHull(pts) {
   return lo.slice(0, -1).concat(up.slice(0, -1));
 }
 
-///// ---------------------------------------------------------------- interior del cono (string SVG, isometría P3)
-// Corte con dos planos paralelos a los ejes: queda lo que tiene x ≤ Xc e y ≤ Yc. El del frente (y = Yc) llega hasta el
-// eje y corta el cono por la mitad; el del costado (x = Xc) sólo quita la pared derecha de la carcasa (se detiene a la
-// derecha de la taza): con ella puesta, en esta isometría taparía la mitad de atrás del cono. Orden de pintado: fondo (pared de atrás y caras interiores de
-// la carcasa) → interior (taza, finos, buje, mineral, cabeza) → caras de corte (relleno plano en los dos planos) →
-// caras exteriores que quedan y borde frontal.
+// ---------------------------------------------------------------- interior del cono (string SVG, isometría P3)
+// Corte con dos planos paralelos a los ejes: queda lo que tiene x ≤ Xc e y ≤ Yc (ver cutPlanes). Orden de pintado:
+// fondo (caras interiores de la columna) → interior (taza, finos, buje, mineral, cabeza) → caras de corte (relleno
+// plano en los dos planos) → caras exteriores que quedan y borde frontal.
 const zs = (a, b, n = 6) => Array.from({ length: n + 1 }, (_, i) => lerp(a, b, i / n));
 const pl = (pts) => D(pts.map((q) => P3(q)));                                  // polígono 3D proyectado
 const kept = (q, X, Y) => q[0] <= X + 1e-6 && q[1] <= Y + 1e-6;
@@ -347,69 +349,83 @@ function solid(rf, cf, za, zb, X, Y, cls) {
   const back = `<path class="${cls.side}" d="${D(convexHull([...(A ? A.pts : []), ...(B ? B.pts : [])].map((q) => P3(q))))}"/>` + (B ? `<path class="${cls.top}" d="${pl(B.cap)}"/>` : "");
   return { back, sec: cuts(rf, null, cf, za, zb, X, Y, cls.sec) };
 }
-function clipX(poly, X) {                                                        // Sutherland–Hodgman: lo que tiene x ≤ X
-  const out = [];
-  poly.forEach((A, i) => { const B = poly[(i + 1) % poly.length], ia = A[0] <= X, ib = B[0] <= X; if (ia) out.push(A); if (ia !== ib) { const t = (X - A[0]) / (B[0] - A[0]); out.push([X, A[1] + t * (B[1] - A[1])]); } });
-  return out;
+// columna (tolva de atrás) cortada por los dos planos: cada pieza es un tronco de pirámide de planta cuadrada (afuera)
+// con su hueco (adentro); se recortan como poliedros convexos. Devuelve lo de adentro (caras interiores que se ven),
+// lo de afuera (caras exteriores que quedan) y las caras de corte con su borde.
+const VDIR = [1, 1, 1];                                                          // hacia el observador
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const newell = (P) => { const n = [0, 0, 0]; P.forEach((p, i) => { const q = P[(i + 1) % P.length]; n[0] += (p[1] - q[1]) * (p[2] + q[2]); n[1] += (p[2] - q[2]) * (p[0] + q[0]); n[2] += (p[0] - q[0]) * (p[1] + q[1]); }); return n; };
+function frustum(h0, z0, h1, z1) {
+  const B = [[h0, h0, z0], [-h0, h0, z0], [-h0, -h0, z0], [h0, -h0, z0]], T = [[h1, h1, z1], [-h1, h1, z1], [-h1, -h1, z1], [h1, -h1, z1]];
+  return [{ k: "bot", pts: [B[0], B[3], B[2], B[1]] }, { k: "top", pts: [...T] }, ...[0, 1, 2, 3].map((i) => ({ k: "side", pts: [B[i], B[(i + 1) % 4], T[(i + 1) % 4], T[i]] }))];
 }
-const zAt = (poly, X) => { const z = []; poly.forEach((A, i) => { const B = poly[(i + 1) % poly.length]; if ((A[0] - X) * (B[0] - X) <= 0 && A[0] !== B[0]) z.push(A[1] + ((X - A[0]) / (B[0] - A[0])) * (B[1] - A[1])); }); return z.length ? [Math.min(...z), Math.max(...z)] : null; };
-// carcasa: perfil (X, Z) extruido de y = 0 a y = back(z), paredes WALL hacia adentro (0 en los lados abiertos), cortada
-// por los dos planos: fondo, caras interiores visibles, caras exteriores que quedan, caras de corte y borde
-function prismSvg(prof, back, Xc, Yc, open = []) {
-  const n = prof.length, Y = Math.min(Yc, 0), maxX = Math.max(...prof.map((p) => p[0])), X = Math.min(Xc, maxX);
-  const nrm = prof.map((A, i) => { const B = prof[(i + 1) % n], L = Math.hypot(B[0] - A[0], B[1] - A[1]); return [-(B[1] - A[1]) / L, (B[0] - A[0]) / L]; }); // hacia adentro
-  const inner = prof.map((V, i) => {
-    const j = (i + n - 1) % n, tj = open.includes(j) ? 0 : WALL, ti = open.includes(i) ? 0 : WALL;
-    const p = [prof[j][0] + nrm[j][0] * tj, prof[j][1] + nrm[j][1] * tj], d = [V[0] - prof[j][0], V[1] - prof[j][1]];
-    const q = [V[0] + nrm[i][0] * ti, V[1] + nrm[i][1] * ti], e = [prof[(i + 1) % n][0] - V[0], prof[(i + 1) % n][1] - V[1]];
-    const den = d[0] * e[1] - d[1] * e[0], s = ((q[0] - p[0]) * e[1] - (q[1] - p[1]) * e[0]) / den;
-    return [p[0] + d[0] * s, p[1] + d[1] * s];
-  });
-  const oC = clipX(prof, X), iC = clipX(inner, X), Yi = Math.min(Y, -WALL);
-  const front = Y < -WALL, side = X < Math.max(...inner.map((p) => p[0])), cavity = front || side;
-  const o = { back: "", inner: "", outer: "", cut: "", border: "" };
-  const seg = (A, B) => { const ia = A[0] <= X, ib = B[0] <= X; if (!ia && !ib) return null; if (ia && ib) return [A, B]; const t = (X - A[0]) / (B[0] - A[0]), M = [X, A[1] + t * (B[1] - A[1])]; return ia ? [A, M] : [M, B]; };
-  if (cavity && iC.length > 2) {
-    o.back = `<path class="cn3-wall" d="${pl(iC.map(([x, z]) => [x, back(z) + WALL, z]))}"/>`;
-    prof.forEach((_, i) => {
-      if (open.includes(i) || nrm[i][0] + nrm[i][1] <= 0.05) return;             // sólo las caras interiores que miran al observador
-      const S = seg(inner[i], inner[(i + 1) % n]); if (!S) return; const [A, B] = S;
-      o.inner += `<path class="${nrm[i][1] > 0.7 ? "cn3-floor" : "cn3-side"}" d="${pl([[A[0], Yi, A[1]], [B[0], Yi, B[1]], [B[0], back(B[1]) + WALL, B[1]], [A[0], back(A[1]) + WALL, A[1]]])}"/>`;
+// recorta un poliedro convexo con el semiespacio n·p ≤ d; la tapa nueva (en el plano) lleva la etiqueta k
+function clipSolid(faces, n, d, k) {
+  const res = [], cut = [];
+  for (const f of faces) {
+    const out = [];
+    f.pts.forEach((A, i) => {
+      const B = f.pts[(i + 1) % f.pts.length], a = dot3(n, A) - d, b = dot3(n, B) - d;
+      if (a <= 1e-9) out.push(A);
+      if (Math.abs(a) <= 1e-9) cut.push(A);
+      if ((a < -1e-9 && b > 1e-9) || (a > 1e-9 && b < -1e-9)) { const t = a / (a - b), M = [A[0] + t * (B[0] - A[0]), A[1] + t * (B[1] - A[1]), A[2] + t * (B[2] - A[2])]; out.push(M); cut.push(M); }
     });
+    if (out.length >= 3) res.push({ ...f, pts: out });
   }
-  prof.forEach((_, i) => {
-    if (-nrm[i][0] - nrm[i][1] <= 0.05) return;                                  // caras exteriores que se ven (derecha, arriba)
-    const S = seg(prof[i], prof[(i + 1) % n]); if (!S) return; const [A, B] = S;
-    o.outer += `<path class="hp-f" d="${pl([[A[0], Y, A[1]], [B[0], Y, B[1]], [B[0], back(B[1]), B[1]], [A[0], back(A[1]), A[1]]])}"/>`;
-  });
-  // cara de corte del costado (plano x = X): pared de abajo, de arriba y del fondo (U abierta hacia adelante)
-  const zo = X < maxX ? zAt(prof, X) : null;
-  if (zo) {
-    const edge = (z0, z1, dy) => zs(z1, z0, 8).map((z) => [X, back(z) + dy, z]);
-    const zi = cavity ? zAt(inner, X) : null;
-    // una sola U (sin canto de adelante a través de la abertura): pared de abajo, del fondo y de arriba
-    const U = zi ? [[X, Y, zo[0]], [X, back(zo[0]), zo[0]], ...edge(zo[0], zo[1], 0).reverse(), [X, Y, zo[1]], [X, Yi, zi[1]], ...edge(zi[0], zi[1], WALL), [X, Yi, zi[0]]]
-      : [[X, Y, zo[0]], [X, back(zo[0]), zo[0]], ...edge(zo[0], zo[1], 0).reverse(), [X, Y, zo[1]]];
-    o.cut += `<path class="hp-sec" d="${pl(U)}"/>`;
-    // borde: arriba, abajo y el canto de atrás (el canto de adelante cruza la abertura: no es pared)
-    const B = [[X, Y, zo[0]], [X, back(zo[0]), zo[0]], ...edge(zo[0], zo[1], 0).reverse(), [X, Y, zo[1]]].map((q) => P3(q));
-    o.border += `<path class="cn3-edge" d="M${B.map((p) => `${f1(p[0])} ${f1(p[1])}`).join("L")}"/>`;
+  const U = []; for (const p of cut) if (!U.some((q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) < 1e-6)) U.push(p);
+  if (U.length >= 3) {
+    const c = U.reduce((s, p) => [s[0] + p[0] / U.length, s[1] + p[1] / U.length, s[2] + p[2] / U.length], [0, 0, 0]);
+    const ax = Math.abs(n[0]) > 0.5 ? [1, 2] : Math.abs(n[1]) > 0.5 ? [0, 2] : [0, 1];   // coordenadas en el plano
+    U.sort((p, q) => Math.atan2(p[ax[1]] - c[ax[1]], p[ax[0]] - c[ax[0]]) - Math.atan2(q[ax[1]] - c[ax[1]], q[ax[0]] - c[ax[0]]));
+    if (dot3(newell(U), n) < 0) U.reverse();
+    res.push({ k, pts: U });
   }
-  // cara de corte del frente (plano y = Y)
-  o.cut += `<path class="cn3-cutfill" fill-rule="evenodd" d="${pl(oC.map(([x, z]) => [x, Y, z]))}${front && iC.length > 2 ? pl(iC.map(([x, z]) => [x, Y, z])) : ""}"/>`;
-  if (front && iC.length > 2) {                                                 // canto interior del corte (sin el tramo del costado)
-    let ci = ""; iC.forEach((A, i) => { const Bq = iC[(i + 1) % iC.length]; if (Math.abs(A[0] - X) < 1e-6 && Math.abs(Bq[0] - X) < 1e-6) return; const a = P3([A[0], Y, A[1]]), b = P3([Bq[0], Y, Bq[1]]); ci += `M${f1(a[0])} ${f1(a[1])}L${f1(b[0])} ${f1(b[1])}`; });
-    o.cut += `<path class="cn3-cutline" d="${ci}"/>`;
+  return res;
+}
+const clip2 = (F, X, Y) => clipSolid(clipSolid(F, [0, 1, 0], Y, "cy"), [1, 0, 0], X, "cx");
+const segPath = (segs) => segs.map(([a, b]) => { const p = P3(a), q = P3(b); return `M${f1(p[0])} ${f1(p[1])}L${f1(q[0])} ${f1(q[1])}`; }).join("");
+function columnSvg(X, Y) {
+  const o = { interior: [], exterior: [], cut: "" };
+  for (const pc of COL) {
+    const { h0, h1, z0, z1, t, open } = pc;
+    const O = clip2(frustum(h0, z0, h1, z1), X, Y), I = clip2(frustum(h0 - t, z0, h1 - t, z1), X, Y);
+    const cav = I.some((f) => f.k === "cy" || f.k === "cx");
+    if (cav) for (const f of I) {                                                // caras interiores (las de atrás del hueco)
+      if (f.k === "cy" || f.k === "cx" || (f.k === "top" && open[1]) || (f.k === "bot" && open[0])) continue;
+      if (dot3(newell(f.pts), VDIR) < 0) o.interior.push({ depth: dot3(f.pts.reduce((s, p) => [s[0] + p[0], s[1] + p[1], s[2] + p[2]], [0, 0, 0]), VDIR) / f.pts.length, svg: `<path class="cn3-wall" d="${pl(f.pts)}"/>` });
+    }
+    for (const f of O) {                                                         // caras exteriores que quedan
+      if (f.k === "cy" || f.k === "cx" || dot3(newell(f.pts), VDIR) <= 0) continue;
+      const hole = f.k === "top" && open[1] ? I.find((g) => g.k === "top") : f.k === "bot" && open[0] ? I.find((g) => g.k === "bot") : null;
+      o.exterior.push({ depth: dot3(f.pts.reduce((s, p) => [s[0] + p[0], s[1] + p[1], s[2] + p[2]], [0, 0, 0]), VDIR) / f.pts.length, svg: `<path class="hp-f" fill-rule="evenodd" d="${pl(f.pts)}${hole ? pl(hole.pts) : ""}"/>` });
+    }
+    for (const k of ["cy", "cx"]) {                                              // caras de corte (pared) y sus bordes
+      const A = O.find((f) => f.k === k); if (!A) continue;
+      const B = I.find((f) => f.k === k);
+      o.cut += `<path class="cn3-cutfill" fill-rule="evenodd" d="${pl(A.pts)}${B ? pl(B.pts) : ""}"/>`;
+      // sin los tramos que cruzan la abertura: los del otro plano y los de los extremos abiertos (menos el espesor de pared)
+      const other = (p) => (k === "cy" ? Math.abs(p[0] - X) < 1e-5 : Math.abs(p[1] - Y) < 1e-5);
+      const atEnd = (p) => (open[1] && Math.abs(p[2] - z1) < 1e-5 ? 1 : open[0] && Math.abs(p[2] - z0) < 1e-5 ? 0 : -1);
+      const edges = (F) => F.pts.map((p, i) => [p, F.pts[(i + 1) % F.pts.length]]).filter(([a, b]) => !(other(a) && other(b)));
+      const outer = [], inner = [];
+      for (const [a, b] of edges(A)) {
+        const e = atEnd(a); if (e < 0 || atEnd(b) !== e) { outer.push([a, b]); continue; }
+        const m = B && edges(B).find(([c, d]) => atEnd(c) === e && atEnd(d) === e);   // el canto del hueco en ese extremo
+        if (!m) { outer.push([a, b]); continue; }
+        const u = k === "cy" ? 0 : 1, lo = Math.min(m[0][u], m[1][u]), hi = Math.max(m[0][u], m[1][u]);
+        const [p, q] = a[u] < b[u] ? [a, b] : [b, a], at = (v) => { const s = (v - p[u]) / (q[u] - p[u] || 1); return [p[0] + s * (q[0] - p[0]), p[1] + s * (q[1] - p[1]), p[2] + s * (q[2] - p[2])]; };
+        if (lo - p[u] > 1e-5) outer.push([p, at(lo)]); if (q[u] - hi > 1e-5) outer.push([at(hi), q]);
+      }
+      if (B) for (const [a, b] of edges(B)) { const e = atEnd(a); if (e >= 0 && atEnd(b) === e) continue; inner.push([a, b]); }
+      o.cut += `<path class="cn3-cutline" d="${segPath(inner)}"/><path class="cn3-edge" d="${segPath(outer)}"/>`;
+    }
   }
-  // borde del frente: el contorno del perfil, sin el tramo que deja el corte del costado (cruza la abertura)
-  let bd = "";
-  oC.forEach((A, i) => { const Bq = oC[(i + 1) % oC.length]; if (Math.abs(A[0] - X) < 1e-6 && Math.abs(Bq[0] - X) < 1e-6) return; const a = P3([A[0], Y, A[1]]), b = P3([Bq[0], Y, Bq[1]]); bd += `M${f1(a[0])} ${f1(a[1])}L${f1(b[0])} ${f1(b[1])}`; });
-  o.border += `<path class="cn3-edge" d="${bd}"/>`;
-  return o;
+  const bydepth = (L) => L.sort((a, b) => a.depth - b.depth).map((x) => x.svg).join("");
+  return { interior: bydepth(o.interior), exterior: bydepth(o.exterior), cut: o.cut };
 }
 // geometría del cono que depende del estado (la usan el dibujo, la colpa marcada y los rótulos del zoom)
 function coneGeo(s) {
-  const css = s.css, phi = s.gyr, hv = s.hop, Xc = lerp(7, CN.xa + rb(CN.z0 - 1.5) + 1.2, clamp(hv)), Yc = Math.min(0, lerp(0.3, CN.ya, clamp(hv))), zl = levelZ(s.level), c0 = [CN.xa, CN.ya];
+  const css = s.css, phi = s.gyr, { X: Xc, Y: Yc } = cutPlanes(s.hop), zl = levelZ(s.level), c0 = [CN.xa, CN.ya];
   const hc = (z) => [CN.xa + CN.e * Math.cos(phi) * sway(z), CN.ya + CN.e * Math.sin(phi) * sway(z)];   // centro de la cabeza (excéntrica)
   const c = () => c0;
   // en el plano del frente (y = Yc): x del cóncavo y del manto a la izquierda; en el del costado (x = Xc): y de atrás
@@ -420,36 +436,34 @@ function coneGeo(s) {
   const mid = (a, b, dflt) => (a == null ? null : b == null ? lerp(dflt, a, 0.6) : (a + b) / 2);
   const midF = (z) => mid(wallF(z), headF(z), CN.xa), midS = (z) => mid(wallS(z), headS(z), CN.ya);
   const rCss = rc(CN.z0) - cssU(css) / 2 - CN.e / 2;                                                  // anillo de la CSS (fondo de la cámara)
-  // finos bajo la cámara: rodean el buje y entran al cuello hasta su fondo (sobre la correa del alimentador)
+  // finos bajo la cámara: rodean el buje, bajan por el embudo y entran al cuello hasta su fondo
   const fall = (a, v, j = 0) => {
-    const z = lerp(CN.z0 - 0.3, -22, v), r0 = rc(CN.z0) - 1, r1 = CN.hub[0] + 1;
+    const z = lerp(CN.z0 - 0.3, 0.6, v), r0 = rc(CN.z0) - 1.5, r1 = CN.hub[0] + 1.4, N = CN.neck;
     if (z > CN.hub[1]) { const r = lerp(r0, r1, smooth((CN.z0 - z) / (CN.z0 - CN.hub[1]))); return [CN.xa + r * Math.cos(a), CN.ya + r * Math.sin(a), z]; }
-    const u = smooth((CN.hub[1] - z) / (CN.hub[1] + 22)), tx = lerp(-21, Math.min(-3, Xc - 1), 0.5 + j), ty = lerp(-20, Math.min(-3, Yc - 1), 0.5 + 0.5 * Math.sin(a));
+    const u = smooth((CN.hub[1] - z) / CN.hub[1]), tx = lerp(-N, Math.min(N, Xc - 1), 0.5 + j), ty = lerp(-N, Math.min(N, Yc - 1), 0.5 + 0.5 * Math.sin(a));
     return [lerp(CN.xa + r1 * Math.cos(a), tx, u), lerp(CN.ya + r1 * Math.sin(a), ty, u), z];
   };
   return { css, phi, Xc, Yc, zl, c0, c, hc, wallF, headF, wallS, headS, midF, midS, rCss, fall };
 }
 // colpas: la forma ROCK proyectada sobre el plano del frente (XZ), el del costado (YZ) o una superficie horizontal (XY)
-const rkM = (m) => (q, sc, rot, i, cls = "cn3-rock") => { const p = P3(q); return `<path class="${cls}" transform="translate(${f1(p[0])} ${f1(p[1])}) matrix(${m}) rotate(${Math.round(rot)}) scale(${f1(sc)})" d="${ROCK[i % 3]}"/>`; };
+const rkM = (m) => (q, sc, rot, i, cls = "cn3-rock") => { const p = P3(q); return `<path class="${cls}" transform="translate(${f1(p[0])} ${f1(p[1])}) matrix(${m}) rotate(${Math.round(rot)}) scale(${f1(sc * RS)})" d="${ROCK[i % 3]}"/>`; };
+const RS = 1.5;                                                                  // las colpas, a la escala de este cono
 const rkF = rkM(".866 .5 0 1 0 0"), rkS = rkM("-.866 .5 0 1 0 0"), rkH = rkM(".866 .5 -.866 .5 0 0");
 function coneSvg(s, tour) {
   const g = coneGeo(s), { css, Xc, Yc, zl, c, hc } = g, { z0: Z0, z1: Z1, zTop: ZT, zh: ZH } = CN;
   const out = [], K = (q) => kept(q, Xc, Yc);
   const load = clamp(s.draw / FEEDER_NOM, 0.15, 1.2);
-  // ---- cuello (chute): fondo e interior, finos que bajan, caras que quedan, cortes y borde
-  const nk = prismSvg(NECK, () => -23.1, Xc, Yc, [0, 2]);
-  out.push(nk.back, nk.inner);
+  // ---- columna: caras interiores (el fondo), finos que bajan por el cuello
+  const col = columnSvg(Xc, Yc);
+  out.push(col.interior);
   const fines = [], neckFines = [];
-  for (let i = 0; i < 18; i++) {
-    const ph = (s.flow * 0.5 + i / 18) % 1; if (hash(i + Math.floor(s.flow * 0.5)) > 0.35 + 0.55 * load) continue;
+  for (let i = 0; i < 20; i++) {
+    const ph = (s.flow * 0.5 + i / 20) % 1; if (hash(i + Math.floor(s.flow * 0.5)) > 0.35 + 0.55 * load) continue;
     const q = g.fall(hash(i * 5.1) * TAU, ph, hash(i * 3.7) - 0.5);
     if (!kept(q, Xc - 0.3, Yc - 0.3)) continue;                                   // lo que el corte quitó no se ve
-    (q[2] < 0 ? neckFines : fines).push(rkF(q, 0.32 + cssU(css) * 0.12, i * 60, i, "hp-rock hp-rock--fine"));
+    (q[2] < CN.hub[1] ? neckFines : fines).push(rkF(q, 0.32 + cssU(css) * 0.08, i * 60, i, "hp-rock hp-rock--fine"));
   }
-  out.push(...neckFines, nk.outer, nk.cut, nk.border);
-  // ---- cuerpo: fondo y caras interiores
-  const bd = prismSvg(HOP, hopY, Xc, Yc, [0]);
-  out.push(bd.back, bd.inner);
+  out.push(...neckFines);
   // ---- taza: superficie exterior de atrás (abajo: taza; arriba: tolva) y cara interior del cóncavo
   const ro = (z) => (z <= Z1 ? rb(z) : CN.rc1 + CN.bowl), zb0 = Z0 - 1.5;
   for (const [za, zb] of [[zb0, Z1], [Z1, ZT]]) out.push(solid(ro, c, za, zb, Xc, Yc, { side: "cn3-shell", top: "cn3-ledge", sec: "cn3-sec" }).back);
@@ -512,7 +526,7 @@ function coneSvg(s, tour) {
   // ---- chorro de alimentación (desde arriba, sobre el plato), detrás de los cortes
   for (let i = 0; i < 6; i++) {
     const ph = (s.feedS * 0.03 + i / 6) % 1; if (s.level > 0.97 || hash(i + Math.floor(s.feedS * 0.03)) > s.feed / FEED_MAX + 0.05) continue;
-    const q = [Math.min(CN.xa + (hash(i) - 0.5) * 3, Xc - 0.8), Math.min(CN.ya - 1.5, Yc - 0.8), lerp(66, Math.max(zl, p1) + 1, ph * ph)];
+    const q = [Math.min(CN.xa + (hash(i) - 0.5) * 3, Xc - 0.8), Math.min(CN.ya - 1.5, Yc - 0.8), lerp(112, Math.max(zl, p1) + 1, ph * ph)];
     out.push(rkF(q, 0.75, ph * 300 + i * 50, i));
   }
   // ---- la colpa que se sigue (en el plano del frente): paso 3 cae a la tolva y baja con el lecho; paso 4, la cámara y el chute
@@ -520,7 +534,7 @@ function coneSvg(s, tour) {
   if (tour.stage === "bin" || tour.stage === "cone" || tour.stage === "chute") {
     const u = tour.u, ent = [g.midF(ZH + 0.4) ?? CN.xa - 4, ZH + 0.4];
     if (tour.stage === "bin") {
-      const top = Math.max(zl + 0.8, ZH + 1), x = u < 0.2 ? CN.xa - 1.5 : lerp(CN.xa - 1.5, ent[0], smooth((u - 0.2) / 0.8)), z = u < 0.2 ? lerp(64, top, (u / 0.2) ** 2) : lerp(top, ent[1], smooth((u - 0.2) / 0.8));
+      const top = Math.max(zl + 0.8, ZH + 1), x = u < 0.2 ? CN.xa - 1.5 : lerp(CN.xa - 1.5, ent[0], smooth((u - 0.2) / 0.8)), z = u < 0.2 ? lerp(104, top, (u / 0.2) ** 2) : lerp(top, ent[1], smooth((u - 0.2) / 0.8));
       out.push(ring2([x, Yc, z], 3.2), rkF([x, Yc, z], 0.9, u * 120, 0, "sc-tour-rock"));
     } else if (tour.stage === "cone") {
       const z = lerp(ent[1], Z0 + 0.3, u), x = g.midF(z) ?? CN.xa - 4;
@@ -533,8 +547,8 @@ function coneSvg(s, tour) {
       for (let j = 0; j < 4; j++) out.push(rkF([q[0] + (j - 1.5) * 0.5, q[1], q[2] + j * 0.4], 0.28 + cssU(css) * 0.08, j * 80, j, "sc-tour-rock"));
     }
   }
-  // ---- carcasa: caras exteriores que quedan, caras de corte y borde frontal
-  out.push(bd.outer, bd.cut, bd.border);
+  // ---- columna: caras exteriores que quedan, caras de corte y borde frontal
+  out.push(col.exterior, col.cut);
   return out.join("");
 }
 
@@ -589,12 +603,13 @@ export async function createSecundario() {
   // producto sobre la correa (bajo la plataforma del módulo 3)
   const prodL = el("g", { class: "sc-rocks" }); c3[K3.plat].before(prodL);
   const prodRocks = pool(prodL, 34, "sc-rock sc-rock--fine");
-  // cono del módulo 3: el cuerpo facetado y el cuello impresos (sus 9 caras) se desvanecen al abrir el corte y se
-  // redibujan en 3D, cortados por el plano (como el HPGR). La capa va donde estaba el cuerpo en el orden de pintado:
-  // la caja de arriba queda detrás y los marcos de adelante siguen tapándolo.
-  const hop3 = kids(kids(c3[K3.hopper])[1]);
-  const hopIn = el("g", { class: "sc-hopper-in" }); hop3[0].before(hopIn);
-  const hopFaces = hop3.flatMap((f) => [...f.children]);                 // relleno y borde de cada cara (la opacidad del grupo es la del foco)
+  // cono del módulo 3, en la tolva de atrás (caja de arriba, embudo, collar y cuello: el primer hijo del grupo del
+  // cono): sus 14 caras impresas se desvanecen al abrir el corte y la columna se redibuja cortada (como el HPGR). En el
+  // dibujo esa columna queda casi toda detrás del cuerpo facetado y de un pilar del marco; con el corte abierto se pinta
+  // encima del dibujo impreso (una vista en corte que quita lo de adelante), bajo la distribuidora.
+  const back3 = kids(kids(c3[K3.hopper])[0]);
+  const hopIn = el("g", { class: "sc-hopper-in" }); art.after(hopIn);
+  const hopFaces = back3.flatMap((f) => [...f.children]);               // relleno y borde de cada cara (la opacidad del grupo es la del foco)
   // grosor de trazo del dibujo de Emilio (lo usan la carcasa y el borde del corte)
   const sw = /stroke-width:\s*([\d.]+)px/.exec(st?.textContent || ""); if (sw) root.style.setProperty("--sc-w", sw[1]);
 
@@ -691,8 +706,8 @@ export async function createSecundario() {
   const live = () => { const q = state(S.t); return { ...S, seq: q, step: q.step, tour: { stage: q.stage, u: q.u }, cut: shown.cut, hop: Math.max(shown.hop, q.open) }; };
 
   // zoom sobre el dibujo: encuadres (unidades del SVG) y columnas de los rótulos (bordes del equipo, a izq. y der.)
-  const ZR = { A: [998, 410, 104, 88], B: [896, 552, 198, 122] };      // el cono y su cuello, con aire para los rótulos · la cara del corte del HPGR m3
-  const ZL = { A: [1035, 1067], B: [958, 1032] };
+  const ZR = { A: [1012, 342, 142, 126], B: [896, 552, 198, 122] };    // el cono en la tolva de atrás, con aire para los rótulos · la cara del corte del HPGR m3
+  const ZL = { A: [1062, 1104], B: [958, 1032] };
   const OVER = [-10, -10, VIEW[2] + 20, VIEW[3] + 20];                  // vista general (= el encuadre de la estación)
   let zoomMode = "viewBox", onZoom = null, zoomKey = null, lastZoom = "", vb = VIEW.slice();
   // rectángulo intermedio: centro lineal y tamaño en escala logarítmica (el acercamiento se siente parejo)
@@ -760,8 +775,8 @@ export async function createSecundario() {
     if (!tp) switch (q.stage) {
       case "head": inside = [578, 31]; break;
       case "fall": tp = [INLET(3)[0], distY(INLET(3)[0]) - 4 + 33 * q.u * q.u]; break;
-      case "bin": case "cone": inside = hv > 0.3 ? null : P3([CN.xa, CN.ya, 44]); break;
-      case "chute": if (q.u > 0.85) { tp = FEEDER[0]; frag = 1.6; } else inside = hv > 0.3 ? null : P3([CN.xa, CN.ya, 4]); break;
+      case "bin": case "cone": inside = hv > 0.3 ? null : P3([CN.xa, CN.ya, 64]); break;
+      case "chute": if (q.u > 0.85) { tp = FEEDER[0]; frag = 1.6; } else inside = hv > 0.3 ? null : P3([CN.xa, CN.ya, 16]); break;
       case "hood": inside = [1000, 545]; break;
       case "nip": inside = Xc < HP.x - 3 ? null : [990, 612]; break;
       case "prod": inside = [999, 676]; break;
@@ -833,7 +848,7 @@ export async function createSecundario() {
       const css3 = K(thr) ? thr : [g.midF(CN.z0 + 0.6) ?? CN.xa - 5, Y, CN.z0 + 0.6];
       L.push([0, P3([CN.xa - 1.5, Math.min(CN.ya - 2, Y - 1), zt + 0.4]), "Tolva"], [0, P3([(g.wallF(CN.z0 + 10) ?? CN.xa - 5) - 0.5, Y, CN.z0 + 10]), "Cóncavo"],
         [0, P3([(g.headF(CN.z0 + 7) ?? CN.xa - 3) + 0.6, Y, CN.z0 + 7]), "Manto"], [0, P3([Math.min(CN.xa + CN.ecc[3] * Math.cos(g.phi), X), Y, (CN.ecc[0] + CN.ecc[1]) / 2]), "Excéntrica"],
-        [1, P3([Math.min(h(CN.plate[1])[0], X), Math.min(h(CN.plate[1])[1], Y) - 1, CN.plate[1]]), "Plato"], [1, P3(css3), `CSS ${Math.round(s.css)} mm`], [0, P3([-20, Math.min(-12, Y - 1), -11]), "Chute"]);
+        [1, P3([Math.min(h(CN.plate[1])[0], X), Math.min(h(CN.plate[1])[1], Y) - 1, CN.plate[1]]), "Plato"], [1, P3(css3), `CSS ${Math.round(s.css)} mm`], [0, P3([-6, Math.min(-4, Y - 1), 12]), "Chute"]);
       cols = [ZL.A[0] - 4 * u, ZL.A[1] + 4 * u];
     } else if (Xc < HP.x - 3) {
       // el HPGR en corte (el plano avanza con el deslizador)
