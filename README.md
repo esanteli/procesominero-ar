@@ -279,34 +279,57 @@ Cómo está armada: `js/stations/sx-ew.js` (modelo, recorrido, puente grúa, gr�
 AR: marcador 7 de `assets/targets.mind` (recorte `assets/target-sxew.png`, x 2950 y 300, 760 × 420). Se recompiló
 `targets.mind` con los 8 recortes; recompilar sólo los 7 anteriores da un archivo idéntico al que había.
 
-## Estación 3 · Celdas de flotación (iteración 9)
+## Estación 3 · Celdas de flotación (iteración 13)
 
 Sobre los dibujos de Emilio: `assets/flotacion/zona.svg` (la etapa completa, registrada a la infografía con error de
 0,24 px) y encima `celdas.svg` y `espesadoras.svg` en su mismo registro (~0,3 px), con las capas vivas.
 
 Proceso: la pulpa de molienda entra a la fila de adelante (**rougher**). En cada celda el rotor gira dentro del estator,
-toma el aire del eje hueco y lo reparte en burbujas; los sulfuros (hidrofóbicos por el colector) se pegan a las burbujas
-y suben a la espuma, que rebalsa a la canaleta: es el concentrado. La ganga sigue en la pulpa de celda en celda (cajones
-con válvula dardo) hasta el relave. La fila de atrás (**limpieza**) sube la ley. El concentrado llega por la canaleta del
-puente al pozo de alimentación del **espesador de concentrado**: el floculante forma flóculos que decantan (agua clara,
-sedimentación, compresión), las rastras los llevan al cono y la descarga sale a ~65 % sólidos hacia filtros; el agua
-clara rebalsa por la canaleta perimetral. El segundo espesador trata el **relave** (descarga → tranque).
+toma el aire del eje hueco y lo reparte en burbujas; los sulfuros se pegan a las burbujas y suben a la espuma, que
+rebalsa a la canaleta: es el concentrado. La fila de atrás (**limpieza**) sube la ley. El **espesador de concentrado**
+lo decanta y entrega la descarga a un **estanque agitado**. El segundo espesador trata el relave. Desde el estanque el
+concentrado sale por una de dos rutas:
+
+- **Ruta A** (interruptor apagado): bombas de pistón (casa de bombas) → **concentraducto** → «→ Puerto».
+- **Ruta B** («Filtrar en planta»): **filtro prensa** en el galpón, queque (~8–9 % de humedad) → pila de acopio → camión
+  → «→ Fundición»; el filtrado vuelve al espesador de concentrado por una tubería aparte.
 
 | Interacción | Dónde | Qué pasa |
 |---|---|---|
-| Interior celda | deslizador, flechas ←→ | ventana en la primera celda rougher (pulpa, burbujas con sulfuro, rotor girando, espuma) y detalle de la celda en corte (motor, aire por el eje hueco, rotor/estator, cono de espuma, canaletas, válvula dardo) |
-| Corte espesador | deslizador, flechas ↑↓ | corte en el manto del espesador de concentrado (agua clara, sedimentación, compresión, flóculos, rastra) y detalle en corte (pozo, floculante, rastras, rebalse, descarga) |
-| Flujo de aire | deslizador | 0,6–1,6× nominal: más burbujas; sube la recuperación y baja la ley (más arrastre de ganga). Modelo referencial |
-| Equipos | chips o tocar el dibujo; teclas 1–4 | rougher, limpieza, espesador de concentrado, espesador de relaves: foco, ficha y detalle |
-| Sigue una partícula | ▶/❚❚, 6 pasos, ‹ ›, `,` `.` | entra a la celda, se pega a una burbuja, sube a la espuma, pasa por limpieza y decanta en el espesador |
+| Filtrar en planta | botón `role="switch"`, tecla F | cambia de ruta; la activa lleva partículas, la otra queda punteada y apagada. La ficha del espesador y la etiqueta «descarga → …» cambian |
+| Rutas | chip, tecla R | muestra las dos rutas y sus destinos |
+| Destinos | etiquetas «→ Puerto» y «→ Fundición» | abren esa estación (en AR la enfocan) |
+| % de sólidos | deslizador 45–72 % (referencial) | color y nivel de la descarga. Ventana de transporte 55–68 %: fuera de ella las bombas se detienen. Bajo 55 % avisa pulpa diluida; sobre 70 %, pulpa muy viscosa. En la ruta B, más agua alarga el ciclo del filtro |
+| Interior celda | deslizador, flechas ←→ | ventana en la primera celda y **zoom sobre el dibujo** con llamadas (aire, burbuja con sulfuro, ganga, espuma, rotor) |
+| Corte espesador | deslizador, flechas ↑↓ | ventana en el espesador y zoom con llamadas (agua clara, sedimentación, compresión, flóculos, rastras, descarga) |
+| Flujo de aire | deslizador | 0,6–1,6× nominal: más burbujas, más recuperación y menos ley (referencial) |
+| Equipos | chips o tocar el dibujo; teclas 1–7 | rougher, limpieza, espesadores, estanque agitado, casa de bombas, filtro prensa: foco, ficha y cámara. Casa de bombas y filtro se abren con llamadas adentro |
+| Sigue una partícula | ▶/❚❚, 7 pasos por ruta, ‹ ›, `,` `.` | 1–5 hasta el espesador; 6–7 según la ruta |
 
-En la lámina siempre: rastras girando en los dos espesadores, rebalse por la canaleta perimetral, alimentación por la
-canaleta del puente. Agregado: tubería "desde molienda". Interpretaciones por validar: fila de adelante = rougher, fila de
-atrás = limpieza; espesador de atrás = concentrado, de adelante = relaves; los cilindros delgados = cajones con válvula
-dardo. Valores (recuperación, ley, % sólidos) típicos; el 25 % → 65 % sólidos viene de la referencia de Sierra Gorda.
+Cada paso tiene llegada (0,5 s: se ilumina el equipo y el resto baja a ~35 %), acción y pausa de 1,2 s. Si el paso
+ocurre dentro de un equipo, ese equipo se abre solo. `state(t, ruta)` es puro. No hay tarjetas flotantes.
 
-Cómo está armada: `js/stations/flotacion.js` (modelo, dibujo, ventanas, detalles, panel), `js/stations/flotacion-geo.js`
-(silueta). AR: marcador 6 de `assets/targets.mind` (recorte `assets/target-flotacion.png`, x 2780 y 700, 900 × 500).
+Los edificios se abren como las naves del puerto: el techo impreso sube (recortado con la silueta, para no salirse) y
+los muros bajan hasta la altura de corte; adentro hay volúmenes en la misma isometría. El filtro prensa es el componente
+compartido `js/stations/filtro-prensa.js` (también lo usa el puerto): llenado → prensado → soplado → descarga placa por
+placa → cierre.
+
+Cómo está armada: `js/stations/flotacion.js` (modelo, secuencia, dibujo, zoom y panel), `js/stations/flotacion-rutas.js`
+(geometría de edificios y cañerías e interiores), `js/stations/flotacion-geo.js` (silueta). AR: marcador 6 de
+`assets/targets.mind` (recorte `assets/target-flotacion.png`, x 2780 y 700, 900 × 500). `?qa=silueta` pinta en rojo todo
+lo vivo que salga de lo impreso; revisado en 360×800, 390×844, 844×390 y 1440×900: 0 píxeles fuera.
+
+**Por validar** (asignaciones del dibujo y supuestos):
+- Estanques con agitador (arriba a la izquierda) = estanques agitados de concentrado.
+- Edificio cúbico = casa de bombas del concentraducto.
+- Galpón largo de la izquierda = planta de filtros y acopio.
+- El galpón es una isla aparte en el dibujo: las dos cañerías (pulpa y filtrado) cruzan el hueco sobre soportes con una
+  base blanca debajo (`BRIDGE`). Es la única parte fuera de zona.svg (acordado).
+- La ventana de transporte detiene las bombas fuera de ella (también entre 68 y 70 %, donde no hay aviso escrito).
+- El camión y la pila quedan dentro del galpón; el destino se indica con la etiqueta.
+- Fila de adelante = rougher, fila de atrás = limpieza; espesador de atrás = concentrado, de adelante = relaves; los
+  cilindros delgados = cajones con válvula dardo.
+- Valores (recuperación, ley, % de sólidos, humedad, factor de ciclo) referenciales.
 
 ## Estación 2 · Molino SAG y de bolas (iteración 8)
 
@@ -421,7 +444,9 @@ ar-chancador/
 ├─ js/stations/balde3d.js     balde del cargador reconstruido en 3D (gira sin deformarse)
 ├─ js/stations/chancado-secundario.js  estación 2.2: flujo, cono por dentro, corte del HPGR, zoom con rótulos
 ├─ js/stations/secundario-geo.js  silueta del dibujo del chancado secundario y carcasa del cono (CONE_CLIP, para ?qa=silueta)
-├─ js/stations/flotacion.js      estación 3: celdas de flotación y espesadores, detalles
+├─ js/stations/flotacion.js      estación 3: celdas de flotación, espesadores y rutas del concentrado
+├─ js/stations/flotacion-rutas.js edificios, cañerías e interiores de las rutas (estación 3)
+├─ js/stations/filtro-prensa.js  filtro prensa compartido (Puerto y Flotación)
 ├─ js/stations/flotacion-geo.js  silueta de la etapa de flotación
 ├─ assets/flotacion/*.svg         dibujos de Emilio (zona, celdas, espesadores)
 ├─ assets/target-flotacion.png    marcador de las celdas de flotación
