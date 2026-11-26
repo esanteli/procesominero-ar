@@ -21,6 +21,7 @@
 // W(e, n, z) en px con origen en el extremo de la correa en el muelle (fin de la galería): n a lo largo de la correa
 // (hacia el barco), e a lo ancho, z hacia arriba.
 import { createLayers } from "../layers.js";
+import { filterPressSvg, pressPhase } from "./filtro-prensa.js";
 import { nextTick, cancelTick } from "../clock.js";
 const NS = "http://www.w3.org/2000/svg";
 const U = (f) => new URL(`../../assets/puerto/${f}`, import.meta.url).href;
@@ -96,12 +97,8 @@ export const STEPS = [
 ].map((s, i, a) => ({ ...s, t1: i + 1 < a.length ? a[i + 1].t0 : PERIOD }));
 const stepAt = (t) => STEPS.find((s) => t >= s.t0 && t < s.t1) || STEPS[STEPS.length - 1];
 const FP = PERIOD / 4, LP = PERIOD / 5;
-// filtro prensa: llenado → prensado → soplado → descarga (placa por placa) → cierre
-function pressAt(t) {
-  const u = mod(t - 12.5, FP);
-  const ph = u < 3.4 ? "llenado" : u < 6 ? "prensado" : u < 8.6 ? "soplado" : u < 12.2 ? "descarga" : "cierre";
-  return { u, ph, fill: u < 3.4 ? u / 3.4 : u < 8.6 ? 1 : 0, open: ph === "descarga" ? (u - 8.6) / 3.6 : -1, squeeze: ph === "prensado" ? smooth((u - 3.4) / 1) : ph === "soplado" ? 1 : 0, air: ph === "soplado" };
-}
+// filtro prensa (componente compartido con Flotación): un ciclo completo por cada cuarto de la secuencia
+const pressAt = (t) => pressPhase(t - 12.5);
 // cargador frontal: carga en la pila → va a la tolva → vacía → vuelve
 function loaderAt(t) {
   const u = mod(t - 26, LP), k = (a, b) => smooth((u - a) / (b - a));
@@ -233,31 +230,12 @@ function pressSvg(pr, fl, h) {
   g += cylA([FEEDTANK[0], FEEDTANK[1], 0], [0, 0, 1], 13, 6, 6, "pu-tank");
   { const c = W(FEEDTANK[0], FEEDTANK[1], 13), r = 4.4, a = fl * 3; g += line([[c[0] + Math.cos(a) * r * 0.87, c[1] + Math.sin(a) * r * 0.5], [c[0] - Math.cos(a) * r * 0.87, c[1] - Math.sin(a) * r * 0.5]], "pu-stir"); }
   g += pipeSvg([[FEEDTANK[0], FEEDTANK[1] - 4, 3], [FEEDTANK[0] - 10, P.n0 - 4, 3], [P.e, P.n0 - 4, P.z0 + 4]], "pu-pipe--pulp");
-  // bastidor: cabezal fijo, vigas laterales, cabezal móvil
-  const e0 = P.e - P.we / 2, e1 = P.e + P.we / 2;
-  for (const n of [P.n0 + 2, P.n1 - 2]) g += boxSvg(e0 - 1, e0 + 1, n - 1, n + 1, 0, P.z0, "pu-press-leg") + boxSvg(e1 - 1, e1 + 1, n - 1, n + 1, 0, P.z0, "pu-press-leg");
-  // correa bajo el filtro (hacia −n) y transversal hacia el galpón
+  // filtro prensa: patas, correa bajo el filtro (hacia −n) y transversal hacia el galpón, placas y queque
   const bz = 2.4;
-  g += beam([P.e, P.n1 + 2, bz], [P.e, P.n0 - 12, bz], 4.4, 1.2, "pu-cbelt") + beam([P.e - 2, P.n0 - 12, bz], [B46.e1 + 2, P.n0 - 12, bz], 4.4, 1.2, "pu-cbelt");
-  g += flowSvg([[P.e, P.n1, bz + 0.7], [P.e, P.n0 - 12, bz + 0.7], [B46.e1 + 2, P.n0 - 12, bz + 0.7]], "pu-flow--cake", -fl * 8);
-  // placas (de atrás hacia adelante: mayor n primero)
-  const gap0 = (P.n1 - P.n0 - 6) / P.N, open = pr.open;
-  const nAt = (k) => { let n = P.n0 + 4 + k * gap0 * (1 - 0.15 * pr.squeeze); if (open >= 0) { const j = open * P.N; if (k > j) n += 0; else n -= 0; const d = j - k; if (d > 0 && d < 1.4) n -= 2.6 * Math.sin((d / 1.4) * Math.PI); } return n; };
-  g += beam([e0 - 0.6, P.n0, P.z1 - 1], [e0 - 0.6, P.n1, P.z1 - 1], 1.2, 1.6, "pu-press-rail") ;
-  g += boxSvg(e0 - 1, e1 + 1, P.n1 - 3, P.n1, P.z0 - 1, P.z1 + 1, "pu-press-head");
-  const plateCol = pr.fill > 0 ? rgb(PULP.map((v, i) => lerp(v, CONC[i], 1 - wet * 0.3))) : null;
-  for (let k = P.N - 1; k >= 0; k--) {
-    const n = nAt(k);
-    g += poly([W(e0, n, P.z0), W(e1, n, P.z0), W(e1, n, P.z1), W(e0, n, P.z1)], "pu-plate");
-    g += poly([W(e1, n - 1.6, P.z0), W(e1, n, P.z0), W(e1, n, P.z1), W(e1, n - 1.6, P.z1)], "pu-plate pu-plate--edge");
-    if (plateCol && pr.ph !== "descarga") g += poly([W(e0 + 1.2, n - 0.05, P.z0 + 1.2), W(e1 - 1.2, n - 0.05, P.z0 + 1.2), W(e1 - 1.2, n - 0.05, lerp(P.z0 + 1.2, P.z1 - 1.2, pr.fill)), W(e0 + 1.2, n - 0.05, lerp(P.z0 + 1.2, P.z1 - 1.2, pr.fill))], "pu-plate-fill", ` style="fill:${plateCol}"`);
-  }
-  g += boxSvg(e0 - 1, e1 + 1, P.n0 - 1, P.n0 + 2, P.z0 - 1, P.z1 + 1, "pu-press-head");
-  // queques que caen de la placa que se separa
-  if (open >= 0) { const j = Math.floor(open * P.N), f = open * P.N - j, n = nAt(j) - 1, z = lerp(P.z0, bz + 1, smooth(f)); if (j < P.N) g += poly([W(e0 + 1.4, n, z), W(e1 - 1.4, n, z), W(e1 - 1.4, n, z + 5), W(e0 + 1.4, n, z + 5)], "pu-cake"); }
-  // agua filtrada (goteo en el colector) y aire de soplado
-  if (pr.ph === "prensado" || pr.ph === "llenado") for (let j = 0; j < 6; j++) { const ph = mod(fl * 1.4 + j / 6, 1), n = lerp(P.n0 + 4, P.n1 - 4, hash(j * 3.3)); g += circ(W(e1 + 0.6, n, lerp(P.z0, 1, ph)), 0.45, "pu-drip", 1 - ph); }
-  if (pr.air) for (let j = 0; j < 5; j++) { const ph = mod(fl * 0.9 + j / 5, 1); g += circ(W(e1 + 1, lerp(P.n0 + 4, P.n1 - 4, hash(j * 7.1)), P.z1 + ph * 7), 0.9 + ph * 1.6, "pu-air", (1 - ph) * 0.8); }
+  const plateCol = rgb(PULP.map((v, i) => lerp(v, CONC[i], 1 - wet * 0.3)));
+  const cbelt = beam([P.e, P.n1 + 2, bz], [P.e, P.n0 - 12, bz], 4.4, 1.2, "pu-cbelt") + beam([P.e - 2, P.n0 - 12, bz], [B46.e1 + 2, P.n0 - 12, bz], 4.4, 1.2, "pu-cbelt")
+    + flowSvg([[P.e, P.n1, bz + 0.7], [P.e, P.n0 - 12, bz + 0.7], [B46.e1 + 2, P.n0 - 12, bz + 0.7]], "pu-flow--cake", -fl * 8);
+  g += filterPressSvg({ W, P, pr, fl, cls: "pu", fill: plateCol, cakeZ: bz + 1, under: cbelt });
   return g;
 }
 function pileSvg(b, ld, fl) {
