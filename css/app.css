@@ -1471,17 +1471,23 @@ body[data-mode="demo"] .explorer { background: #fff; } /* el arte es blanco: al 
 /* T15 · chancado secundario: el chancador de conos por dentro, foco por paso y estela de la colpa */
 .sc-svg .sc-stepdim { opacity: .35; }
 .sc-art [data-eq], .sc-art .sc-stepdim, .sc-hopper-in { transition: opacity .5s var(--pm-ease); }  /* = la llegada de cada paso */
-.cn-sec { fill: #ffe4c4; stroke: #ef8c22; stroke-width: .9; stroke-linejoin: round; }
-.cn-liner { fill: #f6b46b; stroke: #c8641f; stroke-width: .7; stroke-linejoin: round; }
-.cn-head { fill: #fff3e4; stroke: #ef8c22; stroke-width: 1; stroke-linejoin: round; }
-.cn-shaft { stroke: #e0a060; stroke-width: 1.4; stroke-dasharray: 2 1.5; }
-.cn-nut { fill: #ffe4c4; stroke: #c8641f; stroke-width: .8; stroke-linejoin: round; }
-.cn-nut--bare { fill: #ffd0b0; stroke: #d64a1a; stroke-width: 1.1; }
-.cn-plate { fill: #ffe4c4; stroke: #c8641f; stroke-width: .8; }
-.cn-ecc { fill: #fff8; stroke: #c8641f; stroke-width: .7; stroke-dasharray: 1.5 1; }
-.cn-ecc-in { fill: #f6b46b; stroke: #c8641f; stroke-width: .7; }
-.cn-orbit { fill: none; stroke: #c8641f; stroke-width: .6; stroke-dasharray: 1.6 1.2; opacity: .8; }
-.cn-close { fill: none; stroke: #d64a1a; stroke-width: 2; stroke-linecap: round; }
+/* chancador de conos en 3D: como el interior del chancador primario, blanco y trazo naranja; 3 rellenos planos
+   (blanco, #ffe4c4 en las caras de corte, #f6b46b en mineral y cóncavo). --sc-w = grosor de trazo del dibujo de
+   Emilio (lo pone la lámina al leer el SVG) */
+.sec-plate { --sc-w: 2.73; }
+.cn3-wall, .cn3-side, .cn3-floor { fill: #fff; stroke: #f3b97a; stroke-width: calc(var(--sc-w) * .35); stroke-linejoin: round; }
+.cn3-cutfill { fill: #ffe4c4; stroke: none; }
+.cn3-cutline { fill: none; stroke: #ef8c22; stroke-width: calc(var(--sc-w) * .8); stroke-linecap: round; }
+.cn3-edge { fill: none; stroke: #ef8c22; stroke-width: var(--sc-w); stroke-linejoin: round; stroke-linecap: round; }
+.cn3-shell, .cn3-ledge, .cn3-solid, .cn3-top, .cn3-head, .cn3-plate-top, .cn3-ecc { fill: #fff; stroke: #ef8c22; stroke-width: calc(var(--sc-w) * .55); stroke-linejoin: round; }
+.cn3-sec, .cn3-head-sec, .cn3-nut, .cn3-plate { fill: #ffe4c4; stroke: #ef8c22; stroke-width: calc(var(--sc-w) * .55); stroke-linejoin: round; }
+.cn3-liner, .cn3-bed, .cn3-surf, .cn3-ecc-sec { fill: #f6b46b; stroke: #ef8c22; stroke-width: calc(var(--sc-w) * .4); stroke-linejoin: round; }
+.cn3-nut--bare { fill: #ffe4c4; stroke: #d64a1a; stroke-width: calc(var(--sc-w) * .55); stroke-linejoin: round; }
+.cn3-line { fill: none; stroke: #ef8c22; stroke-width: calc(var(--sc-w) * .3); }
+.cn3-shaft { stroke: #ef8c22; stroke-width: calc(var(--sc-w) * .35); stroke-dasharray: 1.6 1.2; }
+.cn3-css { fill: none; stroke: #ef8c22; stroke-width: calc(var(--sc-w) * .3); stroke-dasharray: 1.4 1; }
+.cn3-close { fill: none; stroke: #d64a1a; stroke-width: calc(var(--sc-w) * .5); stroke-linecap: round; }
+.cn3-rock { fill: #fff; stroke: #ef8c22; stroke-width: .5; }
 .sc-trail { fill: none; stroke: var(--pm-orange); stroke-linecap: round; pointer-events: none; }
 .readout[data-warn] { color: #b8401a; }
 @media (prefers-reduced-motion: reduce) { .sc-art [data-eq], .sc-art .sc-stepdim, .sc-hopper-in { transition: none; } }
