@@ -13,7 +13,7 @@
 // Geometría (unidades del SVG): isométrica de la infografía, X → (0,866 ; 0,5), Y → (−0,866 ; 0,5), Z → (0 ; −1).
 // Las cotas del HPGR y de la tolva salen de los vértices del dibujo (ver README). Las correas avanzan a velocidad
 // constante y lo que cambia es la carga (como en planta); el alimentador sí cambia de velocidad (regula la descarga).
-import { SIL } from "./secundario-geo.js";
+import { SIL, CONE_CLIP } from "./secundario-geo.js";
 import { createLayers } from "../layers.js";
 import { nextTick, cancelTick } from "../clock.js";
 
@@ -23,6 +23,7 @@ const clamp = (v, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
 const lerp = (a, b, u) => a + (b - a) * u;
 const smooth = (u) => { u = clamp(u); return u * u * (3 - 2 * u); };
 const f1 = (n) => (Math.round(n * 10) / 10).toString();
+const f2 = (n) => (Math.round(n * 100) / 100).toString();
 const fmt = (n) => Math.round(n).toLocaleString("es-CL");
 const hash = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
@@ -45,14 +46,13 @@ const MODS = [
 
 // ---------------------------------------------------------------- recorridos del mineral (módulo 3; los demás con off(m))
 const FEED = [[31.7, 35.8], [174.4, 111.2], [541.1, 15]];             // correa: tramo plano + inclinado (eje central)
-const DIST0 = [622, 55.6], DIST1 = [1150, 360.4];                      // correa distribuidora sobre los marcos
+const DIST0 = [622, 55.6], DIST1 = [1145, 357.6];                      // correa distribuidora sobre los marcos (su cabeza, dentro de la silueta)
 const INLET = (m) => add([1082.7, 351], off(m));                       // boca de la caja de alimentación de cada tolva
 const distY = (x) => 30.2 + (x - 578) * 0.57735;                       // eje de la distribuidora
 const FEEDER = [[1061, 491], [998, 525.5]];                            // alimentador de correa: bajo la tolva → campana
 const DROP = (m) => add([999.4, 672.9], off(m));                       // descarga del HPGR sobre la correa de producto
 const PROD1 = [1193, 786.4];                                           // fin de la correa de producto
 const O3 = [954.49, 628.9];                                            // HPGR m3: esquina frontal‑izq. inferior del cuerpo
-const H3 = [1052.89, 479.81];                                          // tolva m3: esquina frontal‑der. inferior
 
 function polyline(pts) {
   const S = [0]; for (let i = 1; i < pts.length; i++) S.push(S[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
@@ -68,7 +68,7 @@ const pProdOf = (m) => Math.hypot(DROP(m)[0] - DROP(0)[0], DROP(m)[1] - DROP(0)[
 const FEEDERP = polyline(FEEDER);
 // la colpa marcada sobre una correa dibujada (módulo 3), o null si va por dentro de un equipo o bajo la plataforma
 function beltPoint(stage, u) {
-  if (stage === "incl") return FEEDP.at(u * P_INCL);
+  if (stage === "incl") return FEEDP.at(lerp(14, P_INCL, u));          // desde un poco arriba de la cola (el anillo cabe en la silueta)
   if (stage === "dist") return FEEDP.at(lerp(P_DIST, pDropOf(3), u));
   if (stage === "feeder") return FEEDERP.at(u * FEEDERP.len);
   if (stage === "prod") { const q = PRODP.at(lerp(pProdOf(3), PRODP.len, u)); return q[0] < 1000 ? null : q; }
@@ -80,18 +80,33 @@ function beltPoint(stage, u) {
 // Rodillos con eje en X (los motores del dibujo entran por −X): Ø 18, X 19…39; descansos X 40…48.
 const HP = { x: 57.8, y: 45.8, z: 34.74, t: 2.6, slab: [-13.4, 69, -46.2, 2, 34.74, 40], slot: [-27, -18.8],
   r: 9, zc: 16.5, yf: -13.4, yb: -32.4, rx: [19, 39], bx: [40, 48], bhy: 6, bhz: 7 };
-// tolva m3 (ejes locales desde H3): perfil de la cara frontal (X, Z) y fondo en Y
-const HOP = { e: [-29.34, 0], f: [0, 0], d: [0, 31.42], b: [6.69, 81.55], a: [-27.84, 81.73], c: [-51.11, 31.35] };
-const hopY = (z) => (z <= 31.4 ? -23.1 : lerp(-23.1, -16.5, (z - 31.4) / 50.2));
-// ---------------------------------------------------------------- chancador de conos (dentro de la carcasa del m3)
-// Sección por el eje en el plano X + Y = cte (paralelo a la pantalla: se ve en verdadera magnitud). s = distancia
-// horizontal al eje en ese plano, z = altura; mismos ejes locales que la tolva (desde H3). Medidas referenciales,
-// ajustadas a la silueta del cuerpo dibujado; la excentricidad va exagerada para que se vea.
-const CONE = { xa: -31.13, ya: -11.5, z0: 29, z1: 58, zh: 54, zp: 66, rc0: 13.5, rc1: 9, liner: 1.8, bowl: 3.2, gTop: 4.6, e: 1.2,
-  nut: [54, 56.6, 3], plate: [56.8, 57.9, 5.6], hub: [4.4, 8.5], ecc: 17, out: [3.5, -15], zLev: [28, 72] };
+// ---------------------------------------------------------------- chancador de conos (en la carcasa del m3)
+// Corte por el eje del cono en vista frontal 2D (el plano del eje es paralelo a la pantalla), sobre el revestimiento
+// de atrás de la carcasa: se ve a través de la pared frontal transparente. Ubicación y escala medidas en
+// assets/secundario/ref-cono.png (la referencia de Emilio, registrada sobre la lámina: 5,354 px por unidad del SVG).
+// C(s, z) = [CUT.x + CUT.kx·s, CUT.y − CUT.kz·z], con s = distancia horizontal al eje y z = altura, en unidades del
+// cono. Los círculos horizontales (excéntrica, órbita de la zona de cierre) se ven como elipses de alto kz·√½·r.
+const CUT = {
+  x: 1083.8, y: 459.2,            // eje del cono (X de la lámina, = el cuello impreso de atrás) y altura de la cota z = 0
+  kx: 2.344, kz: 1.914,           // unidades del SVG por unidad del cono, en horizontal y en vertical (las de la referencia)
+  // marco: el octógono del recorte de la referencia (la parte alta de la carcasa impresa); el corte se recorta con él y
+  // con CONE_CLIP (la carcasa impresa encogida un trazo): nada sobresale de lo impreso
+  frame: [[1083.8, 329.4], [1123.1, 350.5], [1115, 409.7], [1109.4, 428.4], [1100.1, 439.6], [1075.8, 440.2], [1042.4, 406], [1042.2, 352.4]],
+  neckZ: -2,                      // fondo del cuello impreso (Y ≈ 463): hasta ahí bajan los finos, que siguen al alimentador
+  neck: [-1.5, 6.5],              // ancho del cuello impreso en unidades del cono (está corrido a la derecha del eje)
+};
+// medidas del cono (unidades del cono): referenciales; la excentricidad va exagerada para que se vea
+const CONE = { z0: 29, z1: 58, zh: 54, zp: 66, rc0: 13.5, rc1: 9, liner: 1.8, bowl: 3.2, gTop: 4.6, e: 1.2,
+  nut: [54, 56.6, 3], plate: [56.8, 57.9, 5.6], hub: [4.4, 8.5], ecc: 17, zLev: [28, 72] };
 const R2 = Math.SQRT1_2;
+const C = (x, z) => [CUT.x + CUT.kx * x, CUT.y - CUT.kz * z];
+// punto de un círculo horizontal del cono (radio r, altura z, ángulo a), con el centro corrido rc0 en el ángulo a0
+const orb = (r, z, a, rc0 = 0, a0 = 0) => {
+  const u = a + Math.PI / 4, v = a0 + Math.PI / 4;
+  return [CUT.x + CUT.kx * (rc0 * Math.cos(v) + r * Math.cos(u)), CUT.y - CUT.kz * z + CUT.kz * R2 * (rc0 * Math.sin(v) + r * Math.sin(u))];
+};
 const rc = (z) => lerp(CONE.rc0, CONE.rc1, (z - CONE.z0) / (CONE.z1 - CONE.z0));              // cara interior del cóncavo
-const cssU = (css) => 0.6 + ((css - 25) / 20) * 1.2;                                          // CSS en unidades del dibujo
+const cssU = (css) => 0.6 + ((css - 25) / 20) * 1.2;                                          // CSS en unidades del cono
 const gapAt = (z, css) => lerp(cssU(css) + CONE.e, CONE.gTop, clamp((z - CONE.z0) / (CONE.zh - CONE.z0)));
 const rh = (z, css) => rc(z) - gapAt(z, css);                                                // cara exterior del manto
 const sway = (z) => (CONE.zp - z) / (CONE.zp - CONE.z0);                                      // la base se mueve más que la punta
@@ -278,39 +293,39 @@ function convexHull(pts) {
   return lo.slice(0, -1).concat(up.slice(0, -1));
 }
 
-// ---------------------------------------------------------------- interior del cono (string SVG, proyección P)
-// Recortado a la pared frontal de la carcasa. Cabeza: el eje describe un círculo chico (no rota como rueda), así el
-// espacio con el cóncavo se cierra de un lado y se abre en el opuesto; la zona de cierre recorre toda la cámara (se
-// marca en la órbita de la base). Mineral ahogado sobre el manto; las colpas bajan por la cámara, se achican y caen
-// finas por el chute.
-const hopWindow = (P) => [HOP.c, HOP.a, HOP.b, HOP.d, HOP.f, HOP.e].map(([x, z]) => P([x, 0, z]));
+/// ---------------------------------------------------------------- interior del cono (string SVG)
+// Recortado por el marco y la carcasa impresa (clipPath cn-frame y cn-clip, en defs). Cabeza: el eje describe un
+// círculo chico (no rota como rueda), así el espacio con el cóncavo se cierra de un lado y se abre en el opuesto; la
+// zona de cierre recorre toda la cámara (se marca en la órbita de la base). Mineral ahogado sobre el manto; las colpas
+// bajan por la cámara, se achican y caen finas por el chute y el cuello (éstas sólo con el recorte de la carcasa).
 const zs = (a, b, n = 6) => Array.from({ length: n + 1 }, (_, i) => lerp(a, b, i / n));
-// geometría del cono que depende del estado (la usan el dibujo, la colpa marcada y las etiquetas del detalle)
+// geometría del cono que depende del estado (la usan el dibujo, la colpa marcada y los rótulos del zoom)
 function coneGeo(s) {
   const css = s.css, G0 = cssU(css) + CONE.e, sw = CONE.e * Math.cos(s.gyr + Math.PI / 4); // corrimiento hacia +s (derecha)
   const off = (z) => sw * sway(z), zl = levelZ(s.level);
   const head = (sg, z) => sg * rh(z, css) + off(z), mid = (sg, z) => (head(sg, z) + sg * rc(z)) / 2;
   const heap = (x) => zl + 2.2 * Math.max(0, 1 - Math.abs(x) / 9);
-  // chorro de finos bajo la cámara: rodea el buje y cae a la boca del chute
-  const fall = (sg, v, j = 0) => { const z = lerp(CONE.z0 - 0.5, CONE.out[1], v), x0 = sg * (rc(CONE.z0) - G0 / 2), xh = sg * (CONE.hub[0] + 1.6);
-    return [z > CONE.hub[1] ? lerp(x0, xh, (CONE.z0 - z) / (CONE.z0 - CONE.hub[1])) : lerp(xh, CONE.out[0] + j * 3, (CONE.hub[1] - z) / (CONE.hub[1] - CONE.out[1])), z]; };
-  return { css, G0, off, zl, head, mid, heap, fall };
+  // chorro de finos bajo la cámara (el chute): rodea el buje y entra al cuello impreso, hasta su fondo
+  const z9 = CUT.neckZ, [n0, n1] = CUT.neck;
+  const fall = (sg, v, j = 0) => { const z = lerp(CONE.z0 - 0.5, z9, v), x0 = sg * (rc(CONE.z0) - G0 / 2), xh = sg * (CONE.hub[0] + 1.2);
+    return [z > CONE.hub[1] ? lerp(x0, xh, (CONE.z0 - z) / (CONE.z0 - CONE.hub[1])) : lerp(xh, lerp(n0 + 0.6, n1 - 0.6, 0.5 + j), smooth((CONE.hub[1] - z) / (CONE.hub[1] - z9))), z]; };
+  const rm = rc(CONE.z0 + 1) - G0 / 2, zo = CONE.z0 + 0.6;                 // órbita de la zona de cierre (base de la cámara)
+  return { css, G0, off, zl, head, mid, heap, fall, rm, zo, closing: orb(rm, zo, s.gyr) };
 }
-function coneSvg(P, s, tour, k = 1, id = "hopw") {
-  const C = (x, z) => P([CONE.xa + x * R2, CONE.ya - x * R2, z]);
+function coneSvg(s, tour) {
+  const k = CUT.kz;                                                       // las colpas, a la escala del corte
   const Dp = (pts) => D(pts.map(([x, z]) => C(x, z)));
   const ln = (a, b, cls) => { const p = C(...a), q = C(...b); return `<path class="${cls}" d="M${f1(p[0])} ${f1(p[1])}L${f1(q[0])} ${f1(q[1])}"/>`; };
   const rk = (x, z, sc, rot, i, cls = "hb-rock") => { const q = C(x, z); return `<path class="${cls}" transform="translate(${f1(q[0])} ${f1(q[1])}) rotate(${Math.round(rot)}) scale(${f1(sc * k)})" d="${ROCK[i % 3]}"/>`; };
+  const ring = (r, z, n = 20, rc0 = 0, a0 = 0) => D(Array.from({ length: n }, (_, i) => orb(r, z, (i / n) * Math.PI * 2, rc0, a0)));
   const g = coneGeo(s), { css, G0, off, zl, head, mid, heap } = g, { z0: Z0, z1: Z1, zh: ZH, liner: L, bowl: B } = CONE;
-  const win = hopWindow(P);
-  const out = [`<clipPath id="${id}"><path d="${D(win)}"/></clipPath><g clip-path="url(#${id})">`, `<path class="hb-wall" d="${D(win)}"/>`];
-  // aristas del fondo de la carcasa, vistas a través de la pared frontal
-  out.push(`<path class="hb-edge" d="${D([HOP.c, HOP.a, HOP.b, HOP.d, HOP.f, HOP.e].map(([x, z]) => P([x, hopY(z), z])))}"/>`);
-  // taza, cóncavo y bastidor con el embudo de descarga (en sección)
+  // revestimiento de atrás (el fondo del marco)
+  const out = [`<g clip-path="url(#cn-clip)"><g clip-path="url(#cn-frame)">`, `<path class="hb-wall" d="${D(CUT.frame)}"/>`];
+  // taza, cóncavo y bastidor con el embudo de descarga hacia el cuello (en sección)
   for (const sg of [-1, 1]) {
-    const zz = zs(Z0 - 2, Z1 + 2), zc = zs(Z0, Z1), top = sg * (rc(Z0 - 2) + L), bot = sg < 0 ? -7 : 14;
+    const zz = zs(Z0 - 2, Z1 + 2), zc = zs(Z0, Z1), top = sg * (rc(Z0 - 2) + L), bot = sg * (CONE.hub[0] + 4);
     out.push(`<path class="cn-sec" d="${Dp([...zz.map((z) => [sg * (rc(z) + L), z]), ...zz.slice().reverse().map((z) => [sg * (rc(z) + L + B), z])])}"/>`);
-    out.push(`<path class="cn-sec" d="${Dp([[top, Z0 - 2], [bot, -17], [bot + sg * 3, -17], [top + sg * B, Z0 - 2]])}"/>`);
+    out.push(`<path class="cn-sec" d="${Dp([[top, Z0 - 2], [bot, CUT.neckZ], [bot + sg * 3, CUT.neckZ], [top + sg * B, Z0 - 2]])}"/>`);
     out.push(`<path class="cn-liner" d="${Dp([...zc.map((z) => [sg * rc(z), z]), ...zc.slice().reverse().map((z) => [sg * (rc(z) + L), z])])}"/>`);
   }
   // mineral: llena la cámara y, si alcanza, tapa el manto, la tuerca y el plato (alimentación ahogada)
@@ -335,12 +350,6 @@ function coneSvg(P, s, tour, k = 1, id = "hopw") {
     out.push(rk(mid(sg, z), z, sz, v * 260 + i * 47, i));
     if (gap < G0 * 0.8 && z < Z0 + 9) out.push(ln([head(sg, z), z + 0.3], [sg * rc(z), z - 0.5], "hp-crack"));
   }
-  // finos que caen por el chute
-  for (let i = 0; i < 12; i++) {
-    const ph = (s.flow * 0.5 + i / 12) % 1; if (hash(i + Math.floor(s.flow * 0.5)) > 0.3 + 0.6 * load) continue;
-    const [x, z] = g.fall(i % 2 ? 1 : -1, ph, hash(i * 3.7) - 0.5);
-    out.push(rk(x, z, 0.28 + cssU(css) * 0.12, i * 60, i, "hp-rock hp-rock--fine"));
-  }
   // chorro de alimentación desde la tolva, sobre el plato
   for (let i = 0; i < 6; i++) {
     const ph = (s.feedS * 0.03 + i / 6) % 1; if (s.level > 0.97 || hash(i + Math.floor(s.feedS * 0.03)) > s.feed / FEED_MAX + 0.05) continue;
@@ -349,9 +358,8 @@ function coneSvg(P, s, tour, k = 1, id = "hopw") {
   }
   // buje de la excéntrica (sección) y la excéntrica que gira: su centro describe el círculo
   out.push(`<path class="cn-sec" d="${Dp([[-CONE.hub[0], CONE.hub[1]], [CONE.hub[0], CONE.hub[1]], [CONE.hub[0], Z0 - 1.6], [-CONE.hub[0], Z0 - 1.6]])}"/>`);
-  const ring = (cx, cy, r, z, n = 20) => D(Array.from({ length: n }, (_, i) => { const a = (i / n) * Math.PI * 2; return P([cx + r * Math.cos(a), cy + r * Math.sin(a), z]); }));
-  out.push(`<path class="cn-ecc" d="${ring(CONE.xa, CONE.ya, 3.2, CONE.ecc)}"/>`);
-  out.push(`<path class="cn-ecc-in" d="${ring(CONE.xa + 1.2 * Math.cos(s.gyr), CONE.ya + 1.2 * Math.sin(s.gyr), 1.8, CONE.ecc, 14)}"/>`);
+  out.push(`<path class="cn-ecc" d="${ring(3.2, CONE.ecc)}"/>`);
+  out.push(`<path class="cn-ecc-in" d="${ring(1.8, CONE.ecc, 14, 1.2, s.gyr)}"/>`);
   // cabeza con su manto, eje, tuerca del manto y plato de alimentación
   const zb = Z0 - 1.2, hz = zs(Z0, ZH, 8);
   out.push(`<path class="cn-head" d="${Dp([[head(-1, Z0), zb], ...hz.map((z) => [head(-1, z), z]), ...hz.slice().reverse().map((z) => [head(1, z), z]), [head(1, Z0), zb]])}"/>`);
@@ -361,43 +369,41 @@ function coneSvg(P, s, tour, k = 1, id = "hopw") {
   out.push(`<path class="cn-nut${zl < n1 ? " cn-nut--bare" : ""}" d="${Dp([[-nr + on, n0], [nr + on, n0], [nr * 0.8 + on, n1], [-nr * 0.8 + on, n1]])}"/>`);
   out.push(`<path class="cn-plate" d="${Dp([[-pr + op, p0], [pr + op, p0], [pr + op, p1], [-pr + op, p1]])}"/>`);
   // zona de cierre: órbita en la base de la cámara y el tramo donde el manto está más cerca del cóncavo
-  const rm = rc(Z0 + 1) - G0 / 2, zo = Z0 + 0.6;
-  out.push(`<path class="cn-orbit" d="${ring(CONE.xa, CONE.ya, rm, zo, 36)}"/>`);
-  const arc = Array.from({ length: 9 }, (_, i) => { const a = s.gyr - 0.55 + (i / 8) * 1.1; return P([CONE.xa + rm * Math.cos(a), CONE.ya + rm * Math.sin(a), zo]); });
+  out.push(`<path class="cn-orbit" d="${ring(g.rm, g.zo, 36)}"/>`);
+  const arc = Array.from({ length: 9 }, (_, i) => orb(g.rm, g.zo, s.gyr - 0.55 + (i / 8) * 1.1));
   out.push(`<path class="cn-close" d="M${arc.map((p) => `${f1(p[0])} ${f1(p[1])}`).join("L")}"/>`);
   // nivel en la pared
   out.push(ln([-wallS(zl), zl], [wallS(zl), zl], "hb-level"));
-  // la colpa que se sigue: paso 3 cae a la tolva y baja con el lecho; paso 4 baja por la cámara y sale por el chute
-  if (tour.stage === "bin" || tour.stage === "cone" || tour.stage === "chute") {
+  // la colpa que se sigue: paso 3 cae a la tolva y baja con el lecho; paso 4 baja por la cámara
+  const ring2 = (x, z, r) => { const q = C(x, z); return `<circle class="sc-tour-ring" cx="${f1(q[0])}" cy="${f1(q[1])}" r="${f1(r * k)}"/>`; };
+  if (tour.stage === "bin" || tour.stage === "cone") {
     const u = tour.u, ent = [mid(-1, ZH + 0.4), ZH + 0.4];
-    const ring2 = (x, z, r) => { const q = C(x, z); return `<circle class="sc-tour-ring" cx="${f1(q[0])}" cy="${f1(q[1])}" r="${f1(r * k)}"/>`; };
     if (tour.stage === "bin") {
       const top = Math.max(heap(-2), ZH + 1), x = u < 0.2 ? -2 : lerp(-2, ent[0], smooth((u - 0.2) / 0.8)), z = u < 0.2 ? lerp(76, top, (u / 0.2) ** 2) : lerp(top, ent[1], smooth((u - 0.2) / 0.8));
       out.push(ring2(x, z, 3.2), rk(x, z, 1.3, u * 120, 0, "sc-tour-rock"));
-    } else if (tour.stage === "cone") {
+    } else {
       const z = lerp(ent[1], Z0 + 0.3, u), x = mid(-1, z);
       out.push(ring2(x, z, 3));
       if (u < 0.75) out.push(rk(x, z, lerp(1.25, 0.8, u / 0.75), u * 200, 0, "sc-tour-rock"));
       else for (let j = 0; j < 4; j++) out.push(rk(x + (j - 1.5) * 0.5, z + (j % 2) * 0.7 - (j > 1 ? 0.6 : 0), 0.45 + cssU(css) * 0.12, j * 80, j, "sc-tour-rock"));
-    } else {
-      const [x, z] = g.fall(-1, u);
-      out.push(ring2(x, z, 2.8));
-      for (let j = 0; j < 4; j++) out.push(rk(x + (j - 1.5) * 0.6, z + j * 0.5, 0.4 + cssU(css) * 0.1, j * 80, j, "sc-tour-rock"));
     }
+  }
+  // finos que caen por el chute: dentro del marco mientras bajan por la taza; bajo el marco, por el cuello impreso
+  const neck = [];
+  for (let i = 0; i < 12; i++) {
+    const ph = (s.flow * 0.5 + i / 12) % 1; if (hash(i + Math.floor(s.flow * 0.5)) > 0.3 + 0.6 * load) continue;
+    const [x, z] = g.fall(i % 2 ? 1 : -1, ph, hash(i * 3.7) - 0.5);
+    (z > CONE.hub[1] ? out : neck).push(rk(x, z, 0.28 + cssU(css) * 0.12, i * 60, i, "hp-rock hp-rock--fine"));
+  }
+  out.push("</g>", ...neck);
+  // paso 4, al final: la colpa ya fina baja por el chute y el cuello
+  if (tour.stage === "chute") {
+    const [x, z] = g.fall(-1, tour.u);
+    out.push(ring2(x, z, 2.8));
+    for (let j = 0; j < 4; j++) out.push(rk(x + (j - 1.5) * 0.6, z + j * 0.5, 0.4 + cssU(css) * 0.1, j * 80, j, "sc-tour-rock"));
   }
   out.push("</g>");
   return out.join("");
-}
-// contorno de la tolva para el detalle A (caras derechas, tapa, descarga y alimentador)
-function hopperShellSvg(P) {
-  const R = (x, z) => P([x, hopY(z), z]), F = (x, z) => P([x, 0, z]);
-  const o = [];
-  o.push(`<path class="hp-f" d="${D([P([-24, 0, -22.8]), P([0, 0, -22.8]), P([0, -23.1, -22.8]), P([0, -23.1, 0]), P([0, 0, 0]), P([-24, 0, 0])])}"/>`);
-  o.push(`<path class="hp-f" d="${D([P([0, 0, 0]), P([0, -23.1, 0]), P([0, -23.1, -22.8]), P([0, 0, -22.8])])}"/>`);
-  o.push(`<path class="hp-f" d="${D([F(...HOP.f), R(...HOP.f), R(...HOP.d), F(...HOP.d)])}"/>`);
-  o.push(`<path class="hp-f" d="${D([F(...HOP.d), R(...HOP.d), R(...HOP.b), F(...HOP.b)])}"/>`);
-  o.push(`<path class="hp-f" d="${D([F(...HOP.a), F(...HOP.b), R(...HOP.b), R(...HOP.a)])}"/>`);
-  return o.join("");
 }
 
 // ---------------------------------------------------------------- lámina
@@ -451,10 +457,12 @@ export async function createSecundario() {
   // producto sobre la correa (bajo la plataforma del módulo 3)
   const prodL = el("g", { class: "sc-rocks" }); c3[K3.plat].before(prodL);
   const prodRocks = pool(prodL, 34, "sc-rock sc-rock--fine");
-  // carcasa del cono del módulo 3: interior entre la parte trasera y la pared frontal (que se vuelve transparente)
-  const hop3 = kids(kids(c3[K3.hopper])[1]);                           // caras de la carcasa facetada (cada una: relleno + borde)
-  const hopIn = el("g", { class: "sc-hopper-in" }); hop3[4].before(hopIn);
-  const hopFront = [hop3[4].children[0], hop3[7].children[0]];          // rellenos blancos de las dos caras frontales
+  // corte del cono del módulo 3: encima de todo el dibujo impreso (se ve a través de la pared frontal; ninguna pieza
+  // de adelante lo tapa ni lo destiñe), recortado por la carcasa (CONE_CLIP: la carcasa impresa encogida un trazo, así
+  // su contorno queda a la vista) y por el marco. Bajo la distribuidora: lo que cae a la tolva pasa por delante.
+  const hopIn = el("g", { class: "sc-hopper-in" }); art.after(hopIn);
+  el("path", { d: CONE_CLIP }, el("clipPath", { id: "cn-clip" }, defs));
+  el("path", { d: D(CUT.frame) }, el("clipPath", { id: "cn-frame" }, defs));
 
   // correa distribuidora (sobre los marcos) + colpas de alimentación, encima del dibujo
   const top = el("g", { class: "sc-top" }, svg);
@@ -477,37 +485,10 @@ export async function createSecundario() {
   const trailEls = Array.from({ length: 14 }, () => { const e = el("path", { class: "sc-trail" }); tourG.insertBefore(e, tourRing); return e; });
   const tourPulse = el("circle", { r: 14, class: "sc-tour-pulse" }, svg);
 
-  // detalles ampliados A (tolva) y B (rodillos), en el espacio libre bajo la correa inclinada
-  const CAL = {
-    A: { box: [16, 438, 196, 330], k: 2.35, at: [1031, 430], title: "Detalle A · Cono en corte", anchor: [1040, 300] },
-    B: { box: [226, 452, 300, 316], k: 4.2, at: [995, 610], title: "Detalle B · Rodillos HPGR", anchor: [1040, 300] },
-  };
-  CAL.A.O = [CAL.A.box[0] + 150, CAL.A.box[1] + 268]; CAL.A.P = iso(CAL.A.O, CAL.A.k);
-  CAL.B.O = [CAL.B.box[0] + 150 - 4.2 * 0.866 * (35 + 22), CAL.B.box[1] + 170 - 4.2 * (0.5 * (35 - 22) - 18)]; CAL.B.P = iso(CAL.B.O, CAL.B.k); // centra la sección (X 35, Y −22, Z 18)
-  const calG = el("g", { class: "sc-callouts" }, svg);
-  for (const [key, C] of Object.entries(CAL)) {
-    const [x, y, cw, ch] = C.box;
-    const g = el("g", { class: "sc-callout", "data-cal": key }, calG);
-    C.lead = el("path", { class: "sc-lead" }, g);
-    C.dot = el("circle", { r: 4, class: "sc-lead-dot", cx: C.at[0], cy: C.at[1] }, g);
-    el("rect", { x, y, width: cw, height: ch, rx: 14, class: "sc-card" }, g);
-    const clip = el("clipPath", { id: `sc-cal-${key}` }, defs); el("rect", { x: x + 1, y: y + 24, width: cw - 2, height: ch - 25, rx: 12 }, clip);
-    C.body = el("g", { "clip-path": `url(#sc-cal-${key})` }, g);
-    el("text", { x: x + 14, y: y + 17, class: "sc-cal-title" }, g).textContent = C.title;
-    C.labels = el("g", { class: "sc-cal-labels" }, g);
-    C.g = g;
-  }
-  // en el detalle B, las piezas dibujadas por Emilio (motores, embudo) se repiten con la misma transformación lineal
-  const calBArt = el("g", { class: "sc-cal-art", transform: `translate(${f1(CAL.B.O[0])} ${f1(CAL.B.O[1])}) scale(${CAL.B.k}) translate(${-O3[0]} ${-O3[1]})` });
-  K3.motors.forEach((i) => calBArt.appendChild(c3[i].cloneNode(true)));
-  const calBTop = el("g", { transform: calBArt.getAttribute("transform") });
-  [K3.funnel, K3.funnelL].forEach((i) => calBTop.appendChild(c3[i].cloneNode(true)));
-  const calBDyn = el("g");
-  const calLabB = el("g", { class: "sc-cal-labels" });
-
   // etiquetas de foco
   const tagsG = el("g", { class: "sc-tags" }, svg);
-  const TAGS = { alim: ["Correas de alimentación", [380, 50]], cono: ["Chancador de conos", [1050, 360]], alimentador: ["Alimentador", [1030, 500]], hpgr: ["HPGR", [995, 575]], producto: ["Correa de producto", [1120, 745]] };
+  // (cada píldora entera dentro de la silueta de la lámina: revisado con ?qa=silueta)
+  const TAGS = { alim: ["Correas de alimentación", [420, 115]], cono: ["Chancador de conos", [1045, 360]], alimentador: ["Alimentador", [1030, 500]], hpgr: ["HPGR", [995, 575]], producto: ["Correa de producto", [1015, 690]] };
   const tagEls = {};
   for (const [id, [label, p]] of Object.entries(TAGS)) {
     const g = el("g", { class: "sc-tag", transform: `translate(${p[0]} ${p[1]})` }, tagsG);
@@ -516,6 +497,29 @@ export async function createSecundario() {
     el("rect", { x: -ww / 2, y: -50, width: ww, height: 24, rx: 12, class: "sc-tag-pill" }, g);
     el("text", { x: 0, y: -33.5, class: "sc-tag-text", "text-anchor": "middle" }, g).textContent = label;
     tagEls[id] = g;
+  }
+
+  // zoom sobre el dibujo ("Interior del cono" → el cono, "Interior rodillos" → el HPGR): los rótulos de las partes van
+  // con guías ancladas al dibujo ampliado; aparecen al acercarse y se van al volver
+  const zoomG = el("g", { class: "sc-zoom", "aria-hidden": "true" }, svg);
+  // ?qa=silueta: revisión de que nada de lo vivo se pinte fuera de lo impreso. Contornos: silueta de la lámina (SIL,
+  // cian), carcasa del cono (CONE_CLIP, magenta) y marco del corte (azul punteado). Encima, en rojo, todo lo que se
+  // pinte fuera de la silueta (colpas, corte, colpa marcada, rótulos, etiquetas). Sin capas de pintado (todo en vivo).
+  const QA = typeof location !== "undefined" && new URLSearchParams(location.search).get("qa") === "silueta";
+  if (QA) {
+    const live = [hopIn, top, tourG, tourPulse, tagsG, zoomG, prodL, inclL, ...mods.map((M) => M.fl)];
+    live.forEach((n, i) => (n.id = `sc-qa-${i}`));
+    const mask = el("mask", { id: "sc-qa-out", maskUnits: "userSpaceOnUse", x: -2000, y: -2000, width: 6000, height: 6000 }, defs);
+    el("rect", { x: -2000, y: -2000, width: 6000, height: 6000, fill: "#fff" }, mask); el("path", { d: SIL, fill: "#000" }, mask);
+    const red = el("filter", { id: "sc-qa-red", x: "-5%", y: "-5%", width: "110%", height: "110%" }, defs);
+    el("feFlood", { "flood-color": "#ff0033", result: "c" }, red); el("feComposite", { in: "c", in2: "SourceAlpha", operator: "in" }, red);
+    const qa = el("g", { class: "sc-qa", "pointer-events": "none" }, svg);
+    const out = el("g", { mask: "url(#sc-qa-out)", filter: "url(#sc-qa-red)", class: "sc-qa-out" }, qa);
+    live.forEach((n) => el("use", { href: `#${n.id}` }, out));
+    el("path", { d: SIL, fill: "none", stroke: "#00b7ff", "stroke-width": 1.2, "vector-effect": "non-scaling-stroke" }, qa);
+    el("path", { d: CONE_CLIP, fill: "none", stroke: "#e600e6", "stroke-width": 1.2, "vector-effect": "non-scaling-stroke" }, qa);
+    el("path", { d: D(CUT.frame), fill: "none", stroke: "#2050ff", "stroke-width": 1, "stroke-dasharray": "3 2", "vector-effect": "non-scaling-stroke" }, qa);
+    root.dataset.qa = "silueta";
   }
 
   // unidades para el foco: cada pieza queda con el equipo al que pertenece (las no marcadas se apagan siempre)
@@ -549,6 +553,16 @@ export async function createSecundario() {
   }
   const live = () => { const q = state(S.t); return { ...S, seq: q, step: q.step, tour: { stage: q.stage, u: q.u }, cut: shown.cut, hop: Math.max(shown.hop, q.open) }; };
 
+  // zoom sobre el dibujo: encuadres (unidades del SVG) y columnas de los rótulos (bordes del equipo, a izq. y der.)
+  const ZR = { A: [998, 318, 170, 156], B: [896, 552, 198, 122] };     // el cono con aire para los rótulos · la cara del corte del HPGR m3
+  const ZL = { A: [1041, 1124], B: [958, 1032] };
+  const OVER = [-10, -10, VIEW[2] + 20, VIEW[3] + 20];                  // vista general (= el encuadre de la estación)
+  let zoomMode = "viewBox", onZoom = null, zoomKey = null, lastZoom = "", vb = VIEW.slice();
+  // rectángulo intermedio: centro lineal y tamaño en escala logarítmica (el acercamiento se siente parejo)
+  const mixRect = (a, b, u) => { const w = Math.exp(lerp(Math.log(a[2]), Math.log(b[2]), u)), h = Math.exp(lerp(Math.log(a[3]), Math.log(b[3]), u));
+    return [lerp(a[0] + a[2] / 2, b[0] + b[2] / 2, u) - w / 2, lerp(a[1] + a[3] / 2, b[1] + b[3] / 2, u) - h / 2, w, h]; };
+  const fitAspect = ([x, y, w, h]) => { const a = VIEW[2] / VIEW[3]; return w / h > a ? [x, y - (w / a - h) / 2, w, w / a] : [x - (h * a - w) / 2, y, h * a, h]; };
+
   // Xc del plano de corte según el deslizador (0 = cerrado)
   const cutX = (c) => (c < 0.15 ? lerp(69, HP.x, c / 0.15) : lerp(HP.x, 37, (c - 0.15) / 0.85));
   let hpKey = "";
@@ -563,6 +577,7 @@ export async function createSecundario() {
       if (p > pd + 34) continue;
       if (!visible(feedVis, id, S.feed / FEED_MAX * 0.95)) continue;
       const jit = (hash(id * 3.3) - 0.5) * 7;
+      if (p < 10) continue;                                            // la cola de la correa queda al borde de la silueta
       if (p < P_INCL) { const q = FEEDP.at(p); if (ii < inclRocks.length) put(inclRocks[ii++], [q[0] - jit * 0.5, q[1] - 4.5 + jit * 0.3], 2.6 + hash(id) * 0.9, id * 47); }
       else if (p < P_DIST) continue;                                   // dentro de la casa de traspaso
       else if (fi < feedRocks.length) {
@@ -586,10 +601,9 @@ export async function createSecundario() {
     }
     for (; pi < prodRocks.length; pi++) put(prodRocks[pi], null);
 
-    // cono m3: pared frontal transparente + interior (el deslizador o, en los pasos 3 y 4, la secuencia)
+    // cono m3: el corte encima de la carcasa (el deslizador o, en los pasos 3 y 4, la secuencia)
     const hv = s.hop;
-    hopFront.forEach((n) => (n.style.opacity = (1 - hv).toFixed(3)));
-    setHTML(hopIn, hv > 0.005 ? coneSvg(iso(H3), s, tour) : "");
+    setHTML(hopIn, hv > 0.005 ? coneSvg(s, tour) : "");
     hopIn.style.opacity = Math.min(1, hv * 1.6).toFixed(3);
     // HPGR m3: cuerpo, losa y corte
     const Xc = cutX(shown.cut), Xh = Math.min(Xc, HP.x);
@@ -597,43 +611,10 @@ export async function createSecundario() {
     const key = Xc < HP.x - 0.01 ? "" : "closed";
     if (key === "" || hpKey !== key) { setHTML(hpG, hpgrSvg(iso(O3), Xc, s, tour)); hpKey = key; }
 
-    // detalles ampliados
-    const showA = clamp(hv * 3) * (selected && selected !== "cono" ? 0.0 : 1), showB = clamp((shown.cut - 0.25) * 4) * (selected && selected !== "hpgr" ? 0 : 1);
-    CAL.A.g.style.opacity = showA.toFixed(3); CAL.A.g.style.display = showA > 0.01 ? "" : "none";
-    CAL.B.g.style.opacity = showB.toFixed(3); CAL.B.g.style.display = showB > 0.01 ? "" : "none";
-    if (showA > 0.01) {
-      setHTML(CAL.A.body, `<g class="sc-cal-k">${hopperShellSvg(CAL.A.P)}${coneSvg(CAL.A.P, s, tour, CAL.A.k, "hopwk")}<path class="hb-outline" d="${D(hopWindow(CAL.A.P))}"/></g>`);
-      // el cono en corte: tolva, plato, cóncavo, manto, CSS, excéntrica y chute (columna de etiquetas a la izquierda)
-      const P = CAL.A.P, C = (x, z) => P([CONE.xa + x * R2, CONE.ya - x * R2, z]), G = coneGeo(s), x0 = CAL.A.box[0] + 10, y0 = CAL.A.box[1];
-      const rm = rc(CONE.z0 + 1) - G.G0 / 2, closing = P([CONE.xa + rm * Math.cos(s.gyr), CONE.ya + rm * Math.sin(s.gyr), CONE.z0 + 0.6]); // la CSS: donde cierra ahora
-      setHTML(CAL.A.labels,
-        label(C(-6, 64), [x0, y0 + 42], "Tolva", "start") +
-        label(C(G.off(CONE.plate[1]) - 2, CONE.plate[1]), [x0, y0 + 64], "Plato", "start") +
-        label(C(-rc(50) - 0.9, 50), [x0, y0 + 86], "Cóncavo", "start") +
-        label(C(G.head(-1, 42) + 0.7, 42), [x0, y0 + 108], "Manto", "start") +
-        label(closing, [x0, y0 + 166], `CSS ${Math.round(s.css)} mm`, "start") +
-        label(C(-3.2, CONE.ecc), [x0, y0 + 196], "Excéntrica", "start") +
-        label(P([-12, 0, -11]), [x0, y0 + 292], "Chute", "start"));
-      leader(CAL.A);
-    }
-    if (showB > 0.01) {
-      CAL.B.body.innerHTML = "";
-      CAL.B.body.appendChild(calBArt);
-      setHTML(calBDyn, `<g class="sc-cal-k">${hpgrSvg(CAL.B.P, Xc, s, tour, CAL.B.k, calBArt.getAttribute("transform"))}</g>`);
-      CAL.B.body.appendChild(calBDyn); CAL.B.body.appendChild(calBTop);
-      const P = CAL.B.P, yb = HP.yb - s.gap * 0.8, xr = Math.min(Xc, HP.rx[1]);
-      const bx = CAL.B.box[0], by = CAL.B.box[1], bw = CAL.B.box[2], bh = CAL.B.box[3];
-      let L = "";
-      if (Xc < HP.x - 3) {
-        L += label(P([xr, HP.yf + 3, HP.zc - HP.r + 1]), [bx + 12, by + bh - 40], "Rodillo fijo", "start");
-        L += label(P([xr, yb - 3, HP.zc + HP.r - 1]), [bx + bw - 12, by + 46], "Rodillo flotante", "end");
-        L += label(P([xr, -22.9, HP.zc - 6]), [bx + bw - 12, by + bh - 16], `Queque · gap ${f1(18 + s.gap * 14)} mm`, "end");
-        if (Xc > HP.bx[0] + 3) L += label(P([HP.bx[0] + 4, -HP.y + 3, HP.zc + 4]), [bx + 12, by + 46], "Cilindros hidráulicos", "start");
-        else L += label(P([xr, -22.9, HP.zc + 6]), [bx + 12, by + 46], "Lecho comprimido", "start");
-      }
-      setHTML(CAL.B.labels, L);
-      leader(CAL.B);
-    }
+    // zoom sobre el dibujo y sus rótulos; las etiquetas de foco se apagan al acercarse (los rótulos las reemplazan)
+    const z = applyZoom();
+    zoomLabels(s, z, Xc);
+    const tz = (1 - smooth(z * 2.5)).toFixed(3); if (tagsG.style.opacity !== tz) tagsG.style.opacity = tz;
 
     // colpa que se sigue (sobre las correas; por dentro de un equipo, el pulso si el corte está cerrado)
     const q = s.seq;
@@ -641,8 +622,8 @@ export async function createSecundario() {
     if (!tp) switch (q.stage) {
       case "head": inside = [578, 31]; break;
       case "fall": tp = [INLET(3)[0], distY(INLET(3)[0]) - 4 + 33 * q.u * q.u]; break;
-      case "bin": case "cone": inside = hv > 0.3 ? null : [1035, 430]; break;
-      case "chute": if (q.u > 0.85) { tp = FEEDER[0]; frag = 1.6; } else inside = hv > 0.3 ? null : [1042, 478]; break;
+      case "bin": case "cone": inside = hv > 0.3 ? null : C(0, 44); break;
+      case "chute": if (q.u > 0.85) { tp = FEEDER[0]; frag = 1.6; } else inside = hv > 0.3 ? null : C(0, 6); break;
       case "hood": inside = [1000, 545]; break;
       case "nip": inside = Xc < HP.x - 3 ? null : [990, 612]; break;
       case "prod": inside = [999, 676]; break;
@@ -666,8 +647,9 @@ export async function createSecundario() {
       e.style.opacity = ((1 - i / trailEls.length) * 0.8).toFixed(2); e.style.strokeWidth = f1(5 * (1 - i / trailEls.length) + 1);
     });
 
-    // foco del paso: se ilumina el equipo del paso y el resto baja a ~35 % (si no hay un equipo elegido)
-    const lit = selected ? null : q.step.lit, litKey = lit ? lit.join() : "";
+    // foco del paso: se ilumina el equipo del paso y el resto baja a ~35 % (si no hay un equipo elegido); con zoom
+    // sobre el dibujo, el equipo ampliado
+    const lit = selected ? null : z > 0.3 ? [zoomKey === "A" ? "cono" : "hpgr"] : q.step.lit, litKey = lit ? lit.join() : "";
     if (litKey !== lastLit) {
       lastLit = litKey;
       units.forEach((eq, u) => u.classList.toggle("sc-stepdim", !!lit && !lit.includes(eq)));
@@ -676,21 +658,70 @@ export async function createSecundario() {
     for (const id of ORDER) tagEls[id].toggleAttribute("data-on", selected ? selected === id : lit.includes(id));
     listeners.forEach((fn) => fn(s, api));
   }
-  function label(p, q, text, anchor) {
-    const tx = anchor === "end" ? q[0] - 2 : q[0] + 2;
-    // la guía llega al final del texto (no lo tacha): ancho estimado a 11,5 px
-    const w = text.length * 6.3 + 5, ex = anchor === "end" ? q[0] - 2 - w : q[0] + 2 + w;
-    return `<path class="sc-cal-lead" d="M${f1(p[0])} ${f1(p[1])}L${f1(ex)} ${f1(q[1] - 4)}"/><circle class="sc-cal-dot" cx="${f1(p[0])}" cy="${f1(p[1])}" r="2.6"/><text class="sc-cal-text" x="${f1(tx)}" y="${f1(q[1])}" text-anchor="${anchor}">${text}</text>`;
+  // ------------------------------------------------------------ zoom sobre el dibujo
+  // El valor del deslizador (ya con su seguimiento exponencial, `shown`) es el nivel de zoom: 0 = vista general, 1 =
+  // el encuadre ZR. En AR se acerca el viewBox de la lámina; en el demo sin cámara, la cámara (mount → setZoomMode).
+  function applyZoom() {
+    const z = zoomKey === "A" ? shown.hop : zoomKey === "B" ? shown.cut : 0, sig = `${zoomKey}|${z.toFixed(4)}`;
+    if (sig === lastZoom) return z;
+    lastZoom = sig;
+    if (zoomMode === "camera") onZoom?.(z > 0.001 ? mixRect(OVER, ZR[zoomKey], z) : null, z);
+    else {
+      vb = z > 0.001 ? mixRect(VIEW, fitAspect(ZR[zoomKey]), z) : VIEW.slice();
+      svg.setAttribute("viewBox", vb.map((v) => v.toFixed(2)).join(" "));
+      svg.style.overflow = z > 0.001 ? "hidden" : "";                  // acercada, nada se sale de la caja de la lámina
+    }
+    return z;
   }
-  function leader(C) {
-    const [x, y, cw] = C.box, e = [x + cw, y + 30];
-    C.lead.setAttribute("d", `M${f1(e[0])} ${f1(e[1])}C${f1(e[0] + 120)} ${f1(e[1] - 40)} ${f1(C.at[0] - 140)} ${f1(C.at[1] + 40)} ${f1(C.at[0])} ${f1(C.at[1])}`);
+  // lo que se ve del SVG ([x, y, w, h]) y cuánto mide un px de pantalla en unidades del SVG (los rótulos van en px).
+  // En AR se lee el viewBox puesto ("Ampliar" con la escena fijada, js/app.js, se aplica encima del de la estación) y
+  // la caja de la lámina en pantalla (proyectada por la cámara).
+  function viewNow() {
+    if (zoomMode === "camera") { const m = svg.getScreenCTM(); if (m && m.a) return { r: [-m.e / m.a, -m.f / m.d, innerWidth / m.a, innerHeight / m.d], u: 1 / m.a }; }
+    const v = svg.viewBox.baseVal, r = v && v.width ? [v.x, v.y, v.width, v.height] : vb, w = svg.getBoundingClientRect().width;
+    return { r, u: w > 1 ? r[2] / w : r[2] / VIEW[2] };
+  }
+  function zoomLabels(s, z, Xc) {
+    const op = smooth((z - 0.55) / 0.35);
+    const o = op.toFixed(3); if (zoomG.style.opacity !== o) zoomG.style.opacity = o;
+    if (op <= 0.001) { setHTML(zoomG, ""); return; }
+    const { r: vr, u } = viewNow(), L = [];
+    let cols;
+    if (zoomKey === "A") {
+      // el cono en corte: tolva, plato, cóncavo, manto, CSS (donde cierra ahora), excéntrica y chute
+      const g = coneGeo(s);
+      L.push([0, C(-6, 64), "Tolva"], [0, C(-rc(50) - 0.9, 50), "Cóncavo"], [0, C(g.head(-1, 42) + 0.7, 42), "Manto"], [0, orb(3.2, CONE.ecc, Math.PI * 0.75), "Excéntrica"],
+        [1, C(g.off(CONE.plate[1]) + CONE.plate[2] - 1, CONE.plate[1]), "Plato"], [1, g.closing, `CSS ${Math.round(s.css)} mm`], [0, C(-CONE.hub[0] - 1.3, 13), "Chute"]);
+      cols = [ZL.A[0] - 4 * u, ZL.A[1] + 4 * u];
+    } else if (Xc < HP.x - 3) {
+      // el HPGR en corte (el plano avanza con el deslizador)
+      const P = iso(O3), yb = HP.yb - s.gap * 0.8, xr = Math.min(Xc, HP.rx[1]);
+      L.push([0, P([xr, HP.yf + 3, HP.zc - HP.r + 1]), "Rodillo fijo"], [1, P([xr, yb - 3, HP.zc + HP.r - 1]), "Rodillo flotante"],
+        [1, P([xr, -22.9, HP.zc - 6]), `Queque · gap ${f1(18 + s.gap * 14)} mm`],
+        Xc > HP.bx[0] + 3 ? [0, P([HP.bx[0] + 4, -HP.y + 3, HP.zc + 4]), "Cilindros hidráulicos"] : [0, P([xr, -22.9, HP.zc + 6]), "Lecho comprimido"]);
+      cols = [ZL.B[0] - 4 * u, ZL.B[1] + 4 * u];
+    } else { setHTML(zoomG, ""); return; }
+    // cada columna: los textos a la altura de su ancla, sin pisarse (1,6 líneas de separación) y dentro de lo que se ve
+    const fs = 11.5 * u, out = [];
+    for (const side of [0, 1]) {
+      const col = L.filter((l) => l[0] === side).sort((a, b) => a[1][1] - b[1][1]);
+      const tw = Math.max(0, ...col.map((l) => l[2].length)) * 6.3 * u + 6 * u;   // ancho estimado del texto más largo
+      const x = side ? Math.min(cols[1], vr[0] + vr[2] - tw) : Math.max(cols[0], vr[0] + tw), ex = side ? x - 3 * u : x + 3 * u;
+      let y = vr[1] + fs * 0.4;
+      for (const [, p, text] of col) {
+        y = Math.min(Math.max(p[1] + fs * 0.35, y + fs * 1.6), vr[1] + vr[3] - fs * 0.6);
+        out.push(`<path class="sc-zl-lead" stroke-width="${f2(u)}" d="M${f2(p[0])} ${f2(p[1])}L${f2(ex)} ${f2(y - fs * 0.35)}"/>`,
+          `<circle class="sc-zl-dot" cx="${f2(p[0])}" cy="${f2(p[1])}" r="${f2(2.4 * u)}"/>`,
+          `<text class="sc-zl-text" x="${f2(x)}" y="${f2(y)}" font-size="${f2(fs)}" stroke-width="${f2(3 * u)}" text-anchor="${side ? "start" : "end"}">${text}</text>`);
+      }
+    }
+    setHTML(zoomG, out.join(""));
   }
 
   // ------------------------------------------------------------ reloj
   const listeners = new Set();
   // capas de pintado: el dibujo quieto se rasteriza una vez; sólo se repinta lo que se mueve (ver js/layers.js)
-  const layers = createLayers(svg, { name: "secundario", dynamic: () => [...mods.map((M) => M.fl), prodL, feedL, inclL], roaming: () => [tourG, tourPulse] });
+  const layers = QA ? { tick() {}, destroy() {} } : createLayers(svg, { name: "secundario", dynamic: () => [...mods.map((M) => M.fl), prodL, feedL, inclL], roaming: () => [tourG, tourPulse, zoomG] });
   function frame(now) {
     layers.tick();
     const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
@@ -705,6 +736,7 @@ export async function createSecundario() {
     el: root, svg, PERIOD, STEPS,
     get selected() { return selected; }, get playing() { return playing; },
     get hop() { return S.hop; }, get cut() { return S.cut; }, get feed() { return S.feed; }, get css() { return S.css; },
+    get zoom() { return { key: zoomKey, rect: zoomKey ? ZR[zoomKey] : null, viewBox: vb.slice() }; },
     live, on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     setActive(v) { active = v; if (v) { kick(); } else { cancelTick(raf); raf = 0; } },
     play() { playing = true; kick(); }, pause() { playing = false; }, togglePlay() { playing ? api.pause() : api.play(); },
@@ -712,8 +744,11 @@ export async function createSecundario() {
     goStep(n) { api.seek(STEPS[clamp(n, 1, STEPS.length) - 1].t0 + 0.01); },
     nextStep() { api.goStep((stepAt(S.t).n % STEPS.length) + 1); },
     prevStep() { const st = stepAt(S.t); api.goStep(S.t - st.t0 > 1.2 ? st.n : ((st.n + STEPS.length - 2) % STEPS.length) + 1); },
-    setHop(v, instant) { S.hop = clamp(v); if (instant || still.matches) shown.hop = S.hop; draw(); },
-    setCut(v, instant) { S.cut = clamp(v); if (instant || still.matches) shown.cut = S.cut; draw(); },
+    // cada deslizador acerca su equipo: manda el último que se movió (si vuelve a 0 y el otro está abierto, el otro)
+    setHop(v, instant) { S.hop = clamp(v); if (instant || still.matches) shown.hop = S.hop; zoomKey = S.hop > 0 || S.cut === 0 ? "A" : "B"; draw(); },
+    setCut(v, instant) { S.cut = clamp(v); if (instant || still.matches) shown.cut = S.cut; zoomKey = S.cut > 0 || S.hop === 0 ? "B" : "A"; draw(); },
+    /** "viewBox" (AR: se acerca el dibujo dentro de la lámina) o "camera" (demo: fn(rect en unidades del SVG | null, nivel)) */
+    setZoomMode(mode, fn = null) { zoomMode = mode; onZoom = fn; lastZoom = ""; if (mode === "camera" && vb[2] !== VIEW[2]) { vb = VIEW.slice(); svg.setAttribute("viewBox", VIEW.join(" ")); } draw(); },
     setFeed(v) { S.feed = clamp(v, FEED_MIN, FEED_MAX); draw(); },
     setCss(v) { S.css = clamp(v, CSS_MIN, CSS_MAX); draw(); },
     select(id) {
@@ -733,7 +768,7 @@ export async function createSecundario() {
 }
 
 // ---------------------------------------------------------------- panel (HUD)
-export function bindPanel(sec, { onEscape, onFocus } = {}) {
+export function bindPanel(sec, { onEscape } = {}) {
   const $ = (q) => document.querySelector(q);
   const playBtn = $("[data-sc-play]"), stepsBox = $("[data-sc-steps]");
   stepsBox.innerHTML = ""; stepsBox.style.setProperty("--n", sec.STEPS.length);
@@ -781,8 +816,9 @@ export function bindPanel(sec, { onEscape, onFocus } = {}) {
   }));
   const sync = () => { hopS.value = Math.round(sec.hop * 100); hopO.textContent = `${hopS.value} %`; cutS.value = Math.round(sec.cut * 100); cutO.textContent = `${cutS.value} %`; feedS.value = sec.feed; feedO.textContent = `${fmt(sec.feed)} t/h`; cssS.value = sec.css; cssO.textContent = `${sec.css} mm`; };
   on(cssS, "input", () => { sec.setCss(Number(cssS.value)); cssO.textContent = `${cssS.value} mm`; });
-  on(hopS, "input", () => { sec.setHop(hopS.value / 100); hopO.textContent = `${hopS.value} %`; onFocus?.("A", hopS.value > 0); });
-  on(cutS, "input", () => { sec.setCut(cutS.value / 100); cutO.textContent = `${cutS.value} %`; onFocus?.("B", cutS.value > 0); });
+  // los cortes también son el zoom sobre el dibujo (la lámina lo resuelve: viewBox en AR, cámara en el demo)
+  on(hopS, "input", () => { sec.setHop(hopS.value / 100); hopO.textContent = `${hopS.value} %`; });
+  on(cutS, "input", () => { sec.setCut(cutS.value / 100); cutO.textContent = `${cutS.value} %`; });
   on(feedS, "input", () => { sec.setFeed(Number(feedS.value)); feedO.textContent = `${fmt(Number(feedS.value))} t/h`; });
   on(playBtn, "click", () => sec.togglePlay());
   on($("[data-sc-prev]"), "click", () => sec.prevStep());
@@ -795,10 +831,10 @@ export function bindPanel(sec, { onEscape, onFocus } = {}) {
     else if (e.key === ",") sec.prevStep();
     else if (e.key === ".") sec.nextStep();
     else if (/^[1-5]$/.test(e.key)) { const id = ORDER[Number(e.key) - 1]; sec.select(sec.selected === id ? null : id); }
-    else if (e.key === "ArrowUp") { sec.setCut(sec.cut + 0.1); sync(); onFocus?.("B", sec.cut > 0); }
-    else if (e.key === "ArrowDown") { sec.setCut(sec.cut - 0.1); sync(); onFocus?.("B", sec.cut > 0); }
-    else if (e.key === "ArrowRight") { sec.setHop(sec.hop + 0.1); sync(); onFocus?.("A", sec.hop > 0); }
-    else if (e.key === "ArrowLeft") { sec.setHop(sec.hop - 0.1); sync(); onFocus?.("A", sec.hop > 0); }
+    else if (e.key === "ArrowUp") { sec.setCut(sec.cut + 0.1); sync(); }
+    else if (e.key === "ArrowDown") { sec.setCut(sec.cut - 0.1); sync(); }
+    else if (e.key === "ArrowRight") { sec.setHop(sec.hop + 0.1); sync(); }
+    else if (e.key === "ArrowLeft") { sec.setHop(sec.hop - 0.1); sync(); }
     else if (e.key === "Escape") { if (sec.selected) sec.select(null); else onEscape?.(); }
     else return;
     e.preventDefault(); e.stopImmediatePropagation();
@@ -809,8 +845,8 @@ export function bindPanel(sec, { onEscape, onFocus } = {}) {
 
 // ---------------------------------------------------------------- explorador (demo sin cámara)
 const toPoster = ([x, y, w, h]) => [x * REG.s + REG.tx, y * REG.s + REG.ty, w * REG.s, h * REG.s];
-const ZOOM = { alim: [0, 0, 660, 560], cono: [930, 300, 240, 380], alimentador: [920, 440, 220, 300], hpgr: [890, 500, 250, 360], producto: [860, 580, 353, 330] }; // alto extra abajo: la ficha tapa esa zona
-const CAL_ZOOM = { A: [10, 420, 220, 360], B: [215, 440, 320, 340] };
+const ZOOM = { alim: [0, 0, 660, 560], cono: [985, 300, 180, 300], alimentador: [920, 440, 220, 300], hpgr: [890, 500, 250, 360], producto: [860, 580, 353, 330] }; // alto extra abajo: la ficha tapa esa zona
+const ZOOM_CAP = 10;                                                   // tope del zoom sobre el dibujo (la lámina es vectorial)
 
 // lámina armada de antemano, en reposo, mientras se mira la infografía (js/explorer.js): abrir sólo la inserta
 let prebuilt = null;
@@ -820,13 +856,18 @@ export async function mount({ layer, focus }) {
   prebuilt = null;
   if (sec.el.parentNode !== layer) layer.appendChild(sec.el); // la precarga pudo dejarla ya puesta (estacionada)
   requestAnimationFrame(() => sec.el.setAttribute("data-in", ""));
-  let focused = null;
+  // cámara: el equipo elegido manda (vuelo como siempre); si no, el zoom sobre el dibujo de los deslizadores (sigue
+  // cuadro a cuadro su valor, sin vuelo propio); si no, el encuadre de la estación
+  let focused = null, zoomRect = null, zoomK = 0, lastSel = null;
   const want = (z, cap) => { const k = z ? JSON.stringify(z) : ""; if (k !== focused) { focused = k; focus?.(z ? toPoster(z) : null, cap); } };
-  const unbind = bindPanel(sec, {
-    onEscape: () => { location.hash = ""; },
-    onFocus: (which, on) => want(on ? CAL_ZOOM[which] : null, 4.5),
+  const toZoom = (ms) => { focused = "zoom"; focus?.(toPoster(zoomRect), ZOOM_CAP, ms, lerp(0.06, 0.03, zoomK)); };
+  sec.setZoomMode("camera", (rect, k) => { zoomRect = rect; zoomK = k; if (sec.selected) return; if (rect) toZoom(0); else want(null); });
+  const unbind = bindPanel(sec, { onEscape: () => { location.hash = ""; } });
+  const unzoom = sec.on(() => {
+    if (sec.selected === lastSel) return;
+    lastSel = sec.selected;
+    if (sec.selected) want(ZOOM[sec.selected], 2.8); else if (zoomRect) toZoom(650); else want(null);
   });
-  const unzoom = sec.on(() => { if (sec.selected) want(ZOOM[sec.selected], 2.8); else if (!sec.hop && !sec.cut) want(null); });
   sec.setActive(true);
   window.pmSec = sec;
   return {
