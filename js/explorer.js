@@ -88,7 +88,7 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
   function flyTo(target, ms = 750, done) {
     cancelAnimationFrame(anim);
     aim = { ...target };
-    if (still.matches) { cam = { ...target }; apply(); done?.(); return; }
+    if (still.matches || ms <= 0) { cam = { ...target }; apply(); done?.(); return; }
     const from = { ...cam }, t0 = performance.now();
     // zoom con interpolación logarítmica (se siente pareja al acercar y al alejar)
     const step = (now) => {
@@ -291,13 +291,14 @@ export function createExplorer({ stage, builtins = {}, onView = () => {}, occlud
     preloading = false;
   }
 
-  // una estación puede acercar la cámara a una zona suya (p. ej. el equipo elegido); sin rect vuelve a su encuadre
+  // una estación puede acercar la cámara a una zona suya (p. ej. el equipo elegido); sin rect vuelve a su encuadre.
+  // ms = 0: sin vuelo (la estación lleva su propio seguimiento, p. ej. un zoom que sigue a un deslizador); pad: margen
   let stationFocus = null, aimRect = null, moveBy = (r) => r;
-  function focusTo(rect, maxZoom = MAX_ZOOM) {
+  function focusTo(rect, maxZoom = MAX_ZOOM, ms = 650, pad) {
     if (!current || !stationFocus) return;
     rect = moveBy(rect);
-    aimRect = [rect || stationFocus, rect ? 0.12 : 0.06, rect ? maxZoom : MAX_ZOOM];
-    flyTo(fitRect(...aimRect), 650);
+    aimRect = [rect || stationFocus, pad ?? (rect ? 0.12 : 0.06), rect ? maxZoom : MAX_ZOOM];
+    flyTo(fitRect(...aimRect), ms);
   }
   // lo que tapa el mapa cambió (el panel creció o se achicó): se vuelve a encuadrar lo que se estaba mirando
   function refit() {
