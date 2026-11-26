@@ -1546,3 +1546,9 @@ body[data-mode="demo"] .explorer { background: #fff; } /* el arte es blanco: al 
 .fl-zl-dot { fill: var(--pm-orange); }
 .fl-zl-text { font-weight: 600; fill: #5a3b27; paint-order: stroke; stroke: #fff; stroke-linejoin: round; }
 @media (prefers-reduced-motion: reduce) { .fl-stepdim, .fl-route, .fl-dest, .route-switch .route-knob, .route-switch .route-knob::after { transition: none; } }
+/* el interruptor tiene su fila: sobre los chips en el celular; en pantallas anchas, entre la lectura y los chips */
+.panel-fl > .route-switch { justify-self: start; }
+@media (min-width: 701px) and (min-height: 501px) {
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view.panel-fl:not([data-panel-view="map"]):not([data-panel-view="station"]) { grid-template-areas: "read . ctl" "sw . ctl" "chips . seq"; }
+  :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view.panel-fl > .route-switch { grid-area: sw; }
+}
