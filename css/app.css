@@ -229,21 +229,21 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
 .map-hotspots, .map-layer { position: absolute; inset: 0; pointer-events: none; }
 .map-layer > * { pointer-events: auto; }
 
-/* etiquetas clickeables: un anillo que respira sobre cada estación impresa */
+/* etiquetas clickeables: zona sin borde sobre cada estación impresa; sólo se tiñe al pasar el mouse o presionar */
 .hotspot { position: absolute; pointer-events: auto; border: 0; padding: 0; background: none; cursor: pointer; border-radius: 22px; }
-.hotspot-ring { position: absolute; inset: 0; border-radius: inherit; border: 5px solid #ef783599; box-shadow: 0 0 0 0 #ef783566;
-  animation: pm-ring 2.6s ease-out infinite; }
-.hotspot[data-tone="amarillo"] .hotspot-ring { border-color: #f0b030aa; box-shadow: 0 0 0 0 #f0b03066; }
-.hotspot[data-status="lista"] .hotspot-ring { border-width: 6px; border-color: #ef7835; }
-@keyframes pm-ring { 0% { box-shadow: 0 0 0 0 #ef783566; } 70% { box-shadow: 0 0 0 26px #ef783500; } 100% { box-shadow: 0 0 0 0 #ef783500; } }
+.hotspot { -webkit-tap-highlight-color: transparent; }
+.hotspot-ring { position: absolute; inset: 0; border-radius: inherit; background: transparent; transition: background-color .15s ease, transform .15s var(--pm-ease); }
+@media (hover: hover) and (pointer: fine) { .hotspot:hover .hotspot-ring { background: #ffb55533; } }  /* sólo mouse: al tacto quedaba pegado */
+.hotspot:active .hotspot-ring { background: #ef783555; transform: scale(.96); }
 .hotspot-tip { position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%) scale(.9); opacity: 0; white-space: nowrap;
   font: 600 26px/1 var(--pm-sans); color: #fff; background: var(--pm-ink); padding: 10px 16px; border-radius: 14px; transition: .2s var(--pm-ease); pointer-events: none; }
-.hotspot:hover .hotspot-tip, .hotspot:focus-visible .hotspot-tip { opacity: 1; transform: translateX(-50%) scale(1); }
+.hotspot:focus-visible .hotspot-tip { opacity: 1; transform: translateX(-50%) scale(1); }
+@media (hover: hover) and (pointer: fine) { .hotspot:hover .hotspot-tip { opacity: 1; transform: translateX(-50%) scale(1); } }
 .hotspot:focus-visible { outline: 6px solid #ef7835; outline-offset: 6px; }
 .explorer[data-view="station"] .hotspot { pointer-events: none; }
 .explorer[data-view="station"] .hotspot-ring { animation: none; opacity: 0; }
-/* cargando (primera apertura, si la precarga en reposo aún no la armó): el anillo de la etiqueta late rápido */
-.explorer .hotspot[data-loading] .hotspot-ring { opacity: 1; border-style: dashed; animation: hs-loading .7s ease-in-out infinite alternate; }
+/* cargando (primera apertura, si la precarga en reposo aún no la armó): el tinte de la etiqueta late rápido */
+.explorer .hotspot[data-loading] .hotspot-ring { opacity: 1; background: #ef783555; animation: hs-loading .7s ease-in-out infinite alternate; }
 @keyframes hs-loading { from { opacity: .35; } to { opacity: 1; } }
 
 /* foco de la estación abierta: el resto de la infografía se apaga */
@@ -283,7 +283,7 @@ input[type="range"]:focus-visible { outline: 2px solid #ef783580; outline-offset
 .st-nav-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .st-nav-btn + .st-nav-btn { justify-content: flex-end; }
 .st-nav-btn svg { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-@media (prefers-reduced-motion: reduce) { .hotspot-ring { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .explorer .hotspot[data-loading] .hotspot-ring { animation: none; } }
 @media (max-width: 520px) {
   .station-list { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
   .st-chip { flex: none; }
@@ -1113,11 +1113,10 @@ body[data-mode="ar"]:not([data-ar="focus"]) [data-panel] { display: none; }
 .ar-hotspot { position: absolute; left: 0; top: 0; min-width: 44px; min-height: 44px; padding: 0; border: 0; background: none; border-radius: 14px;
   pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .ar-hotspot[hidden] { display: none; }
-.ar-hotspot-ring { position: absolute; inset: 4px; border-radius: inherit; border: 2px solid #ef7835d9; box-shadow: 0 0 0 0 #ef783559;
-  animation: ar-ring 2.6s ease-out infinite; }
-.ar-hotspot:active .ar-hotspot-ring { background: #ef783522; }
+.ar-hotspot-ring { position: absolute; inset: 4px; border-radius: inherit; background: transparent; transition: background-color .15s ease, transform .15s var(--pm-ease); }
+@media (hover: hover) and (pointer: fine) { .ar-hotspot:hover .ar-hotspot-ring { background: #ffb55533; } }
+.ar-hotspot:active .ar-hotspot-ring { background: #ef783555; transform: scale(.96); }
 .ar-hotspot:focus-visible { outline: 3px solid #ef7835; outline-offset: 2px; }
-@keyframes ar-ring { 0% { box-shadow: 0 0 0 0 #ef783559; } 70%, 100% { box-shadow: 0 0 0 12px #ef783500; } }
 
 /* coachmark (primera vez) */
 .coach { position: fixed; z-index: 7; max-width: 260px; transform: translate(-50%, calc(-100% - 14px)); display: flex; align-items: center; gap: 10px;
@@ -1455,16 +1454,9 @@ body[data-mode="demo"] .explorer { background: #fff; } /* el arte es blanco: al 
 /* botón de cada estación: la etiqueta + 14 px, y nunca menos de 48 × 48 px en pantalla (--inv = px del mapa por px) */
 .explorer .hotspot { --bw: max(calc(var(--w) * 1px), calc(48px * var(--inv, 1))); --bh: max(calc(var(--h) * 1px), calc(48px * var(--inv, 1)));
   left: calc(var(--cx) * 1px); top: calc(var(--cy) * 1px); width: var(--bw); height: var(--bh); margin: calc(var(--bh) / -2) 0 0 calc(var(--bw) / -2); }
-/* el anillo de cada estación late con transform y opacidad (antes con box-shadow, que repinta en cada cuadro) */
-.hotspot-ring { animation: none; box-shadow: none; }
-.hotspot-ring::after { content: ""; position: absolute; inset: -5px; border-radius: inherit; border: 4px solid #ef7835; pointer-events: none;
-  opacity: 0; animation: pm-ring-pulse 2.6s ease-out infinite; }
-.hotspot[data-tone="amarillo"] .hotspot-ring::after { border-color: #f0b030; }
-@keyframes pm-ring-pulse { 0% { opacity: .55; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(1.1); } }
-.explorer[data-intro] .hotspot-ring::after { animation: none; }
-.explorer[data-art-paused] .hotspot-ring::after { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) {
-  .hotspot-ring::after { animation: none; }
+  .hotspot-ring { transition: none; }
+  .hotspot:active .hotspot-ring { transform: none; }
   .art-st[data-hot], .art-lb[data-hot] { transform: none; }
 }
 
@@ -1552,3 +1544,7 @@ body[data-mode="demo"] .explorer { background: #fff; } /* el arte es blanco: al 
   :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view.panel-fl:not([data-panel-view="map"]):not([data-panel-view="station"]) { grid-template-areas: "read . ctl" "sw . ctl" "chips . seq"; }
   :is(body[data-mode="ar"], body[data-mode="demo"]:not([data-view="map"])) .panel-view.panel-fl > .route-switch { grid-area: sw; }
 }
+
+/* en una estación (demo o AR enfocado) el encabezado deja sólo el botón «Salir» */
+body[data-mode="demo"][data-view]:not([data-view="map"]) .topbar > :not([data-back]),
+body[data-ar="focus"] .topbar > :not([data-exit-ar]) { display: none !important; }

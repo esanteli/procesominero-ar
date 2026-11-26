@@ -25,6 +25,8 @@ Al tocar una estación la cámara vuela a su encuadre, el resto se apaga y el pa
 - `js/stations.js` registra las 10 estaciones: número, nombre, zona de la etiqueta y encuadre (en px de la imagen de 5497 × 1623),
   descripción, estado (`lista` / `en desarrollo`) y el módulo de su visualización.
 - `js/explorer.js` maneja el mapa, la cámara, los puntos y la navegación (anterior/siguiente, volver, enlaces `#rajo`).
+- Las etiquetas no dibujan borde: se tiñen al pasar el mouse y al hacer clic o tocar. En una estación (demo o AR) el
+  encabezado deja sólo «Salir», que vuelve a la infografía sin ninguna estación marcada.
 - Rajo y Chancado primario ya abren su lámina viva sobre la misma infografía, con el mismo registro que usa el AR.
 - Para dar vida a otra estación: copia `js/stations/plantilla.js` como `js/stations/<id>.js`, y en `stations.js` pon
   `module: "./stations/<id>.js"` y `status: "lista"`.

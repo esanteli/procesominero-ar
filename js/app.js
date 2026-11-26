@@ -386,7 +386,8 @@ async function startDemo() {
     explorer.reset();
     art.replay();
   } });
-  backBtn.addEventListener("click", () => explorer.back());
+  // sin foco ni estación marcada al volver (el foco del teclado dejaba la etiqueta resaltada)
+  backBtn.addEventListener("click", () => { document.activeElement?.blur?.(); explorer.back(); });
   $("[data-st-prev]").addEventListener("click", () => explorer.prev());
   $("[data-st-next]").addEventListener("click", () => explorer.next());
 }
@@ -425,7 +426,7 @@ const PUE_TARGET = { x: 4180, y: 420, w: 960, h: 450 };
 // Dos estados, como el demo sin cámara:
 //   OVERVIEW → todas las estaciones animadas, sin panel ni toques; un hotspot sobre cada etiqueta impresa.
 //   FOCUS(S) → una estación: panel, toques, Fijar y Ampliar. Las demás se desvanecen y pausan su animación.
-// Se enfoca tocando su hotspot (o acercándose mucho a ella); se vuelve con el botón "Infografía", con Esc o tocando fuera.
+// Se enfoca tocando su hotspot (o acercándose mucho a ella); se vuelve con el botón "Salir", con Esc o tocando fuera.
 const POSTER = { x: 0, y: 0, w: 5497, h: 1623 };
 const KW = 1000 / POSTER.w;
 // Corrección fina del anclaje en AR por estación, en px de la infografía ([dx, dy]; + = derecha / abajo). Vacía: en el
@@ -1246,8 +1247,8 @@ function syncUi() {
   // en foco, la estación elegida anima a pleno ritmo (js/clock.js)
   if (state !== lastClockState) { lastClockState = state; setFps(state === "focus" ? 0 : 30); }
   if (tracking) document.body.dataset.tracking = "on"; else delete document.body.dataset.tracking;
-  exitBtn.querySelector("span").textContent = arCurrent ? "Infografía" : "Inicio";
-  exitBtn.setAttribute("aria-label", arCurrent ? "Volver a la infografía completa" : "Salir del escaneo y volver al inicio");
+  exitBtn.querySelector("span").textContent = arCurrent ? "Salir" : "Inicio";
+  exitBtn.setAttribute("aria-label", arCurrent ? "Salir de la estación y volver a la infografía" : "Salir del escaneo y volver al inicio");
   $("[data-scan]").hidden = tracking || pinned;
   hotLayer.hidden = state !== "overview";
   if (pinned) ui.status.textContent = "Escena fijada en pantalla";
