@@ -94,7 +94,7 @@ Cómo está armada:
 - AR: marcador 2 de `assets/targets.mind` (recorte `assets/target-mina.png`). Se probó la detección con cámara simulada;
   un recorte más ancho (con mucho blanco) no se detectaba, por eso el recorte va centrado en la etiqueta y el portal.
 
-## Estación 2.2 · Chancado secundario y terciario (iteración 8)
+## Estación 2.2 · Chancado secundario y terciario (iteración 9)
 
 Sobre el dibujo de Emilio (`assets/secundario/chancado-secundario.svg`, sin modificarlo): correa inclinada → distribuidora
 sobre los marcos → 4 chancadores de conos → alimentadores del HPGR → HPGR → correa de producto. Todo el circuito se
@@ -102,7 +102,7 @@ mueve a la vez; las correas van a velocidad constante y cambia la carga.
 
 | Interacción | Dónde | Qué pasa |
 |---|---|---|
-| Interior del cono | deslizador, flechas ←→ | el cono en corte aparece en la carcasa del módulo 4 (se ve a través de la pared frontal): cabeza con manto que gira excéntrica, cóncavo, plato, tuerca del manto, excéntrica, mineral ahogado y finos que bajan por el chute y el cuello. El valor del deslizador es también el **zoom sobre el dibujo** (0 % vista general, 100 % el cono): en la demo se acerca la cámara, en AR el viewBox de la lámina. Al acercarse aparecen los rótulos con guía: tolva, plato, cóncavo, manto, CSS (donde cierra ahora), excéntrica y chute |
+| Interior del cono | deslizador, flechas ←→ | como en el chancador primario y el HPGR, un plano de corte quita el frente del cuerpo facetado del módulo 4 (y su pared derecha) y corta el cono por el eje: taza con cóncavo, cabeza con manto que gira excéntrica, tuerca, plato, buje y excéntrica, mineral ahogado y finos que bajan por el cuello hasta el alimentador. La pared frontal impresa se desvanece por opacidad. El valor del deslizador es también el **zoom sobre el dibujo** (0 % vista general, 100 % el cono): en la demo se acerca la cámara, en AR el viewBox de la lámina. Al acercarse aparecen los rótulos con guía: tolva, plato, cóncavo, manto, CSS (donde cierra ahora), excéntrica y chute |
 | Interior rodillos | deslizador, flechas ↑↓ | un plano de corte avanza por el HPGR (losa, cuerpo, descansos, rodillos): rodillo fijo y flotante en contrarrotación, cilindros hidráulicos, lecho comprimido y queque bajo la garganta. Igual que el cono, es zoom sobre el dibujo con rótulos (rodillo fijo, flotante, queque y gap, cilindros o lecho) |
 | Alimentación | deslizador | 6.000–13.000 t/h: cambia la carga de las correas y el nivel de la tolva del cono |
 | CSS | deslizador | 25–45 mm: menor CSS, producto más fino (colpas más chicas en la cámara y los finos) y algo menos de capacidad |
@@ -119,44 +119,52 @@ Cómo está armada:
 - `js/stations/chancado-secundario.js`: modelo (alimentación y CSS → nivel de la tolva del cono → producción del cono →
   alimentador → HPGR), `state(t)` de la secuencia, dibujo, detalles y panel. El cuerpo y la losa del HPGR del módulo 4
   se redibujan como volúmenes 3D con las cotas exactas del dibujo (para poder cortarlos).
-- Cono: vista frontal 2D del corte por el eje, `C(s, z) = [CUT.x + CUT.kx·s, CUT.y − CUT.kz·z]`. Ubicación y escala
-  medidas en `assets/secundario/ref-cono.png` (la referencia de Emilio, registrada sobre la lámina a 5,354 px por unidad
-  del SVG): eje en X 1083,8, cota 0 en Y 459,2, escala 2,344 × 1,914; el plato queda en Y ≈ 348 y el fondo de la taza en
-  Y ≈ 404, como en la referencia. Se dibuja encima de todo el dibujo impreso, recortado por el octógono de la referencia
-  (`CUT.frame`) y por `CONE_CLIP`: la carcasa impresa del cono (caja, cuerpo, embudo y cuello) encogida un trazo, así su
-  contorno queda a la vista y nada sobresale. Las constantes están arriba en el archivo (`CUT`, `CONE`).
-- La cabeza se corre con la excéntrica (más en la base que en la punta); la órbita punteada de la base marca en rojo
-  dónde está cerrando ahora. Los finos rodean el buje y bajan por el cuello impreso hasta su fondo (Y ≈ 463).
+- Cono: sólido de revolución en la misma isometría que el resto (`P3 = iso(H3)`, anillos proyectados), dentro del
+  cuerpo facetado: el perfil `HOP` extruido hasta el fondo `hopY(z)` (inclinado arriba), con el cuello `NECK` debajo y
+  paredes de `WALL` = 1,6. Eje en X −14,5 · Y −11,5 (sobre el cuello, al medio de la parte baja, la más honda, del
+  cuerpo); taza de z 16 a 32 con tolva hasta 44; cóncavo de Ø 14,8 abajo a Ø 10,8 arriba; cabeza hasta z 29. El fondo
+  del cuerpo limita el radio (~1,5 de pared por delante y por detrás). Medidas en `CN`.
+- Corte: dos planos paralelos a los ejes que avanzan con el deslizador (seguimiento exponencial): el del frente
+  (y = Yc) llega al eje y corta el cono por la mitad; el del costado (x = Xc) se detiene a la derecha de la taza y sólo
+  quita la pared derecha del cuerpo (en esta isometría taparía la mitad de atrás del cono). Las caras de corte van con
+  relleno plano. Orden de pintado: fondo y caras interiores de la carcasa → interior (taza, finos, buje, excéntrica,
+  mineral, cabeza) → caras de corte → caras exteriores que quedan y borde. Las 9 caras impresas del cuerpo y el cuello
+  se desvanecen por opacidad y se redibujan cortadas (como el cuerpo del HPGR).
+- Giro excéntrico en 3D: el centro de la cabeza se corre `e` en el ángulo φ(t) (más en la base que arriba). La CSS es un
+  anillo 3D en el fondo de la cámara y la garganta que cierra ahora va con un trazo de énfasis sobre él.
+- Mineral: la forma `ROCK` del resto de la lámina, proyectada sobre el plano de corte o sobre la superficie del nivel;
+  baja por la garganta achicándose (se fractura donde cierra) y los finos rodean el buje y caen por el cuello hasta el
+  alimentador. Estilo del chancador primario: blanco y trazo naranja, rellenos #ffe4c4 (corte) y #f6b46b (mineral y
+  cóncavo); el grosor de trazo se lee del SVG de Emilio (`--sc-w`, 2,73).
 - Zoom sobre el dibujo: encuadres `ZR` (cono y cara del corte del HPGR) y columnas de rótulos `ZL`; seguimiento
   exponencial del deslizador. Los rótulos van en px de pantalla y se quedan dentro de lo que se ve (en AR también con
   «Ampliar» de la escena fijada, que se aplica sobre el viewBox de la estación). Las etiquetas de foco se apagan al acercarse.
 - Cotas del HPGR (unidades del SVG, ejes isométricos desde la esquina inferior del cuerpo): cuerpo 57,8 × 45,8 × 34,7,
   losa X −13,4…69 · Y −46,2…2 · Z 34,7…40; rodillos con eje en X (los motores del dibujo entran por −X), Ø 18, gap 1–1,8.
-- `js/stations/secundario-geo.js`: silueta blanca del dibujo (rasterizado, cerrado y dilatado) y `CONE_CLIP`, generada
-  con `tools/silueta-cono.mjs`.
-- `?qa=silueta`: contornos de la silueta (cian), la carcasa del cono (magenta) y el marco (azul), y en rojo todo lo vivo
-  que se pinte fuera de la silueta (colpas, corte, colpa marcada, rótulos, etiquetas). Revisado: secuencia completa y
-  ambos zooms en 390×844, 844×390 y 1440×900, y en AR: 0 píxeles fuera.
+- `js/stations/secundario-geo.js`: silueta blanca del dibujo (rasterizado, cerrado y dilatado) y `CONE_CLIP` (la carcasa
+  impresa del cono, generada con `tools/silueta-cono.mjs`; ya no recorta nada, la usa `?qa=silueta`).
+- `?qa=silueta`: contornos de la silueta (cian) y de la carcasa del cono (magenta), y en rojo todo lo vivo que se pinte
+  fuera de la silueta (colpas, cono, colpa marcada, rótulos, etiquetas) y lo del cono que salga de su carcasa impresa.
+  Revisado: secuencia completa y ambos zooms en 390×844 y 1440×900: 0 píxeles fuera.
 - AR: marcador 3 de `assets/targets.mind` (recorte `assets/target-secundario.png`).
 
 Interpretaciones por validar:
-- Ubicación del corte según la referencia: queda en la caja de arriba y el embudo de atrás (la parte alta de la carcasa
-  impresa), con el eje sobre el cuello de atrás, ~32 u a la derecha del cuello bajo el cuerpo facetado (el que llega a
-  la correa del alimentador). La descarga baja por el cuello de atrás; ese cuello no toca la correa del alimentador en
-  el dibujo, así que los finos terminan en su fondo y la colpa marcada reaparece sobre la correa (la correa blanca de la
-  referencia no está impresa y no se dibujó).
+- El cono va en el cuerpo facetado, con el eje sobre el cuello que llega a la correa del alimentador (la iteración
+  anterior lo ponía en la caja de arriba, según `assets/secundario/ref-cono.png`; esa referencia queda sólo como
+  antecedente). Para que quepa en la profundidad del cuerpo (~21 u) el cono es más chico que el cuerpo y queda en su
+  parte baja; arriba queda el espacio por donde cae la alimentación.
 - El cuello bajo el cuerpo facetado y la correa corta con rodillos siguen siendo el alimentador del HPGR (foco, toque y
   ficha).
-- Proporciones del cono (diámetros, ángulos de manto y cóncavo, altura del plato y de la tuerca) las de la referencia; la
-  excentricidad va exagerada y el giro, lento (0,75 vueltas/s; uno real va a ~4–5).
+- Proporciones del cono referenciales (taza más ancha que alta, cóncavo que se cierra hacia arriba, garganta que se
+  achica hacia abajo); la excentricidad va exagerada y el giro, lento (0,75 vueltas/s; uno real va a ~4–5).
 - Etiquetas de foco movidas para quedar dentro de la silueta: «Correas de alimentación» (antes asomaba por arriba),
   «Chancador de conos» y «Correa de producto». La cabeza de la distribuidora se acortó 5 u por lo mismo.
 - Modelo referencial por línea: capacidad del cono ahogado = 3.100 t/h × (CSS / 35)^0,6 (2.530 t/h con 25 mm, 3.600 con
   45 mm); producto P80 ≈ 1,2 × CSS; razón de reducción ~3–5:1. El cono saca toda su capacidad con la tolva sobre ~95 %
   y, por debajo, proporcional al nivel. Con 10.500 t/h trabaja ahogado en todo el rango de CSS; con 25 mm la tolva se
-  llena; la alimentación por goteo aparece bajo ~8.500 t/h (CSS 35) o ~9.900 t/h (CSS 45).
+  llena; la alimentación por goteo aparece bajo ~7.300 t/h (CSS 35) o ~8.400 t/h (CSS 45).
 - El alimentador ahora entrega al HPGR lo que produce el cono (antes regulaba el nivel de la tolva).
-- La tuerca del manto queda al 65 % del nivel de la tolva: bajo eso se avisa la alimentación por goteo.
+- La tuerca del manto queda al 56 % del nivel de la tolva: bajo eso se avisa la alimentación por goteo.
 
 ## Estación 5 · Puerto (iteración 12)
 
@@ -414,7 +422,7 @@ ar-chancador/
 ├─ js/stations/mina-subterranea.js  estación 1 (mina): radiografía, carguío LHD → dumper, panel
 ├─ js/stations/balde3d.js     balde del cargador reconstruido en 3D (gira sin deformarse)
 ├─ js/stations/chancado-secundario.js  estación 2.2: flujo, cono por dentro, corte del HPGR, zoom con rótulos
-├─ js/stations/secundario-geo.js  silueta del dibujo del chancado secundario y carcasa del cono (CONE_CLIP)
+├─ js/stations/secundario-geo.js  silueta del dibujo del chancado secundario y carcasa del cono (CONE_CLIP, para ?qa=silueta)
 ├─ js/stations/flotacion.js      estación 3: celdas de flotación y espesadores, detalles
 ├─ js/stations/flotacion-geo.js  silueta de la etapa de flotación
 ├─ assets/flotacion/*.svg         dibujos de Emilio (zona, celdas, espesadores)
@@ -440,7 +448,7 @@ ar-chancador/
 ├─ assets/pilas/*.svg             dibujos de Emilio (aglomerador, apiladoras y correas)
 ├─ assets/target-pilas.png        marcador de las pilas de lixiviación
 ├─ assets/secundario/*.svg        dibujo de Emilio (correas, chancadores de conos, alimentadores, HPGR)
-├─ assets/secundario/ref-cono.png referencia de Emilio para ubicar y escalar el corte del cono
+├─ assets/secundario/ref-cono.png referencia de Emilio de la iteración 8 (antecedente)
 ├─ assets/target-secundario.png   marcador del chancado secundario y terciario
 ├─ assets/mina/*.svg              túnel, cargador frontal y dumper
 ├─ assets/target-mina.png         recorte de la infografía: marcador de la mina
