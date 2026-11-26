@@ -94,29 +94,52 @@ Cómo está armada:
 - AR: marcador 2 de `assets/targets.mind` (recorte `assets/target-mina.png`). Se probó la detección con cámara simulada;
   un recorte más ancho (con mucho blanco) no se detectaba, por eso el recorte va centrado en la etiqueta y el portal.
 
-## Estación 2.2 · Chancado secundario y terciario (iteración 6)
+## Estación 2.2 · Chancado secundario y terciario (iteración 7)
 
-Sobre el dibujo de Emilio (`assets/secundario/chancado-secundario.svg`): correa inclinada → distribuidora sobre los marcos
-→ 4 tolvas → alimentadores de correa → HPGR → correa de producto. Todo el circuito se mueve a la vez; las correas van a
-velocidad constante y cambia la carga; el alimentador cambia de velocidad para regular la tolva.
+Sobre el dibujo de Emilio (`assets/secundario/chancado-secundario.svg`, sin modificarlo): correa inclinada → distribuidora
+sobre los marcos → 4 chancadores de conos → alimentadores del HPGR → HPGR → correa de producto. Todo el circuito se
+mueve a la vez; las correas van a velocidad constante y cambia la carga.
 
 | Interacción | Dónde | Qué pasa |
 |---|---|---|
-| Interior tolva | deslizador, flechas ←→ | la pared frontal de la tolva (módulo 4) se vuelve transparente: nivel, cono de reposo bajo la entrada, flujo de masa hacia la descarga. Abre el **Detalle A** ampliado |
+| Interior del cono | deslizador, flechas ←→ | la pared frontal de la carcasa (módulo 4) se vuelve transparente y muestra el cono en corte: cabeza con manto que gira excéntrica, cóncavo, plato, tuerca del manto, excéntrica, mineral ahogado y finos que caen al chute. Abre el **Detalle A** (cono en corte con tolva, plato, cóncavo, manto, CSS, excéntrica y chute) |
 | Interior rodillos | deslizador, flechas ↑↓ | un plano de corte avanza por el HPGR (losa, cuerpo, descansos, rodillos): rodillo fijo y flotante en contrarrotación, cilindros hidráulicos, lecho comprimido y queque bajo la garganta. Abre el **Detalle B** ampliado |
-| Alimentación | deslizador | 6.000–13.000 t/h: cambia la carga de las correas y el nivel de la tolva (sobre ~12.900 t/h la tolva se llena y aparece el aviso) |
+| Alimentación | deslizador | 6.000–13.000 t/h: cambia la carga de las correas y el nivel de la tolva del cono |
+| CSS | deslizador | 25–45 mm: menor CSS, producto más fino (colpas más chicas en la cámara y los finos) y algo menos de capacidad |
+| Avisos | lectura del panel | si el nivel baja de la tuerca del manto: «alimentación por goteo: desgaste irregular y producto menos cúbico»; sobre 95 %: «¡tolva llena!» |
 | Equipos | chips o tocar el dibujo; teclas 1–5 | foco (el resto se apaga), etiqueta y ficha con datos en vivo; en la demo la cámara se acerca |
-| Sigue una colpa | ▶/❚❚, 6 pasos, ‹ ›, `,` `.` | una colpa marcada recorre todo el circuito; cuando va por dentro de un equipo se marca con un pulso, y se ve si el corte está abierto |
+| Sigue una colpa | ▶/❚❚, 6 pasos en bucle, ‹ ›, `,` `.` | 1 la correa inclinada sube el mineral del primario · 2 la distribuidora lo reparte entre los 4 conos · 3 la tolva mantiene el cono ahogado · 4 el manto gira excéntrico y comprime la roca contra el cóncavo · 5 el alimentador regula y los rodillos del HPGR la comprimen · 6 sale fina por la correa de producto |
+
+Cada paso tiene llegada (0,5 s: se ilumina el equipo con su etiqueta y el resto baja a ~35 %), acción y una pausa de
+1,2 s con el resultado a la vista. En los pasos 3 y 4 el corte del cono se abre solo (y el Detalle A) y la colpa marcada
+se ve por dentro. La estela de la colpa va sólo sobre las correas dibujadas. `state(t)` es puro (`export function state`):
+pausar, saltar o retroceder de paso no acumula errores.
 
 Cómo está armada:
-- `js/stations/chancado-secundario.js`: modelo (nivel ↔ alimentador ↔ HPGR), dibujo, detalles y panel. El cuerpo y la losa
-  del HPGR del módulo 4 se redibujan como volúmenes 3D con las cotas exactas del dibujo (para poder cortarlos); la
-  puerta y el marco frontal son los de Emilio, recortados en el plano de corte.
+- `js/stations/chancado-secundario.js`: modelo (alimentación y CSS → nivel de la tolva del cono → producción del cono →
+  alimentador → HPGR), `state(t)` de la secuencia, dibujo, detalles y panel. El cuerpo y la losa del HPGR del módulo 4
+  se redibujan como volúmenes 3D con las cotas exactas del dibujo (para poder cortarlos).
+- Cono: sección por el eje en el plano X + Y = cte, que en esta isometría queda paralelo a la pantalla (se ve en verdadera
+  magnitud), recortada a la pared frontal de la carcasa. La cabeza se corre con la excéntrica (más en la base que en la
+  punta); la órbita punteada de la base marca en rojo dónde está cerrando ahora.
 - Cotas del HPGR (unidades del SVG, ejes isométricos desde la esquina inferior del cuerpo): cuerpo 57,8 × 45,8 × 34,7,
   losa X −13,4…69 · Y −46,2…2 · Z 34,7…40; rodillos con eje en X (los motores del dibujo entran por −X), Ø 18, gap 1–1,8.
-- Tolva: el perfil de la cara frontal sale de sus 6 vértices (resuelve a planos horizontales exactos) y el fondo a 23,1 / 16,5.
+- Carcasa: el perfil de la cara frontal sale de sus 6 vértices (resuelve a planos horizontales exactos) y el fondo a 23,1 / 16,5.
 - `js/stations/secundario-geo.js`: silueta blanca del dibujo (rasterizado, cerrado y dilatado).
 - AR: marcador 3 de `assets/targets.mind` (recorte `assets/target-secundario.png`).
+
+Interpretaciones por validar:
+- Lectura del dibujo: la caja cuadrada de arriba es la tolva de alimentación del cono; el cuerpo facetado de abajo, la
+  carcasa del cono; el cuello y la correa corta con rodillos, el alimentador del HPGR. El cuello pasó del equipo «tolva»
+  al alimentador (foco, toque y ficha).
+- Proporciones del cono (diámetros, ángulos de manto y cóncavo, altura del plato y de la tuerca) ajustadas a la silueta
+  del cuerpo dibujado; la excentricidad va exagerada y el giro, lento (0,75 vueltas/s; uno real va a ~4–5).
+- Modelo referencial por línea: capacidad del cono ahogado = 3.100 t/h × (CSS / 35)^0,6 (2.530 t/h con 25 mm, 3.600 con
+  45 mm); producto P80 ≈ 1,2 × CSS; razón de reducción ~3–5:1. El cono saca toda su capacidad con la tolva sobre ~95 %
+  y, por debajo, proporcional al nivel. Con 10.500 t/h trabaja ahogado en todo el rango de CSS; con 25 mm la tolva se
+  llena; la alimentación por goteo aparece bajo ~8.500 t/h (CSS 35) o ~9.900 t/h (CSS 45).
+- El alimentador ahora entrega al HPGR lo que produce el cono (antes regulaba el nivel de la tolva).
+- La tuerca del manto queda al 65 % del nivel de la tolva: bajo eso se avisa la alimentación por goteo.
 
 ## Estación 5 · Puerto (iteración 12)
 
@@ -373,7 +396,7 @@ ar-chancador/
 ├─ js/stations/rajo-geo.js    geometría del rajo extraída del .ai (generado)
 ├─ js/stations/mina-subterranea.js  estación 1 (mina): radiografía, carguío LHD → dumper, panel
 ├─ js/stations/balde3d.js     balde del cargador reconstruido en 3D (gira sin deformarse)
-├─ js/stations/chancado-secundario.js  estación 2.2: flujo, tolva por dentro, corte del HPGR, detalles A/B
+├─ js/stations/chancado-secundario.js  estación 2.2: flujo, cono por dentro, corte del HPGR, detalles A/B
 ├─ js/stations/secundario-geo.js  silueta del dibujo del chancado secundario
 ├─ js/stations/flotacion.js      estación 3: celdas de flotación y espesadores, detalles
 ├─ js/stations/flotacion-geo.js  silueta de la etapa de flotación
@@ -399,7 +422,7 @@ ar-chancador/
 ├─ js/stations/pilas-geo.js      canaletas y silueta de las pilas
 ├─ assets/pilas/*.svg             dibujos de Emilio (aglomerador, apiladoras y correas)
 ├─ assets/target-pilas.png        marcador de las pilas de lixiviación
-├─ assets/secundario/*.svg        dibujo de Emilio (correas, tolvas, alimentadores, HPGR)
+├─ assets/secundario/*.svg        dibujo de Emilio (correas, chancadores de conos, alimentadores, HPGR)
 ├─ assets/target-secundario.png   marcador del chancado secundario y terciario
 ├─ assets/mina/*.svg              túnel, cargador frontal y dumper
 ├─ assets/target-mina.png         recorte de la infografía: marcador de la mina
