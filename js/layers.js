@@ -47,6 +47,13 @@ if (typeof document !== "undefined" && !document.getElementById("ly-style")) {
   document.head.appendChild(css);
 }
 const inter = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+// elementos en orden de documento; no entra en los que cumplen stop(e, índice) (los incluye a ellos)
+function flat(root, stop) {
+  const out = [];
+  const walk = (n) => { for (const c of n.children) { const i = out.length; out.push(c); if (!stop(c, i)) walk(c); } };
+  walk(root);
+  return out;
+}
 const num = (n, k) => parseFloat(n.getAttribute(k)) || 0;
 function shape(n) {
   const P = new Path2D();
@@ -303,19 +310,23 @@ export function createLayers(svg, { dynamic, roaming, auto = true, name = "" } =
     if (!A) { st.mode = "vivo (no se puede separar)"; return; }
     const statics = A.list.filter((it) => !it.dyn).length;
     if (statics < 8 || A.stack.length < 2) { st.mode = "vivo (nada que separar)"; return; }
-    // índices de los elementos del SVG (para ubicarlos en las copias) y de los que tienen ids o referencias url(#…)
-    const all = [...svg.querySelectorAll("*")], index = new Map(all.map((e, i) => [e, i])), ids = [], refs = [];
+    // índices de los elementos del SVG (para ubicarlos en las copias) y de los que tienen ids o referencias url(#…).
+    // Sin entrar en las unidades animadas: su contenido puede cambiar de un cuadro a otro (un grupo que se reescribe)
+    // y las copias se hacen cuadros después; con él, los índices de todo lo que viene detrás se correrían.
+    const dynEls = new Set(A.list.filter((it) => it.dyn).map((it) => it.el));
+    const all = flat(svg, (e) => dynEls.has(e)), index = new Map(all.map((e, i) => [e, i])), ids = [], refs = [];
+    const dynIdx = new Set([...dynEls].map((e) => index.get(e)));
     all.forEach((e, i) => {
       if (e.id) ids.push(i);
       for (const at of e.attributes) if (at.value.includes("url(") || ((at.name === "href" || at.name === "xlink:href") && at.value[0] === "#")) { refs.push(i); break; }
     });
     const pe = A.list.filter((it) => !it.dyn).map((it) => [it.el, it.el.style.getPropertyValue("visibility"), it.el.style.getPropertyValue("pointer-events"), getComputedStyle(it.el).pointerEvents]);
-    plan = { ...A, statics, index, ids, refs, pe, copies: A.stack.map(() => null), next: 0, ms: performance.now() - t0 };
+    plan = { ...A, statics, index, dynIdx, ids, refs, pe, copies: A.stack.map(() => null), next: 0, ms: performance.now() - t0 };
     st.mode = "armando";
   }
   function cloneLayer(keep) {
-    const c = svg.cloneNode(true), dst = c.querySelectorAll("*");
-    for (const it of plan.list) if (!keep.has(it.el)) { const e = dst[plan.index.get(it.el)]; e?.style.setProperty("display", "none", "important"); }
+    const c = svg.cloneNode(true), dst = flat(c, (e, i) => plan.dynIdx.has(i)), gone = [];
+    for (const it of plan.list) if (!keep.has(it.el)) { const e = dst[plan.index.get(it.el)]; if (it.dyn) gone.push(e); else e?.style.setProperty("display", "none", "important"); }
     // ids propios de la copia: si no, url(#…) del SVG vivo podría resolver a la copia, que no se actualiza
     const map = new Map();
     for (const i of plan.ids) { const e = dst[i], nid = `${e.id}--ly${i}`; map.set(e.id, nid); e.id = nid; }
@@ -323,6 +334,7 @@ export function createLayers(svg, { dynamic, roaming, auto = true, name = "" } =
       if ((at.name === "href" || at.name === "xlink:href") && at.value[0] === "#") { const t = map.get(at.value.slice(1)); if (t) dst[i].setAttribute(at.name, `#${t}`); }
       else if (at.value.includes("url(")) dst[i].setAttribute(at.name, at.value.replace(/url\(\s*["']?#([^"')\s]+)["']?\s*\)/g, (m, id) => (map.has(id) ? `url(#${map.get(id)})` : m)));
     }
+    gone.forEach((e) => e?.remove());                                  // lo animado no va en las copias quietas (ni sus ids)
     for (const a of ["tabindex", "role", "aria-label", "id"]) c.removeAttribute(a);
     c.setAttribute("aria-hidden", "true");
     c.classList.add("ly-copy");
